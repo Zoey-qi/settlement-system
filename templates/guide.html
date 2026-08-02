@@ -1,0 +1,873 @@
+{% extends "base.html" %}
+{% block title %}使用指引 - {{ app_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3" style="max-width: 1100px;">
+
+  <!-- 顶部说明 + 编辑工具栏 -->
+  <div class="card border-0 shadow-sm mb-4" style="background: linear-gradient(135deg, #1a3a5c 0%, #2d5f8a 100%); color: #fff;">
+    <div class="card-body py-4 px-4">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h2 class="mb-2"><i class="bi bi-book"></i> 系统使用指引</h2>
+          <p class="mb-0 opacity-75">菲律宾帕基尔抽蓄基础处理工程项目 · 月度结算数据管理系统</p>
+        </div>
+        <div class="btn-group">
+          <button class="btn btn-light btn-sm" id="editBtn" onclick="enterEditMode()">
+            <i class="bi bi-pencil-square"></i> 编辑
+          </button>
+          <button class="btn btn-success btn-sm d-none" id="saveBtn" onclick="saveContent()">
+            <i class="bi bi-check-lg"></i> 保存
+          </button>
+          <button class="btn btn-outline-light btn-sm d-none" id="cancelBtn" onclick="cancelEdit()">
+            <i class="bi bi-x-lg"></i> 取消
+          </button>
+          <button class="btn btn-outline-warning btn-sm d-none" id="resetBtn" onclick="resetContent()">
+            <i class="bi bi-arrow-counterclockwise"></i> 恢复默认
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 编辑提示 -->
+  <div class="alert alert-warning d-none" id="editNotice">
+    <i class="bi bi-exclamation-triangle-fill"></i>
+    <strong>编辑模式：</strong> 直接点击下方内容修改文字，改完点「保存」。支持修改任何文字、表格内容、数字等。
+    <span class="text-muted">（如需恢复到系统默认内容，点「恢复默认」）</span>
+  </div>
+
+  <!-- 内容区域 -->
+  <div id="guide-content"{% if custom_content %} data-custom="1"{% endif %}>
+
+  {% if custom_content %}
+    {{ custom_content|safe }}
+  {% else %}
+  <!-- 默认内容开始 -->
+
+  <!-- 目录 -->
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+      <h5 class="text-muted mb-3"><i class="bi bi-list-ul"></i> 目录</h5>
+      <div class="row">
+        <div class="col-md-6">
+          <ol class="list-unstyled">
+            <li class="mb-2"><a href="#overview" class="text-decoration-none">一、系统是干什么的？</a></li>
+            <li class="mb-2"><a href="#workflow" class="text-decoration-none">二、每月结算怎么走流程？</a></li>
+            <li class="mb-2"><a href="#pages" class="text-decoration-none">三、各页面功能说明</a></li>
+            <li class="mb-2"><a href="#submit-guide" class="text-decoration-none">四、怎么提交数据？（最常用）</a></li>
+          </ol>
+        </div>
+        <div class="col-md-6">
+          <ol class="list-unstyled" start="5">
+            <li class="mb-2"><a href="#fee-table" class="text-decoration-none">五、水电住宿费扣款表填写说明</a></li>
+            <li class="mb-2"><a href="#fee-rates" class="text-decoration-none">六、收费规格速查表</a></li>
+            <li class="mb-2"><a href="#tips" class="text-decoration-none">七、常见问题与技巧</a></li>
+            <li class="mb-2"><a href="#roles" class="text-decoration-none">八、各部门对接人</a></li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 一、系统概述 -->
+  <div class="card border-0 shadow-sm mb-4" id="overview">
+    <div class="card-header bg-light">
+      <h4 class="mb-0"><i class="bi bi-info-circle-fill text-primary"></i> 一、系统是干什么的？</h4>
+    </div>
+    <div class="card-body">
+      <p>这个系统是用来<strong>按月收集各部门结算资料</strong>的。每个月底到次月初，各部门需要提交结算相关的数据和文件，合同管理部汇总后进行对上（总包）和对下（分包）结算。</p>
+      <div class="row g-3 mt-2">
+        <div class="col-md-6">
+          <div class="card bg-light border-0">
+            <div class="card-body">
+              <h6 class="text-primary"><i class="bi bi-arrow-up-circle"></i> 对上结算（总包）</h6>
+              <p class="small mb-0">向联营体/总包方报送资料，证明完成工作量、扣款依据等，获取工程款。</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="card bg-light border-0">
+            <div class="card-body">
+              <h6 class="text-success"><i class="bi bi-arrow-down-circle"></i> 对下结算（分包）</h6>
+              <p class="small mb-0">向分包商扣款/核量，包括质量扣款、安全扣款、水电住宿伙食扣款等。</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="alert alert-info mt-3 mb-0">
+        <i class="bi bi-lightbulb"></i> <strong>一句话理解：</strong> 每月各部把自己的数据交上来 → 合同管理部汇总 → 对上要钱、对下扣钱。
+      </div>
+    </div>
+  </div>
+
+  <!-- 二、每月流程 -->
+  <div class="card border-0 shadow-sm mb-4" id="workflow">
+    <div class="card-header bg-light">
+      <h4 class="mb-0"><i class="bi bi-diagram-3-fill text-primary"></i> 二、每月结算怎么走流程？</h4>
+    </div>
+    <div class="card-body">
+      <div class="timeline">
+        <div class="d-flex align-items-start mb-3">
+          <div class="badge bg-primary rounded-circle me-3" style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;">1</div>
+          <div class="flex-grow-1">
+            <h6 class="mb-1">每月1日：系统自动生成当月任务</h6>
+            <p class="text-muted small mb-0">打开系统仪表盘，选择当月，所有部门的提交任务自动出现。</p>
+          </div>
+        </div>
+        <div class="d-flex align-items-start mb-3">
+          <div class="badge bg-primary rounded-circle me-3" style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;">2</div>
+          <div class="flex-grow-1">
+            <h6 class="mb-1">每月1日~28日：各部门分头提交</h6>
+            <p class="text-muted small mb-0">各部门在「提交数据」页面找到自己的任务，逐条提交文件或标记「无」。截止日期见各任务配置。</p>
+          </div>
+        </div>
+        <div class="d-flex align-items-start mb-3">
+          <div class="badge bg-primary rounded-circle me-3" style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;">3</div>
+          <div class="flex-grow-1">
+            <h6 class="mb-1">每月28日~30日：合同管理部催收</h6>
+            <p class="text-muted small mb-0">仪表盘上看进度条，红色=逾期，黄色=部分提交，绿色=已完成。催没交的部门。</p>
+          </div>
+        </div>
+        <div class="d-flex align-items-start mb-3">
+          <div class="badge bg-primary rounded-circle me-3" style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;">4</div>
+          <div class="flex-grow-1">
+            <h6 class="mb-1">月底前：汇总视图核对</h6>
+            <p class="text-muted small mb-0">在「汇总视图」页面查看所有条目的提交状态，下载已提交的文件，准备结算书。</p>
+          </div>
+        </div>
+        <div class="d-flex align-items-start">
+          <div class="badge bg-success rounded-circle me-3" style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;">5</div>
+          <div class="flex-grow-1">
+            <h6 class="mb-1">次月：历史记录可追溯</h6>
+            <p class="text-muted small mb-0">「历史记录」页面查看所有提交记录，随时翻查往月数据。</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 三、各页面说明 -->
+  <div class="card border-0 shadow-sm mb-4" id="pages">
+    <div class="card-header bg-light">
+      <h4 class="mb-0"><i class="bi bi-window-stack text-primary"></i> 三、各页面功能说明</h4>
+    </div>
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle">
+          <thead class="table-light">
+            <tr>
+              <th style="width:140px;">页面</th>
+              <th style="width:80px;">谁用</th>
+              <th>干什么</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="badge bg-primary">仪表盘</span></td>
+              <td>所有人</td>
+              <td>总览当月进度，看哪些部门交了、哪些没交。红色=逾期、黄色=部分提交、绿色=已完成。</td>
+            </tr>
+            <tr>
+              <td><span class="badge bg-primary">提交数据</span></td>
+              <td>各部门</td>
+              <td>各部门在这里找到自己的任务，点进去逐条提交文件或标记「无」。<strong>最常用的页面。</strong></td>
+            </tr>
+            <tr>
+              <td><span class="badge bg-primary">汇总视图</span></td>
+              <td>合同管理部</td>
+              <td>所有条目提交情况一览表，可以按对上/对下筛选，下载已提交文件和模板。</td>
+            </tr>
+            <tr>
+              <td><span class="badge bg-primary">模板文件</span></td>
+              <td>所有人</td>
+              <td>管理扣款单模板文件。各部门下载空白模板填写，管理员可以上传新模板。</td>
+            </tr>
+            <tr>
+              <td><span class="badge bg-primary">配置管理</span></td>
+              <td>管理员</td>
+              <td>配置各部门的提交任务、截止日期、备注。灰色标注「已停用」的部门不参与收集。</td>
+            </tr>
+            <tr>
+              <td><span class="badge bg-primary">历史记录</span></td>
+              <td>所有人</td>
+              <td>查看所有历史提交记录，可翻页浏览，追溯往月数据。</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- 四、提交指引 -->
+  <div class="card border-0 shadow-sm mb-4" id="submit-guide">
+    <div class="card-header bg-light">
+      <h4 class="mb-0"><i class="bi bi-cloud-arrow-up-fill text-primary"></i> 四、怎么提交数据？（最常用）</h4>
+    </div>
+    <div class="card-body">
+      <div class="alert alert-warning">
+        <i class="bi bi-exclamation-triangle"></i> <strong>这是最核心的操作，看完这段就会用了。</strong>
+      </div>
+
+      <h6 class="mt-3">步骤1：进入提交页面</h6>
+      <p>点击顶部导航栏「提交数据」，选择当前月份。你会看到所有部门的任务列表，找到自己部门。</p>
+
+      <h6 class="mt-3">步骤2：点进任务详情</h6>
+      <p>点击任务行的「查看详情」按钮，进入条目列表页。每个任务被拆成了<strong>独立条目</strong>，比如「质量验收记录」「工程量确认」等，每条可以单独提交。</p>
+
+      <h6 class="mt-3">步骤3：逐条提交</h6>
+      <p>每条条目有三种操作方式：</p>
+      <div class="row g-3 mt-1">
+        <div class="col-md-4">
+          <div class="card bg-light border-0 h-100">
+            <div class="card-body">
+              <h6 class="text-success"><i class="bi bi-file-earmark-arrow-up"></i> 上传文件</h6>
+              <p class="small mb-0">选择文件上传。支持 Excel、Word、PDF、图片、压缩包等格式。填好提交人姓名后提交。</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card bg-light border-0 h-100">
+            <div class="card-body">
+              <h6 class="text-secondary"><i class="bi bi-dash-circle"></i> 标记为「无」</h6>
+              <p class="small mb-0">本月没有对应内容就点「标记无」。这算作<strong>已处理</strong>，不是漏交。</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card bg-light border-0 h-100">
+            <div class="card-body">
+              <h6 class="text-danger"><i class="bi bi-arrow-counterclockwise"></i> 撤销/重交</h6>
+              <p class="small mb-0">已提交的条目可以撤销重交，或直接上传新文件覆盖旧文件。</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h6 class="mt-4">步骤4：检查进度</h6>
+      <p>提交后回到列表页，进度条会更新。全部条目都提交/标记后，状态变绿色「已完成」。</p>
+
+      <div class="alert alert-info mt-3 mb-0">
+        <i class="bi bi-lightbulb"></i> <strong>批量标记：</strong> 如果整个任务本月全部没有内容，可以用「全部标记为无」按钮一键处理。
+      </div>
+    </div>
+  </div>
+
+  <!-- 五、扣款表填写说明 -->
+  <div class="card border-0 shadow-sm mb-4" id="fee-table">
+    <div class="card-header bg-light">
+      <h4 class="mb-0"><i class="bi bi-file-earmark-spreadsheet text-primary"></i> 五、水电住宿费扣款表填写说明</h4>
+    </div>
+    <div class="card-body">
+      <p>水电、住宿、伙食等扣款单由<strong>综合办公室</strong>负责填写提交。所有扣款表结构相同，按以下规则填写：</p>
+
+      <h6 class="mt-3">扣款表通用结构</h6>
+      <div class="table-responsive">
+        <table class="table table-bordered table-sm align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>列名</th>
+              <th>含义</th>
+              <th>怎么填</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>序号</td>
+              <td>行号</td>
+              <td>自动编号，不用管</td>
+            </tr>
+            <tr>
+              <td>姓名 / 单位名称</td>
+              <td>被扣款人</td>
+              <td>填分包商人员姓名或单位名</td>
+            </tr>
+            <tr>
+              <td>开始时间 / 结束时间</td>
+              <td>在场起止日期</td>
+              <td>填本月内的在场日期范围</td>
+            </tr>
+            <tr>
+              <td>人数 / 间数</td>
+              <td>住宿费填<strong>房间数</strong>，其他填人数</td>
+              <td>住宿费：填实际使用的房间数；餐费：填份数；水电：填人数</td>
+            </tr>
+            <tr>
+              <td>在场天数</td>
+              <td>实际天数</td>
+              <td>结束日期 - 开始日期 + 1</td>
+            </tr>
+            <tr>
+              <td><strong>天/比索（单价）</strong></td>
+              <td>扣款单价</td>
+              <td><strong>按下方收费规格速查表填写（可直接在页面修改）</strong></td>
+            </tr>
+            <tr>
+              <td>累计到上期扣款合价</td>
+              <td>历史累计已扣金额</td>
+              <td>从上月扣款表抄过来</td>
+            </tr>
+            <tr>
+              <td><strong>本期扣款合价</strong></td>
+              <td>本月应扣金额</td>
+              <td><strong>住宿费 = 间数 x 2000；餐费 = 份数 x 30</strong></td>
+            </tr>
+            <tr>
+              <td>备注</td>
+              <td>补充说明</td>
+              <td>如有特殊情况注明</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="alert alert-warning mt-3">
+        <i class="bi bi-calculator"></i> <strong>计算公式（按费用类型区分）：</strong>
+        <ul class="mb-0 mt-1">
+          <li><strong>住宿费</strong> = 房间数 x 2000 比索/间（固定按间收费，与住几人无关）</li>
+          <li><strong>餐费（伙食费）</strong> = 份数 x 30 比索/份</li>
+          <li><strong>水费 / 电费</strong> = 待与总包确认收费标准后补充</li>
+        </ul>
+      </div>
+      <div class="alert alert-info">
+        <i class="bi bi-info-circle"></i> <strong>举例：</strong> 3间宿舍，每间住4人 → 住宿费扣款 = 3 x 2000 = 6,000 比索<br>
+        <strong>餐费举例：</strong> 50份餐 x 30比索 = 1,500 比索
+      </div>
+
+      <h6 class="mt-3">涉及的扣款表（共6类，已全部配模板）</h6>
+      <div class="table-responsive">
+        <table class="table table-sm table-bordered align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>扣款类型</th>
+              <th>对上/对下</th>
+              <th>负责部门</th>
+              <th>模板文件</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>住宿费</td>
+              <td>对上</td>
+              <td>综合办公室</td>
+              <td>对上：住宿费（综合办公室）.xlsx</td>
+            </tr>
+            <tr>
+              <td>伙食费</td>
+              <td>对上</td>
+              <td>综合办公室</td>
+              <td>对上：水电基础局伙食扣款单（综合办公室）.xlsx</td>
+            </tr>
+            <tr>
+              <td>生活用水（水费）</td>
+              <td>对上</td>
+              <td>综合办公室</td>
+              <td>对上：生活用水（综合办公室）.xlsx</td>
+            </tr>
+            <tr>
+              <td>生活用电（电费）</td>
+              <td>对上</td>
+              <td>综合办公室</td>
+              <td>对上：生活用电（综合办公室）.xlsx</td>
+            </tr>
+            <tr>
+              <td>分包水电费（水）</td>
+              <td>对下</td>
+              <td>综合办公室</td>
+              <td>对下：生活用水（综合办公室）.xlsx</td>
+            </tr>
+            <tr>
+              <td>分包水电费（电）</td>
+              <td>对下</td>
+              <td>综合办公室</td>
+              <td>对下：生活用电（综合办公室）.xlsx</td>
+            </tr>
+            <tr>
+              <td>分包住宿费</td>
+              <td>对下</td>
+              <td>综合办公室</td>
+              <td>对下住宿费（综合办公室）.xlsx</td>
+            </tr>
+            <tr>
+              <td>食堂等后勤扣款</td>
+              <td>对下</td>
+              <td>综合办公室</td>
+              <td>对下餐费（综合办公室）.xlsx</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- 六、收费规格速查表 -->
+  <div class="card border-0 shadow-sm mb-4" id="fee-rates">
+    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+      <h4 class="mb-0"><i class="bi bi-table text-primary"></i> 六、收费规格速查表</h4>
+      <button class="btn btn-outline-primary btn-sm" id="editFeeRatesBtn" onclick="toggleEditFeeRates()">
+        <i class="bi bi-pencil"></i> 编辑费率
+      </button>
+    </div>
+    <div class="card-body">
+      <div class="alert alert-info">
+        <i class="bi bi-info-circle-fill"></i>
+        <strong>说明：</strong> 以下收费标准可在此页面直接修改。点击右上角「编辑费率」按钮，修改后点「保存」即可，所有用户都会看到最新费率。
+        水电费需单独联系总包确认，确认后在表格中填入即可。
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-bordered table-hover align-middle" id="feeRatesTable">
+          <thead style="background: #1a3a5c; color: #fff;">
+            <tr>
+              <th style="width:50px;">序号</th>
+              <th>费用类型</th>
+              <th style="width:120px;">收费标准</th>
+              <th style="width:100px;">单位</th>
+              <th style="width:160px;">计算方式</th>
+              <th>备注说明</th>
+              <th style="width:80px;" class="edit-col" style="display:none;">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for rate in fee_rates %}
+            <tr data-fee-type="{{ rate.fee_type }}" id="row-{{ rate.fee_type }}">
+              <td>{{ loop.index }}</td>
+              <td>
+                {% if rate.fee_type == 'accommodation' %}<i class="bi bi-house-door text-primary"></i>
+                {% elif rate.fee_type == 'meal' %}<i class="bi bi-cup-hot text-warning"></i>
+                {% elif rate.fee_type == 'water' %}<i class="bi bi-droplet text-info"></i>
+                {% elif rate.fee_type == 'electricity' %}<i class="bi bi-lightning-charge text-warning"></i>
+                {% endif %}
+                <strong>{{ rate.fee_name }}</strong>
+              </td>
+              <td>
+                {% set is_pending = '待确认' in (rate.rate_value or '') %}
+                <span class="rate-display {% if is_pending %}text-danger{% else %}text-success fw-bold{% endif %}" style="font-size: 1.05rem;">
+                  {{ rate.rate_value }}
+                </span>
+                <input type="text" class="rate-input form-control form-control-sm d-none" value="{{ rate.rate_value }}">
+              </td>
+              <td>
+                <span class="unit-display">{{ rate.rate_unit }}</span>
+                <input type="text" class="unit-input form-control form-control-sm d-none" value="{{ rate.rate_unit }}">
+              </td>
+              <td>
+                <span class="calc-display">{{ rate.calc_method }}</span>
+                <input type="text" class="calc-input form-control form-control-sm d-none" value="{{ rate.calc_method }}">
+              </td>
+              <td>
+                <span class="note-display text-muted small">{{ rate.note }}</span>
+                <input type="text" class="note-input form-control form-control-sm d-none" value="{{ rate.note }}">
+              </td>
+              <td class="edit-col" style="display:none;">
+                <button class="btn btn-success btn-sm save-btn" onclick="saveFeeRate('{{ rate.fee_type }}')">
+                  <i class="bi bi-check-lg"></i> 保存
+                </button>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="alert alert-warning mt-3">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <strong>填表步骤：</strong>
+        <ol class="mb-0 mt-1">
+          <li>下载对应扣款单模板（从系统「模板文件」页面或条目详情页下载）</li>
+          <li>填写被扣款人<strong>姓名</strong>、<strong>开始/结束时间</strong></li>
+          <li><strong>住宿费</strong>：填房间数（不是人数），单价 2000 比索/间 → 本期扣款 = 间数 x 2000</li>
+          <li><strong>餐费</strong>：填份数，单价 30 比索/份 → 本期扣款 = 份数 x 30</li>
+          <li><strong>水电费</strong>：待与总包确认单价后，按 人数 x 天数 x 单价 计算</li>
+          <li>「累计到上期扣款合价」从上月扣款表抄写</li>
+          <li>填写完毕后上传到系统对应条目</li>
+        </ol>
+      </div>
+
+      <div class="alert alert-info mb-0">
+        <i class="bi bi-lightbulb"></i>
+        <strong>住宿费举例：</strong> 3间宿舍，每间住4人 → 本期扣款 = 3 x 2000 = 6,000 比索（不按人头算）<br>
+        <strong>餐费举例：</strong> 50份餐 → 本期扣款 = 50 x 30 = 1,500 比索
+      </div>
+
+      <h6 class="mt-4">管理办法中的关键时间节点</h6>
+      <div class="table-responsive">
+        <table class="table table-sm table-bordered align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>序号</th>
+              <th>事项</th>
+              <th>时间要求</th>
+              <th>责任部门</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>1</td><td>各部门提交对上结算基础资料</td><td>每月30日前</td><td>各业务部门</td></tr>
+            <tr><td>2</td><td>合同部完成对总包结算申报</td><td>每月5日前</td><td>合同管理部</td></tr>
+            <tr><td>3</td><td>分包提交月度结算申请</td><td>每月25日前</td><td>各分包单位</td></tr>
+            <tr><td>4</td><td>各部门反馈分包核量/扣款意见</td><td>每月28日前</td><td>各业务部门</td></tr>
+            <tr><td>5</td><td>合同部完成分包结算审核</td><td>每月30日前</td><td>合同管理部</td></tr>
+            <tr><td>6</td><td>项目经理审批分包结算</td><td>次月1日前</td><td>项目经理</td></tr>
+            <tr><td>7</td><td>财务支付分包款项</td><td>次月15日前</td><td>财务资金部</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- 七、常见问题 -->
+  <div class="card border-0 shadow-sm mb-4" id="tips">
+    <div class="card-header bg-light">
+      <h4 class="mb-0"><i class="bi bi-question-circle-fill text-primary"></i> 七、常见问题与技巧</h4>
+    </div>
+    <div class="card-body">
+      <div class="accordion" id="faqAccordion">
+        <div class="accordion-item">
+          <h2 class="accordion-header">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq1">
+              Q：本月某条目确实没有数据，算不算没交？
+            </button>
+          </h2>
+          <div id="faq1" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+            <div class="accordion-body">点「标记为无」即可，这算作<strong>已处理</strong>。系统会显示灰色「无」标签，不算漏交。</div>
+          </div>
+        </div>
+        <div class="accordion-item">
+          <h2 class="accordion-header">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq2">
+              Q：交错了文件怎么办？
+            </button>
+          </h2>
+          <div id="faq2" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+            <div class="accordion-body">在条目详情页点「撤销提交」，然后重新上传正确文件即可。也可以直接上传新文件覆盖旧文件。</div>
+          </div>
+        </div>
+        <div class="accordion-item">
+          <h2 class="accordion-header">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq3">
+              Q：模板文件在哪里下载？
+            </button>
+          </h2>
+          <div id="faq3" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+            <div class="accordion-body">两个地方可以下载：<br>1. 顶部导航「模板文件」页面，列出所有模板；<br>2. 进入任务详情页，每个条目右侧如果关联了模板，直接点「下载模板」按钮。</div>
+          </div>
+        </div>
+        <div class="accordion-item">
+          <h2 class="accordion-header">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq4">
+              Q：条目名称不对，能改吗？
+            </button>
+          </h2>
+          <div id="faq4" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+            <div class="accordion-body">可以。在任务详情页，每条条目右侧有「编辑」按钮，可以修改条目名称和描述。也可以新增或删除条目。</div>
+          </div>
+        </div>
+        <div class="accordion-item">
+          <h2 class="accordion-header">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq5">
+              Q：财务资金部为什么不在列表里？
+            </button>
+          </h2>
+          <div id="faq5" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+            <div class="accordion-body">财务资金部已停用（单独对接，不通过系统收集资料）。在「配置管理」页面可以看到灰色「已停用」标识。如需恢复，联系管理员。</div>
+          </div>
+        </div>
+        <div class="accordion-item">
+          <h2 class="accordion-header">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq6">
+              Q：怎么看上个月的数据？
+            </button>
+          </h2>
+          <div id="faq6" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+            <div class="accordion-body">在仪表盘页面左上角切换月份，或去「历史记录」页面查看所有历史提交记录。</div>
+          </div>
+        </div>
+        <div class="accordion-item">
+          <h2 class="accordion-header">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq7">
+              Q：系统数据安全吗？关机后数据还在吗？
+            </button>
+          </h2>
+          <div id="faq7" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+            <div class="accordion-body">数据存在本机 SQLite 数据库中，关机重启不丢失。上传的文件也存在本机 uploads 目录。<strong>建议定期备份数据库文件</strong>（data/settlement.db）和 uploads 目录。系统每次启动自动备份，也可在「系统状态」页面手动备份。</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 八、部门对接 -->
+  <div class="card border-0 shadow-sm mb-4" id="roles">
+    <div class="card-header bg-light">
+      <h4 class="mb-0"><i class="bi bi-people-fill text-primary"></i> 八、各部门对接说明</h4>
+    </div>
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>部门</th>
+              <th>对上提交内容</th>
+              <th>对下提交内容</th>
+              <th>备注</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>生产调度部</td>
+              <td>当月完成工程量报表、借用设备确认单</td>
+              <td>分包当月完成工程量核定表、借用设备确认单</td>
+              <td><span class="badge bg-info">结算基础依据</span></td>
+            </tr>
+            <tr>
+              <td>工程质量技术部</td>
+              <td>质量验收记录、专项计量资料、工程量确认、计量计算底稿</td>
+              <td>分包工程验收记录、质量扣款单</td>
+              <td><span class="badge bg-danger">不合格不予结算</span></td>
+            </tr>
+            <tr>
+              <td>安全环保部</td>
+              <td>总包安全检查整改回执、HSE罚款</td>
+              <td>安全违规处罚单、文明施工考核扣分</td>
+              <td><span class="badge bg-warning text-dark">安全扣款</span></td>
+            </tr>
+            <tr>
+              <td>设备物资部</td>
+              <td>分包商材料领用表、安全领用材料、设备使用扣款单、材料调拨单</td>
+              <td>甲供材领用台账、超耗扣款表、分包代采物资计量单</td>
+              <td><span class="badge bg-warning text-dark">扣回甲供材</span></td>
+            </tr>
+            <tr>
+              <td>人力资源部</td>
+              <td>农民工工资发放表、考勤表</td>
+              <td>工资代发清单、考勤抽查记录、自用人工费</td>
+              <td><span class="badge bg-info">防欠薪</span></td>
+            </tr>
+            <tr class="table-warning">
+              <td><strong>综合办公室</strong></td>
+              <td>分包人员宿舍租赁、水电费、食堂伙食费扣款单</td>
+              <td>分包水电费、分包住宿费用、食堂等后勤扣款</td>
+              <td><span class="badge bg-primary">水电住宿费重点</span></td>
+            </tr>
+            <tr class="table-secondary">
+              <td class="text-muted">财务资金部</td>
+              <td colspan="3" class="text-muted"><em>已停用 - 单独对接，不通过系统收集</em></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="alert alert-info mt-3 mb-0">
+        <i class="bi bi-person-check"></i> <strong>特殊对接人：</strong>
+        <ul class="mb-0 mt-1">
+          <li>食堂伙食费：联系综合工区 <strong>张勇</strong> 或其他联营体指定人员</li>
+          <li>甲供材消耗统计：联系联营体物资采购部 <strong>张伊凡</strong></li>
+          <li>借用设备确认：需与设备物资部确认是否有使用联营体零星机械</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- 底部 -->
+  <div class="text-center py-4 text-muted">
+    <p class="mb-1"><i class="bi bi-shield-check"></i> 本系统数据存储在本机，不上传云端</p>
+    <p class="mb-0 small">如有疑问，联系合同管理部</p>
+  </div>
+
+  <!-- 默认内容结束 -->
+  {% endif %}
+
+  </div><!-- /#guide-content -->
+
+</div>
+
+<style>
+.timeline {
+  border-left: 3px solid #e0e0e0;
+  padding-left: 0;
+}
+.accordion-button:not(.collapsed) {
+  background-color: #e7f1ff;
+  color: #1a3a5c;
+}
+.rate-input, .unit-input, .calc-input, .note-input {
+  font-size: 0.875rem;
+}
+/* 编辑模式样式 */
+#guide-content[contenteditable="true"] {
+  outline: 2px dashed #0d6efd;
+  outline-offset: 4px;
+  border-radius: 4px;
+  padding: 8px;
+}
+#guide-content[contenteditable="true"] .card {
+  border: 1px dashed #adb5bd !important;
+}
+#guide-content[contenteditable="true"]:focus {
+  outline-color: #198754;
+}
+</style>
+
+<script>
+// ========== 全文编辑模式 ==========
+let isEditing = false;
+let savedHTML = '';
+
+function enterEditMode() {
+  isEditing = true;
+  savedHTML = document.getElementById('guide-content').innerHTML;
+
+  document.getElementById('guide-content').setAttribute('contenteditable', 'true');
+  document.getElementById('editBtn').classList.add('d-none');
+  document.getElementById('saveBtn').classList.remove('d-none');
+  document.getElementById('cancelBtn').classList.remove('d-none');
+  document.getElementById('resetBtn').classList.remove('d-none');
+  document.getElementById('editNotice').classList.remove('d-none');
+
+  // 禁用费率编辑按钮（避免冲突）
+  const feeBtn = document.getElementById('editFeeRatesBtn');
+  if (feeBtn) feeBtn.style.display = 'none';
+
+  // 滚动到顶部
+  window.scrollTo(0, 0);
+}
+
+function saveContent() {
+  const content = document.getElementById('guide-content').innerHTML;
+
+  const formData = new FormData();
+  formData.append('content', content);
+
+  fetch('/api/guide/save', {
+    method: 'POST',
+    body: formData
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.ok) {
+      exitEditMode();
+      alert('保存成功！所有用户将看到更新后的内容。');
+    } else {
+      alert('保存失败: ' + (data.error || '未知错误'));
+    }
+  })
+  .catch(err => {
+    alert('保存失败，请检查网络连接');
+    console.error(err);
+  });
+}
+
+function cancelEdit() {
+  if (!confirm('确定取消编辑？未保存的修改将丢失。')) return;
+  document.getElementById('guide-content').innerHTML = savedHTML;
+  exitEditMode();
+}
+
+function resetContent() {
+  if (!confirm('确定恢复到系统默认内容？\n\n你之前修改的所有内容都将丢失，恢复到出厂设置。')) return;
+  fetch('/api/guide/reset', { method: 'POST' })
+  .then(res => res.json())
+  .then(data => {
+    if (data.ok) {
+      alert('已恢复默认内容，页面将刷新。');
+      location.reload();
+    } else {
+      alert('操作失败');
+    }
+  })
+  .catch(err => alert('请求失败'));
+}
+
+function exitEditMode() {
+  isEditing = false;
+  document.getElementById('guide-content').removeAttribute('contenteditable');
+  document.getElementById('editBtn').classList.remove('d-none');
+  document.getElementById('saveBtn').classList.add('d-none');
+  document.getElementById('cancelBtn').classList.add('d-none');
+  document.getElementById('resetBtn').classList.add('d-none');
+  document.getElementById('editNotice').classList.add('d-none');
+
+  const feeBtn = document.getElementById('editFeeRatesBtn');
+  if (feeBtn) feeBtn.style.display = '';
+}
+
+// ========== 费率编辑（独立功能）==========
+let feeRatesEditing = false;
+
+function toggleEditFeeRates() {
+  feeRatesEditing = !feeRatesEditing;
+  const btn = document.getElementById('editFeeRatesBtn');
+  const editCols = document.querySelectorAll('.edit-col');
+
+  if (feeRatesEditing) {
+    btn.innerHTML = '<i class="bi bi-x-lg"></i> 取消编辑';
+    btn.className = 'btn btn-outline-secondary btn-sm';
+    editCols.forEach(c => c.style.display = '');
+    document.querySelectorAll('.rate-display, .unit-display, .calc-display, .note-display').forEach(el => el.classList.add('d-none'));
+    document.querySelectorAll('.rate-input, .unit-input, .calc-input, .note-input').forEach(el => el.classList.remove('d-none'));
+  } else {
+    btn.innerHTML = '<i class="bi bi-pencil"></i> 编辑费率';
+    btn.className = 'btn btn-outline-primary btn-sm';
+    editCols.forEach(c => c.style.display = 'none');
+    document.querySelectorAll('.rate-display, .unit-display, .calc-display, .note-display').forEach(el => el.classList.remove('d-none'));
+    document.querySelectorAll('.rate-input, .unit-input, .calc-input, .note-input').forEach(el => el.classList.add('d-none'));
+  }
+}
+
+function saveFeeRate(feeType) {
+  const row = document.getElementById('row-' + feeType);
+  const rateValue = row.querySelector('.rate-input').value.trim();
+  const rateUnit = row.querySelector('.unit-input').value.trim();
+  const calcMethod = row.querySelector('.calc-input').value.trim();
+  const note = row.querySelector('.note-input').value.trim();
+
+  const formData = new FormData();
+  formData.append('fee_type', feeType);
+  formData.append('rate_value', rateValue);
+  formData.append('rate_unit', rateUnit);
+  formData.append('calc_method', calcMethod);
+  formData.append('note', note);
+
+  fetch('/api/fee-rates/update', {
+    method: 'POST',
+    body: formData
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.ok) {
+      const rateDisplay = row.querySelector('.rate-display');
+      const unitDisplay = row.querySelector('.unit-display');
+      const calcDisplay = row.querySelector('.calc-display');
+      const noteDisplay = row.querySelector('.note-display');
+
+      rateDisplay.textContent = rateValue;
+      unitDisplay.textContent = rateUnit;
+      calcDisplay.textContent = calcMethod;
+      noteDisplay.textContent = note;
+
+      if (rateValue.includes('待确认') || rateValue === '') {
+        rateDisplay.className = 'rate-display text-danger';
+        rateDisplay.style.fontSize = '';
+      } else {
+        rateDisplay.className = 'rate-display text-success fw-bold';
+        rateDisplay.style.fontSize = '1.05rem';
+      }
+
+      const saveBtn = row.querySelector('.save-btn');
+      const originalHtml = saveBtn.innerHTML;
+      saveBtn.innerHTML = '<i class="bi bi-check2-all"></i> 已保存';
+      saveBtn.className = 'btn btn-light btn-sm save-btn';
+      setTimeout(() => {
+        saveBtn.innerHTML = originalHtml;
+        saveBtn.className = 'btn btn-success btn-sm save-btn';
+      }, 1500);
+    } else {
+      alert('保存失败: ' + (data.error || '未知错误'));
+    }
+  })
+  .catch(err => {
+    alert('保存失败，请检查网络连接');
+    console.error(err);
+  });
+}
+</script>
+{% endblock %}

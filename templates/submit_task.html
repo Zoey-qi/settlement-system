@@ -1,0 +1,375 @@
+{% extends 'base.html' %}
+{% block title %}提交数据 - {{ app_title }}{% endblock %}
+
+{% block content %}
+<!-- 任务信息 -->
+<div class="row mb-3">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center flex-wrap">
+                    <div>
+                        <h5 class="mb-1">
+                            <span class="badge {% if task['st_code'] == 'upstream' %}bg-danger{% else %}bg-info{% endif %}">{{ task['st_name'] }}</span>
+                            {{ task['dept_name'] }}
+                        </h5>
+                        <p class="text-muted small mb-0">
+                            结算月份：{{ month }} | 截止日期：每月{{ task['deadline_day'] }}日前
+                            {% if task['config_remarks'] %} | {{ task['config_remarks'] }}{% endif %}
+                        </p>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <form method="POST" action="{{ url_for('mark_all_none', task_id=task['id']) }}" onsubmit="return confirm('确定将所有未提交条目标记为"无"吗？')">
+                            <input type="hidden" name="month" value="{{ month }}">
+                            <input type="hidden" name="submitter" value="管理员">
+                            <button type="submit" class="btn btn-sm btn-outline-secondary">
+                                <i class="bi bi-check2-all"></i> 全部标记为无
+                            </button>
+                        </form>
+                        <a href="{{ url_for('submit', month=month) }}" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-arrow-left"></i> 返回列表
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 条目列表 -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="bi bi-list-ul"></i> 需提交资料条目（逐条独立提交）</h6>
+                <button class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#addItemModal">
+                    <i class="bi bi-plus-circle"></i> 新增条目
+                </button>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0" id="itemsTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width:40px">#</th>
+                                <th>资料名称 <small class="text-muted fw-normal">(点击可编辑)</small></th>
+                                <th style="width:100px">模板下载</th>
+                                <th style="width:80px">状态</th>
+                                <th>提交内容</th>
+                                <th style="width:100px">提交人</th>
+                                <th style="width:130px">提交时间</th>
+                                <th style="width:200px">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr id="row-{{ item['id'] }}" class="{% if item['sub_id'] %}table-success{% else %}table-warning{% endif %}">
+                                <td>{{ loop.index }}</td>
+                                <!-- 资料名称（可编辑） -->
+                                <td>
+                                    <span class="item-name-display" data-item-id="{{ item['id'] }}"
+                                          onclick="editItemName({{ item['id'] }}, this)"
+                                          style="cursor: text; padding: 2px 6px; border-radius: 4px; display: inline-block; min-width: 100px;"
+                                          onmouseover="this.style.background='#e3f2fd'"
+                                          onmouseout="this.style.background=''">
+                                        {{ item['item_name'] }}
+                                    </span>
+                                </td>
+                                <!-- 模板下载 -->
+                                <td class="text-center" id="tpl-cell-{{ item['id'] }}">
+                                    {% if item['tpl_id'] %}
+                                        <a href="{{ url_for('download_template_by_id', tid=item['tpl_id']) }}"
+                                           class="btn btn-sm btn-outline-primary py-0" title="{{ item['tpl_name'] }}">
+                                            <i class="bi bi-download"></i> 下载
+                                        </a>
+                                    {% else %}
+                                        <span class="text-muted small">未关联</span>
+                                    {% endif %}
+                                    <br>
+                                    <select class="form-select form-select-sm mt-1 tpl-select" style="width:90px; font-size:0.75rem;"
+                                            onchange="linkTemplate({{ item['id'] }}, this.value)" title="关联模板">
+                                        <option value="">关联...</option>
+                                        {% for tpl in all_templates %}
+                                        <option value="{{ tpl['id'] }}" {% if item['tpl_id'] == tpl['id'] %}selected{% endif %}>{{ tpl['name'][:15] }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </td>
+                                <!-- 状态 -->
+                                <td>
+                                    {% if item['sub_id'] %}
+                                        {% if item['submission_type'] == 'file' %}
+                                            <span class="badge bg-success">已上传</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">无</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="badge bg-warning text-dark">待提交</span>
+                                    {% endif %}
+                                </td>
+                                <!-- 提交内容 -->
+                                <td class="small">
+                                    {% if item['submission_type'] == 'file' %}
+                                        <a href="{{ url_for('download_item_submission', sub_id=item['sub_id']) }}" class="text-decoration-none">
+                                            <i class="bi bi-file-earmark"></i> {{ item['sub_file_name'] }}
+                                        </a>
+                                    {% elif item['submission_type'] == 'none' %}
+                                        <span class="text-muted"><i class="bi bi-dash-circle"></i> 无</span>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                    {% if item['sub_remarks'] %}<br><span class="text-muted small">{{ item['sub_remarks'] }}</span>{% endif %}
+                                </td>
+                                <!-- 提交人 -->
+                                <td class="small">{{ item['submitter'] or '-' }}</td>
+                                <!-- 提交时间 -->
+                                <td class="small text-muted">{{ item['submitted_at'][:16] if item['submitted_at'] else '-' }}</td>
+                                <!-- 操作 -->
+                                <td>
+                                    <div class="d-flex gap-1 flex-wrap">
+                                        {% if not item['sub_id'] %}
+                                        <!-- 待提交：显示上传和无按钮 -->
+                                        <button class="btn btn-sm btn-primary py-0" onclick="openUploadModal({{ item['id'] }}, '{{ item['item_name']|replace("'", "\\'") }}')">
+                                            <i class="bi bi-upload"></i> 上传
+                                        </button>
+                                        <form method="POST" action="{{ url_for('submit_item', item_id=item['id']) }}" class="d-inline"
+                                              onsubmit="return confirm('确定标记为"无"吗？')">
+                                            <input type="hidden" name="month" value="{{ month }}">
+                                            <input type="hidden" name="submission_type" value="none">
+                                            <input type="hidden" name="submitter" value="管理员">
+                                            <input type="hidden" name="task_id" value="{{ task['id'] }}">
+                                            <button type="submit" class="btn btn-sm btn-outline-secondary py-0">
+                                                <i class="bi bi-dash-circle"></i> 无
+                                            </button>
+                                        </form>
+                                        {% else %}
+                                        <!-- 已提交：显示撤销按钮 -->
+                                        <button class="btn btn-sm btn-outline-warning py-0" onclick="unsubmitItem({{ item['id'] }}, '{{ month }}')">
+                                            <i class="bi bi-arrow-counterclockwise"></i> 撤销
+                                        </button>
+                                        {% endif %}
+                                        <button class="btn btn-sm btn-outline-danger py-0" onclick="deleteItem({{ item['id'] }})">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                            {% if not items %}
+                            <tr><td colspan="8" class="text-center text-muted py-4">暂无条目，点击右上角"新增条目"添加</td></tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 文件上传模态框 -->
+<div class="modal fade" id="uploadModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" enctype="multipart/form-data" id="uploadForm" action="">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-cloud-arrow-up"></i> 上传文件</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small">正在上传：<strong id="uploadItemName"></strong></p>
+                    <input type="hidden" name="month" value="{{ month }}">
+                    <input type="hidden" name="submission_type" value="file">
+                    <input type="hidden" name="task_id" value="{{ task['id'] }}">
+                    <input type="hidden" name="item_id" id="uploadItemId">
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">提交人姓名 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="submitter" required placeholder="请输入您的姓名">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">选择文件 <span class="text-danger">*</span></label>
+                        <input type="file" class="form-control" name="file" required
+                               accept=".xlsx,.xls,.csv,.doc,.docx,.pdf,.jpg,.jpeg,.png,.zip,.rar,.ppt,.pptx,.txt">
+                        <div class="form-text">支持 Excel、Word、PDF、图片、压缩包等格式（最大100MB）</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">备注（选填）</label>
+                        <textarea class="form-control" name="remarks" rows="2" placeholder="如有需要说明的情况请填写"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> 确认上传</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 新增条目模态框 -->
+<div class="modal fade" id="addItemModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-plus-circle"></i> 新增资料条目</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">资料名称 <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="newItemName" placeholder="例如：当月完成工程量报表">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">关联模板（选填）</label>
+                    <select class="form-select" id="newItemTemplate">
+                        <option value="">不关联模板</option>
+                        {% for tpl in all_templates %}
+                        <option value="{{ tpl['id'] }}">{{ tpl['name'] }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-success" onclick="addItem()">
+                    <i class="bi bi-check-lg"></i> 添加
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const taskConfigId = {{ task['task_config_id'] }};
+
+// 编辑条目名称
+function editItemName(itemId, span) {
+    const oldName = span.textContent.trim();
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'form-control form-control-sm';
+    input.value = oldName;
+    input.style.width = '100%';
+    span.style.display = 'none';
+    span.parentNode.appendChild(input);
+    input.focus();
+    input.select();
+
+    function save() {
+        const newName = input.value.trim();
+        if (newName && newName !== oldName) {
+            fetch('{{ url_for("api_edit_item") }}', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: `item_id=${itemId}&item_name=${encodeURIComponent(newName)}`
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.ok) {
+                    span.textContent = newName;
+                } else {
+                    alert('保存失败: ' + (data.error || ''));
+                    span.textContent = oldName;
+                }
+            })
+            .catch(() => { span.textContent = oldName; });
+        } else {
+            span.textContent = oldName;
+        }
+        span.style.display = '';
+        if (input.parentNode) input.parentNode.removeChild(input);
+    }
+
+    input.addEventListener('blur', save);
+    input.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+        if (e.key === 'Escape') { span.textContent = oldName; span.style.display = ''; input.parentNode.removeChild(input); }
+    });
+}
+
+// 关联模板
+function linkTemplate(itemId, tplId) {
+    fetch('{{ url_for("api_link_template") }}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: `item_id=${itemId}&template_file_id=${tplId}`
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.ok) {
+            location.reload();
+        } else {
+            alert('关联失败: ' + (data.error || ''));
+        }
+    });
+}
+
+// 打开上传模态框
+function openUploadModal(itemId, itemName) {
+    document.getElementById('uploadItemId').value = itemId;
+    document.getElementById('uploadItemName').textContent = itemName;
+    document.getElementById('uploadForm').action = `/submit/item/${itemId}`;
+    new bootstrap.Modal(document.getElementById('uploadModal')).show();
+}
+
+// 撤销提交
+function unsubmitItem(itemId, month) {
+    if (!confirm('确定撤销该条目的提交吗？已上传的文件将被删除。')) return;
+    fetch('{{ url_for("api_unsubmit_item") }}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: `item_id=${itemId}&month=${month}`
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.ok) {
+            location.reload();
+        } else {
+            alert('撤销失败: ' + (data.error || ''));
+        }
+    });
+}
+
+// 删除条目
+function deleteItem(itemId) {
+    if (!confirm('确定删除该条目吗？相关的提交记录也将被删除。')) return;
+    fetch('{{ url_for("api_delete_item") }}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: `item_id=${itemId}`
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.ok) {
+            location.reload();
+        } else {
+            alert('删除失败: ' + (data.error || ''));
+        }
+    });
+}
+
+// 新增条目
+function addItem() {
+    const name = document.getElementById('newItemName').value.trim();
+    const tplId = document.getElementById('newItemTemplate').value;
+    if (!name) { alert('请输入资料名称'); return; }
+
+    fetch('{{ url_for("api_add_item") }}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: `task_config_id=${taskConfigId}&item_name=${encodeURIComponent(name)}&template_file_id=${tplId}`
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.ok) {
+            location.reload();
+        } else {
+            alert('添加失败: ' + (data.error || ''));
+        }
+    });
+}
+</script>
+{% endblock %}

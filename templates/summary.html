@@ -1,0 +1,149 @@
+{% extends 'base.html' %}
+{% block title %}汇总视图 - {{ app_title }}{% endblock %}
+
+{% block content %}
+<div class="row mb-3">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center flex-wrap">
+            <h4 class="mb-0"><i class="bi bi-clipboard-data text-primary"></i> 提交情况汇总视图</h4>
+            <form class="d-flex align-items-center gap-2" method="get">
+                <input type="month" class="form-control form-control-sm" name="month" value="{{ month }}" style="width:160px">
+                <select class="form-select form-select-sm" name="type" style="width:140px">
+                    <option value="">全部类型</option>
+                    <option value="upstream" {% if st_code == 'upstream' %}selected{% endif %}>对上结算</option>
+                    <option value="downstream" {% if st_code == 'downstream' %}selected{% endif %}>对下结算</option>
+                </select>
+                <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-search"></i></button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 统计卡片 -->
+<div class="row g-3 mb-3">
+    <div class="col-6 col-md-4">
+        <div class="stat-card stat-total"><div class="stat-icon"><i class="bi bi-list-check"></i></div><div class="stat-body"><div class="stat-value">{{ total }}</div><div class="stat-label">总条目</div></div></div>
+    </div>
+    <div class="col-6 col-md-4">
+        <div class="stat-card stat-completed"><div class="stat-icon"><i class="bi bi-check-circle-fill"></i></div><div class="stat-body"><div class="stat-value">{{ completed }}</div><div class="stat-label">已提交</div></div></div>
+    </div>
+    <div class="col-6 col-md-4">
+        <div class="stat-card stat-pending"><div class="stat-icon"><i class="bi bi-hourglass-split"></i></div><div class="stat-body"><div class="stat-value">{{ pending }}</div><div class="stat-label">未提交</div></div></div>
+    </div>
+</div>
+
+<!-- 部门汇总进度 -->
+<div class="row mb-3">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-light"><h6 class="mb-0"><i class="bi bi-diagram-3"></i> 各部门提交进度</h6></div>
+            <div class="card-body">
+                {% for dept, info in dept_summary.items() %}
+                <div class="mb-2">
+                    <div class="d-flex justify-content-between small mb-1">
+                        <span class="fw-bold">{{ dept }}</span>
+                        <span class="text-muted">{{ info.completed }}/{{ info.total }} 已完成</span>
+                    </div>
+                    <div class="progress" style="height: 10px;">
+                        <div class="progress-bar {% if info.completed == info.total %}bg-success{% elif info.completed > 0 %}bg-info{% else %}bg-warning{% endif %}"
+                             style="width: {{ (info.completed/info.total*100) if info.total > 0 else 0 }}%"></div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 详细列表 -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover table-sm mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width:40px">#</th>
+                                <th>类型</th>
+                                <th>部门</th>
+                                <th>备注</th>
+                                <th>资料名称</th>
+                                <th style="width:90px">模板下载</th>
+                                <th style="width:70px">截止</th>
+                                <th style="width:70px">状态</th>
+                                <th>提交内容</th>
+                                <th style="width:80px">提交人</th>
+                                <th style="width:120px">提交时间</th>
+                                <th style="width:70px">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr class="{% if item['sub_id'] %}table-success{% else %}table-warning{% endif %}">
+                                <td>{{ loop.index }}</td>
+                                <td>
+                                    <span class="badge {% if item['st_code'] == 'upstream' %}bg-danger{% else %}bg-info{% endif %}">{{ item['st_name'][:2] }}</span>
+                                </td>
+                                <td class="fw-bold small">{{ item['dept_name'] }}</td>
+                                <td class="small text-muted">{{ item['config_remarks'] or '-' }}</td>
+                                <td class="small">{{ item['item_name'] }}</td>
+                                <!-- 模板下载列 -->
+                                <td class="text-center">
+                                    {% if item['tpl_id'] %}
+                                        <a href="{{ url_for('download_template_by_id', tid=item['tpl_id']) }}"
+                                           class="btn btn-sm btn-outline-primary py-0" title="{{ item['tpl_name'] }}">
+                                            <i class="bi bi-download"></i>
+                                        </a>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td><span class="badge bg-secondary">{{ item['deadline_day'] }}日</span></td>
+                                <td>
+                                    {% if item['sub_id'] %}
+                                        {% if item['submission_type'] == 'file' %}
+                                            <span class="badge bg-success">已上传</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">无</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="badge bg-warning text-dark">未提交</span>
+                                    {% endif %}
+                                </td>
+                                <td class="small">
+                                    {% if item['submission_type'] == 'file' %}
+                                        <a href="{{ url_for('download_item_submission', sub_id=item['sub_id']) }}" class="text-decoration-none">
+                                            <i class="bi bi-file-earmark"></i> {{ item['sub_file_name'] }}
+                                        </a>
+                                    {% elif item['submission_type'] == 'none' %}
+                                        <span class="text-muted"><i class="bi bi-dash-circle"></i> 无</span>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td class="small">{{ item['submitter'] or '-' }}</td>
+                                <td class="small text-muted">{{ item['submitted_at'][:16] if item['submitted_at'] else '-' }}</td>
+                                <td>
+                                    {% if not item['sub_id'] %}
+                                    <a href="{{ url_for('submit_task', task_id=item['task_id'], month=month) }}"
+                                       class="btn btn-sm btn-outline-primary py-0" title="去提交">
+                                        <i class="bi bi-upload"></i>
+                                    </a>
+                                    {% else %}
+                                    <span class="text-success"><i class="bi bi-check-lg"></i></span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                            {% if not items %}
+                            <tr><td colspan="12" class="text-center text-muted py-4">暂无数据</td></tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

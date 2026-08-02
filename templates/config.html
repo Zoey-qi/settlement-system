@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+{% block title %}配置管理 - {{ app_title }}{% endblock %}
+
+{% block content %}
+<div class="row mb-3">
+    <div class="col-12">
+        <h4><i class="bi bi-gear text-primary"></i> 部门与任务配置管理</h4>
+        <p class="text-muted small">在此上传配置文件来批量设置各部门的结算任务及截止时间节点，或查看当前配置。</p>
+    </div>
+</div>
+
+<!-- 上传配置文件 -->
+<div class="row mb-4">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header bg-light">
+                <h6 class="mb-0"><i class="bi bi-cloud-arrow-up"></i> 上传配置文件</h6>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i>
+                    <strong>使用方法：</strong>下载配置模板，填写各部门的结算类型、需提供资料、截止日期等信息后上传，系统将自动解析并更新配置。
+                    <a href="{{ url_for('download_config_template') }}" class="alert-link">
+                        <i class="bi bi-download"></i> 下载配置文件模板
+                    </a>
+                </div>
+                <form method="POST" enctype="multipart/form-data" action="{{ url_for('upload_config') }}">
+                    <div class="mb-3">
+                        <label class="form-label">上传人</label>
+                        <input type="text" class="form-control" name="uploader" placeholder="您的姓名">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">选择配置文件（Excel/CSV）</label>
+                        <input type="file" class="form-control" name="file" required accept=".xlsx,.xls,.csv">
+                    </div>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-upload"></i> 上传并解析</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header bg-light">
+                <h6 class="mb-0"><i class="bi bi-clock-history"></i> 配置上传历史</h6>
+            </div>
+            <div class="card-body p-0">
+                <div class="list-group list-group-flush">
+                    {% for cf in config_history %}
+                    <div class="list-group-item small">
+                        <div class="fw-bold">{{ cf['file_name'] }}</div>
+                        <div class="text-muted">
+                            {{ cf['uploaded_at'][:16] if cf['uploaded_at'] else '' }} |
+                            部门{{ cf['departments_count'] }} 任务{{ cf['tasks_count'] }}
+                            {% if cf['uploader'] %} | {{ cf['uploader'] }}{% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% if not config_history %}
+                    <div class="list-group-item text-center text-muted py-3">暂无上传记录</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 当前配置 -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-light">
+                <h6 class="mb-0"><i class="bi bi-list-ul"></i> 当前任务配置（共 {{ configs|length }} 项）</h6>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width:50px">#</th>
+                                <th>结算类型</th>
+                                <th>部门</th>
+                                <th>需提供资料</th>
+                                <th style="width:70px">条目数</th>
+                                <th style="width:90px">截止日期</th>
+                                <th>备注</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for c in configs %}
+                            <tr class="{% if c['is_active'] == 0 %}table-secondary text-muted{% endif %}">
+                                <td>{{ loop.index }}</td>
+                                <td>
+                                    <span class="badge {% if c['st_code'] == 'upstream' %}bg-danger{% else %}bg-info{% endif %}">
+                                        {{ c['st_name'] }}
+                                    </span>
+                                </td>
+                                <td class="fw-bold">
+                                    {{ c['dept_name'] }}
+                                    {% if c['is_active'] == 0 %}<span class="badge bg-secondary ms-1">已停用</span>{% endif %}
+                                </td>
+                                <td class="small">{{ c['required_materials'] }}</td>
+                                <td><span class="badge bg-info text-dark">{{ c['item_count'] }}</span></td>
+                                <td><span class="badge bg-secondary">每月{{ c['deadline_day'] }}日前</span></td>
+                                <td class="small text-muted">{{ c['remarks'] or '-' }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

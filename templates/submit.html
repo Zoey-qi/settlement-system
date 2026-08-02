@@ -1,0 +1,213 @@
+{% extends 'base.html' %}
+{% block title %}提交数据 - {{ app_title }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-cloud-arrow-up"></i> 提交结算数据</h5>
+            </div>
+            <div class="card-body">
+                <!-- 任务信息 -->
+                <div class="task-info-box mb-4">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p class="mb-1"><strong>结算类型：</strong>
+                                <span class="badge {% if task['st_code'] == 'upstream' %}bg-danger{% else %}bg-info{% endif %}">
+                                    {{ task['st_name'] }}
+                                </span>
+                            </p>
+                            <p class="mb-1"><strong>提交部门：</strong>{{ task['dept_name'] }}</p>
+                            <p class="mb-1"><strong>结算月份：</strong>{{ task['month'] }}</p>
+                            <p class="mb-1"><strong>截止日期：</strong>每月{{ task['deadline_day'] }}日前</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p class="mb-1"><strong>需提供资料：</strong></p>
+                            <p class="text-muted small">{{ task['required_materials'] }}</p>
+                        </div>
+                    </div>
+                    {% if task['status'] == 'completed' %}
+                    <div class="alert alert-success mt-2 mb-0">
+                        <i class="bi bi-check-circle-fill"></i>
+                        该任务已完成提交。
+                        {% if task['submission_type'] == 'file' %}
+                            提交文件：<a href="{{ url_for('download_submission', sub_id=task['sub_id']) }}">{{ task['file_name'] }}</a>
+                        {% elif task['submission_type'] == 'none' %}
+                            本月标记为"无"。
+                        {% endif %}
+                        <br>提交人：{{ task['submitter'] }} | 提交时间：{{ task['submitted_at'][:19] if task['submitted_at'] else '' }}
+                    </div>
+                    {% endif %}
+                </div>
+
+                {% if task['status'] == 'pending' %}
+                <!-- 提交表单 -->
+                <form method="POST" enctype="multipart/form-data" id="submitForm">
+                    <input type="hidden" name="task_id" value="{{ task['id'] }}">
+                    <input type="hidden" name="month" value="{{ month }}">
+
+                    <!-- 提交人 -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold"><i class="bi bi-person"></i> 提交人姓名 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="submitter" required placeholder="请输入您的姓名">
+                    </div>
+
+                    <!-- 提交方式选择 -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold"><i class="bi bi-files"></i> 提交方式 <span class="text-danger">*</span></label>
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <label class="submit-option" id="opt-file">
+                                    <input type="radio" name="submission_type" value="file" checked onchange="toggleSubmitType()">
+                                    <div class="submit-option-card">
+                                        <i class="bi bi-file-earmark-arrow-up fs-2 text-primary"></i>
+                                        <div class="fw-bold mt-2">上传文件</div>
+                                        <div class="small text-muted">上传已填好的模板文件</div>
+                                    </div>
+                                </label>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="submit-option" id="opt-none">
+                                    <input type="radio" name="submission_type" value="none" onchange="toggleSubmitType()">
+                                    <div class="submit-option-card">
+                                        <i class="bi bi-dash-circle fs-2 text-secondary"></i>
+                                        <div class="fw-bold mt-2">无数据</div>
+                                        <div class="small text-muted">本月无对应需要收集的内容</div>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 文件上传区域 -->
+                    <div id="fileArea" class="mb-3">
+                        <label class="form-label fw-bold"><i class="bi bi-paperclip"></i> 选择文件 <span class="text-danger">*</span></label>
+                        <div class="file-drop-zone" id="dropZone">
+                            <input type="file" name="file" id="fileInput" class="d-none" 
+                                   accept=".xlsx,.xls,.csv,.doc,.docx,.pdf,.jpg,.jpeg,.png,.zip,.rar,.ppt,.pptx,.txt">
+                            <div class="text-center py-4" id="dropPrompt">
+                                <i class="bi bi-cloud-arrow-up fs-1 text-muted"></i>
+                                <p class="mt-2 mb-1">点击此处选择文件，或将文件拖拽到此处</p>
+                                <p class="small text-muted">支持 Excel、Word、PDF、图片、压缩包等格式（最大100MB）</p>
+                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="document.getElementById('fileInput').click()">
+                                    <i class="bi bi-folder2-open"></i> 选择文件
+                                </button>
+                            </div>
+                            <div id="fileInfo" class="d-none p-3">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <div>
+                                        <i class="bi bi-file-earmark-check text-success fs-4"></i>
+                                        <span id="fileName" class="ms-2 fw-bold"></span>
+                                        <span id="fileSize" class="ms-2 text-muted small"></span>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="clearFile()">
+                                        <i class="bi bi-x-lg"></i> 移除
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <a href="{{ url_for('templates_page') }}" class="small text-decoration-none">
+                                <i class="bi bi-download"></i> 没有模板？前往下载所需模板文件
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- 备注 -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold"><i class="bi bi-chat-left-text"></i> 备注（选填）</label>
+                        <textarea class="form-control" name="remarks" rows="2" placeholder="如有需要说明的情况请填写"></textarea>
+                    </div>
+
+                    <hr>
+                    <div class="d-flex justify-content-end gap-2">
+                        <a href="{{ url_for('dashboard', month=month) }}" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left"></i> 返回
+                        </a>
+                        <button type="submit" class="btn btn-primary btn-lg" id="submitBtn">
+                            <i class="bi bi-check-lg"></i> 确认提交
+                        </button>
+                    </div>
+                </form>
+                {% else %}
+                <div class="text-center py-3">
+                    <i class="bi bi-check-circle-fill text-success" style="font-size:3rem;"></i>
+                    <h5 class="mt-2">该任务已完成</h5>
+                    <a href="{{ url_for('dashboard', month=month) }}" class="btn btn-outline-primary mt-2">
+                        <i class="bi bi-arrow-left"></i> 返回仪表盘
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleSubmitType() {
+    var fileType = document.querySelector('input[value="file"]').checked;
+    document.getElementById('fileArea').style.display = fileType ? '' : 'none';
+}
+
+document.getElementById('fileInput').addEventListener('change', function(e) {
+    if (e.target.files.length > 0) {
+        showFileInfo(e.target.files[0]);
+    }
+});
+
+var dropZone = document.getElementById('dropZone');
+dropZone.addEventListener('click', function(e) {
+    if (e.target.tagName !== 'BUTTON' && !e.target.closest('button')) {
+        document.getElementById('fileInput').click();
+    }
+});
+dropZone.addEventListener('dragover', function(e) {
+    e.preventDefault();
+    dropZone.classList.add('drag-over');
+});
+dropZone.addEventListener('dragleave', function(e) {
+    dropZone.classList.remove('drag-over');
+});
+dropZone.addEventListener('drop', function(e) {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    var fileInput = document.getElementById('fileInput');
+    fileInput.files = e.dataTransfer.files;
+    if (fileInput.files.length > 0) {
+        showFileInfo(fileInput.files[0]);
+    }
+});
+
+function showFileInfo(file) {
+    document.getElementById('dropPrompt').classList.add('d-none');
+    document.getElementById('fileInfo').classList.remove('d-none');
+    document.getElementById('fileName').textContent = file.name;
+    var sizeMB = (file.size / 1024 / 1024).toFixed(2);
+    document.getElementById('fileSize').textContent = file.size > 1024*1024 ? sizeMB + ' MB' : (file.size / 1024).toFixed(1) + ' KB';
+}
+
+function clearFile() {
+    document.getElementById('fileInput').value = '';
+    document.getElementById('dropPrompt').classList.remove('d-none');
+    document.getElementById('fileInfo').classList.add('d-none');
+}
+
+document.getElementById('submitForm').addEventListener('submit', function(e) {
+    var submitType = document.querySelector('input[name="submission_type"]:checked').value;
+    if (submitType === 'file') {
+        var fileInput = document.getElementById('fileInput');
+        if (!fileInput.files.length) {
+            e.preventDefault();
+            alert('请选择要上传的文件');
+            return;
+        }
+    }
+    var btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 提交中...';
+});
+</script>
+{% endblock %}

@@ -1,0 +1,23 @@
+version: "3.8"
+
+services:
+  settlement:
+    build: .
+    container_name: pakil-settlement
+    restart: always
+    ports:
+      - "5000:5000"
+    volumes:
+      # 数据持久化：数据库、上传文件、模板文件、日志
+      - ./data:/app/data
+      - ./uploads:/app/uploads
+      - ./template_files:/app/template_files
+      - ./logs:/app/logs
+    environment:
+      - TZ=Asia/Shanghai
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:5000/health')\" || exit 1"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 15s

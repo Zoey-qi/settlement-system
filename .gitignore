@@ -1,0 +1,32 @@
+# 本地数据（不提交到 GitHub）
+data/
+uploads/
+template_files/
+logs/
+*.db
+*.db-journal
+backups/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+env/
+
+# 部署工具
+cloudflared.exe
+cpolar.zip
+tunnel.log
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# IDE
+.vscode/
+.idea/
+
+# 大文件模板（二进制）
+部门结算任务配置模板.xlsx
