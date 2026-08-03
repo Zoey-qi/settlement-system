@@ -304,7 +304,8 @@ def dashboard():
     tasks = db.execute('''
         SELECT t.*, d.name as dept_name, d.contact_person, d.sort_order,
                st.code as st_code, st.name as st_name,
-               tc.id as task_config_id, tc.remarks as config_remarks
+               tc.id as task_config_id, tc.remarks as config_remarks,
+               tc.deadline_day as config_deadline_day
         FROM tasks t
         JOIN departments d ON t.department_id = d.id
         JOIN settlement_types st ON t.settlement_type_id = st.id
@@ -320,6 +321,7 @@ def dashboard():
         total_items = len(items)
         completed_items = sum(1 for i in items if i['sub_id'])
         task_dict = dict(t)
+        task_dict['deadline_day'] = t['config_deadline_day']
         task_dict['items'] = items
         task_dict['total_items'] = total_items
         task_dict['completed_items'] = completed_items
