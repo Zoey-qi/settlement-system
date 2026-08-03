@@ -49,7 +49,7 @@
                     <div class="list-group-item small">
                         <div class="fw-bold">{{ cf['file_name'] }}</div>
                         <div class="text-muted">
-                            {{ cf['uploaded_at'][:16] if cf['uploaded_at'] else '' }} |
+                            {{- cf['uploaded_at'].strftime('%Y-%m-%d %H:%M') if cf['uploaded_at'] and cf['uploaded_at'] is string == False and cf['uploaded_at']|string != 'NoneType' else '' -}} |
                             部门{{ cf['departments_count'] }} 任务{{ cf['tasks_count'] }}
                             {% if cf['uploader'] %} | {{ cf['uploader'] }}{% endif %}
                         </div>
@@ -100,7 +100,15 @@
                                 </td>
                                 <td class="small">{{ c['required_materials'] }}</td>
                                 <td><span class="badge bg-info text-dark">{{ c['item_count'] }}</span></td>
-                                <td><span class="badge bg-secondary">每月{{ c['deadline_day'] }}日前</span></td>
+                                <td>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary deadline-edit-btn"
+                                            data-bs-toggle="modal" data-bs-target="#deadlineModal"
+                                            data-config-id="{{ c['id'] }}"
+                                            data-config-name="{{ c['dept_name'] }} - {{ c['st_name'] }}"
+                                            data-current-day="{{ c['deadline_day'] }}">
+                                        每月 {{ c['deadline_day'] }} 日前 <i class="bi bi-pencil-square"></i>
+                                    </button>
+                                </td>
                                 <td class="small text-muted">{{ c['remarks'] or '-' }}</td>
                             </tr>
                             {% endfor %}
@@ -111,4 +119,117 @@
         </div>
     </div>
 </div>
+
+<!-- 截止日期编辑弹窗 -->
+<div class="modal fade" id="deadlineModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-calendar-event"></i> 调整截止日期</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small mb-2">
+                    任务：<strong id="deadlineModalConfigName"></strong>
+                </p>
+                <p class="text-muted small mb-3">
+                    <i class="bi bi-info-circle"></i> 当前截止：每月 <span id="deadlineModalCurrentDay"></span> 日前
+                </p>
+                <label class="form-label">新的截止日期（每月几号前）</label>
+                <input type="number" class="form-control form-control-lg" id="deadlineInput"
+                       min="1" max="31" required>
+                <div class="form-text">范围：1 - 31（日）</div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" id="deadlineSaveBtn">
+                    <i class="bi bi-check-lg"></i> 保存
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    const modal = document.getElementById('deadlineModal');
+    const input = document.getElementById('deadlineInput');
+    const saveBtn = document.getElementById('deadlineSaveBtn');
+    const configNameEl = document.getElementById('deadlineModalConfigName');
+    const currentDayEl = document.getElementById('deadlineModalCurrentDay');
+    let currentConfigId = null;
+    let currentBtn = null;
+
+    // 打开 modal 时填充数据
+    modal.addEventListener('show.bs.modal', function(event) {
+        const trigger = event.relatedTarget;
+        if (!trigger) return;
+        currentConfigId = trigger.dataset.configId;
+        currentBtn = trigger;
+        const configName = trigger.dataset.configName;
+        const currentDay = trigger.dataset.currentDay;
+        configNameEl.textContent = configName;
+        currentDayEl.textContent = currentDay;
+        input.value = currentDay;
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<i class="bi bi-check-lg"></i> 保存';
+    });
+
+    // 保存
+    saveBtn.addEventListener('click', function() {
+        const newDay = parseInt(input.value, 10);
+        if (isNaN(newDay) || newDay < 1 || newDay > 31) {
+            alert('截止日期必须在 1-31 之间');
+            input.focus();
+            return;
+        }
+        if (!currentConfigId) return;
+
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 保存中...';
+
+        const formData = new FormData();
+        formData.append('task_config_id', currentConfigId);
+        formData.append('deadline_day', newDay);
+
+        fetch('/api/config/update-deadline', { method: 'POST', body: formData })
+            .then(r => r.json())
+            .then(data => {
+                if (data.ok) {
+                    // 更新按钮显示
+                    if (currentBtn) {
+                        currentBtn.innerHTML = '每月 ' + data.deadline_day + ' 日前 <i class="bi bi-pencil-square"></i>';
+                        currentBtn.dataset.currentDay = data.deadline_day;
+                    }
+                    // 关闭 modal
+                    const bsModal = bootstrap.Modal.getInstance(modal);
+                    bsModal.hide();
+                    // 顶部提示
+                    showToast('✓ 截止日期已更新为每月 ' + data.deadline_day + ' 日前');
+                } else {
+                    alert('保存失败：' + (data.error || '未知错误'));
+                    saveBtn.disabled = false;
+                    saveBtn.innerHTML = '<i class="bi bi-check-lg"></i> 保存';
+                }
+            })
+            .catch(err => {
+                alert('网络错误：' + err);
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = '<i class="bi bi-check-lg"></i> 保存';
+            });
+    });
+
+    // 简单 toast
+    function showToast(msg) {
+        const toast = document.createElement('div');
+        toast.textContent = msg;
+        toast.style.cssText = 'position:fixed;top:20px;right:20px;background:#28a745;color:white;padding:12px 20px;border-radius:6px;z-index:9999;box-shadow:0 2px 8px rgba(0,0,0,0.2);font-size:14px;';
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 2500);
+    }
+})();
+</script>
 {% endblock %}

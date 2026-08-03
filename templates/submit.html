@@ -36,7 +36,7 @@
                         {% elif task['submission_type'] == 'none' %}
                             本月标记为"无"。
                         {% endif %}
-                        <br>提交人：{{ task['submitter'] }} | 提交时间：{{ task['submitted_at'][:19] if task['submitted_at'] else '' }}
+                        <br>提交人：{{ task['submitter'] }} | 提交时间：{{- task['submitted_at'].strftime('%Y-%m-%d %H:%M') if task['submitted_at'] and task['submitted_at'].__class__.__name__ == 'datetime' else (task['submitted_at'][:19] if task['submitted_at'] else '') -}}
                     </div>
                     {% endif %}
                 </div>

@@ -52,7 +52,7 @@
                                         <span class="small text-muted">{{ t['completed_items'] }}/{{ t['total_items'] }}</span>
                                     </div>
                                 </td>
-                                <td><span class="badge bg-secondary">{{ t['deadline_day'] }}日前</span></td>
+                                <td><span class="badge bg-secondary" title="如需调整，请到「配置管理」页面">{{ t['deadline_day'] }}日前</span></td>
                                 <td>
                                     {% if t['status'] == 'completed' %}
                                         <span class="badge bg-success">已完成</span>

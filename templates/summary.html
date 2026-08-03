@@ -99,7 +99,7 @@
                                         <span class="text-muted">-</span>
                                     {% endif %}
                                 </td>
-                                <td><span class="badge bg-secondary">{{ item['deadline_day'] }}日</span></td>
+                                <td><span class="badge bg-secondary" title="如需调整，请到「配置管理」页面">{{ item['deadline_day'] }}日</span></td>
                                 <td>
                                     {% if item['sub_id'] %}
                                         {% if item['submission_type'] == 'file' %}
@@ -123,7 +123,7 @@
                                     {% endif %}
                                 </td>
                                 <td class="small">{{ item['submitter'] or '-' }}</td>
-                                <td class="small text-muted">{{ item['submitted_at'][:16] if item['submitted_at'] else '-' }}</td>
+                                <td class="small text-muted">{{- item['submitted_at'].strftime('%Y-%m-%d %H:%M') if item['submitted_at'] and item['submitted_at'].__class__.__name__ == 'datetime' else (item['submitted_at'][:16] if item['submitted_at'] else '-') -}}</td>
                                 <td>
                                     {% if not item['sub_id'] %}
                                     <a href="{{ url_for('submit_task', task_id=item['task_id'], month=month) }}"

@@ -106,7 +106,7 @@
                                         <span class="small text-muted">{{ t['completed_items'] }}/{{ t['total_items'] }}</span>
                                     </div>
                                 </td>
-                                <td><span class="badge bg-secondary">{{ t['deadline_day'] }}日前</span></td>
+                                <td><span class="badge bg-secondary" title="如需调整，请到「配置管理」页面">{{ t['deadline_day'] }}日前</span></td>
                                 <td>
                                     {% if t['status'] == 'completed' %}
                                         <span class="badge bg-success"><i class="bi bi-check-circle"></i> 已完成</span>
@@ -159,7 +159,7 @@
                                                     </td>
                                                     <td class="small text-muted">
                                                         {% if item['submitter'] %}
-                                                            {{ item['submitter'] }}<br>{{ item['submitted_at'][:16] if item['submitted_at'] else '' }}
+                                                            {{ item['submitter'] }}<br>{{- item['submitted_at'].strftime('%Y-%m-%d %H:%M') if item['submitted_at'] and item['submitted_at'].__class__.__name__ == 'datetime' else (item['submitted_at'][:16] if item['submitted_at'] else '') -}}
                                                         {% else %}-{% endif %}
                                                     </td>
                                                 </tr>
@@ -220,7 +220,7 @@
                                         <span class="small text-muted">{{ t['completed_items'] }}/{{ t['total_items'] }}</span>
                                     </div>
                                 </td>
-                                <td><span class="badge bg-secondary">{{ t['deadline_day'] }}日前</span></td>
+                                <td><span class="badge bg-secondary" title="如需调整，请到「配置管理」页面">{{ t['deadline_day'] }}日前</span></td>
                                 <td>
                                     {% if t['status'] == 'completed' %}
                                         <span class="badge bg-success"><i class="bi bi-check-circle"></i> 已完成</span>
@@ -272,7 +272,7 @@
                                                     </td>
                                                     <td class="small text-muted">
                                                         {% if item['submitter'] %}
-                                                            {{ item['submitter'] }}<br>{{ item['submitted_at'][:16] if item['submitted_at'] else '' }}
+                                                            {{ item['submitter'] }}<br>{{- item['submitted_at'].strftime('%Y-%m-%d %H:%M') if item['submitted_at'] and item['submitted_at'].__class__.__name__ == 'datetime' else (item['submitted_at'][:16] if item['submitted_at'] else '') -}}
                                                         {% else %}-{% endif %}
                                                     </td>
                                                 </tr>

@@ -23,22 +23,38 @@ from db import connect, USE_POSTGRES, init_schema, seed_default_data, insert_ret
 # ===========================================================================
 # 配置
 # ===========================================================================
+IS_VERCEL = bool(os.environ.get('VERCEL'))
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-UPLOAD_DIR = os.path.join(BASE_DIR, 'uploads')
-TEMPLATE_DIR = os.path.join(BASE_DIR, 'template_files')
-DATA_DIR = os.path.join(BASE_DIR, 'data')
+
+if IS_VERCEL:
+    # Vercel 文件系统只读，用 /tmp
+    UPLOAD_DIR = '/tmp/uploads'
+    TEMPLATE_DIR = '/tmp/template_files'
+    DATA_DIR = '/tmp/data'
+else:
+    UPLOAD_DIR = os.path.join(BASE_DIR, 'uploads')
+    TEMPLATE_DIR = os.path.join(BASE_DIR, 'template_files')
+    DATA_DIR = os.path.join(BASE_DIR, 'data')
 DB_PATH = os.path.join(DATA_DIR, 'settlement.db')
 
 if not USE_POSTGRES:
     for d in [UPLOAD_DIR, TEMPLATE_DIR, DATA_DIR]:
-        os.makedirs(d, exist_ok=True)
+        try:
+            os.makedirs(d, exist_ok=True)
+        except OSError:
+            pass  # 只读文件系统，忽略
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'pakil-settlement-2025'
-app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB
+# Vercel Hobby 限制 4.5MB，本地无限制
+if USE_POSTGRES:
+    app.config['MAX_CONTENT_LENGTH'] = 4 * 1024 * 1024  # 4MB (Vercel safe)
+else:
+    app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB (local)
 app.config['JSON_AS_ASCII'] = False
-app.config['TEMPLATES_AUTO_RELOAD'] = True
-app.jinja_env.auto_reload = True
+if not USE_POSTGRES:
+    app.config['TEMPLATES_AUTO_RELOAD'] = True
+    app.jinja_env.auto_reload = True
 
 ALLOWED_EXTENSIONS = {
     '.xlsx', '.xls', '.csv', '.doc', '.docx',
@@ -650,6 +666,35 @@ def api_unsubmit_item():
     db.commit()
     ensure_tasks_for_month(month)
     return jsonify({'ok': True})
+
+
+# ===========================================================================
+# 配置管理 API
+# ===========================================================================
+@app.route('/api/config/update-deadline', methods=['POST'])
+def api_update_deadline():
+    """更新任务的截止日期（task_configs.deadline_day）"""
+    db = get_db()
+    task_config_id = request.form.get('task_config_id')
+    deadline_day = request.form.get('deadline_day')
+
+    # 校验
+    try:
+        task_config_id = int(task_config_id)
+        deadline_day = int(deadline_day)
+    except (TypeError, ValueError):
+        return jsonify({'error': '参数类型错误'}), 400
+
+    if deadline_day < 1 or deadline_day > 31:
+        return jsonify({'error': '截止日期必须在 1-31 之间'}), 400
+
+    cfg = db.execute('SELECT * FROM task_configs WHERE id = ?', (task_config_id,)).fetchone()
+    if not cfg:
+        return jsonify({'error': '配置项不存在'}), 404
+
+    db.execute('UPDATE task_configs SET deadline_day = ? WHERE id = ?', (deadline_day, task_config_id))
+    db.commit()
+    return jsonify({'ok': True, 'task_config_id': task_config_id, 'deadline_day': deadline_day})
 
 
 # ===========================================================================

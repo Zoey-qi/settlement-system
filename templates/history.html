@@ -57,7 +57,7 @@
                                     {% if s['remarks'] %}<span class="text-muted">{{ s['remarks'] }}</span>{% endif %}
                                 </td>
                                 <td>{{ s['submitter'] or '-' }}</td>
-                                <td class="small text-muted">{{ s['submitted_at'][:16] if s['submitted_at'] else '' }}</td>
+                                <td class="small text-muted">{{- s['submitted_at'].strftime('%Y-%m-%d %H:%M') if s['submitted_at'] and s['submitted_at'].__class__.__name__ == 'datetime' else (s['submitted_at'][:16] if s['submitted_at'] else '') -}}</td>
                                 <td>
                                     {% if s['submission_type'] == 'file' %}
                                     <a href="{{ url_for('download_item_submission', sub_id=s['id']) }}" class="btn btn-sm btn-outline-primary py-0">

@@ -85,8 +85,13 @@ def connect():
         return PgConnection(DATABASE_URL)
     else:
         import sqlite3
-        BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-        DB_PATH = os.path.join(BASE_DIR, 'data', 'settlement.db')
+        # Vercel 文件系统只读，用 /tmp 作为回退
+        if os.environ.get('VERCEL'):
+            db_dir = '/tmp'
+        else:
+            db_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
+        os.makedirs(db_dir, exist_ok=True)
+        DB_PATH = os.path.join(db_dir, 'settlement.db')
         conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
         conn.execute('PRAGMA foreign_keys = ON')

@@ -122,7 +122,7 @@
                                 <!-- 提交人 -->
                                 <td class="small">{{ item['submitter'] or '-' }}</td>
                                 <!-- 提交时间 -->
-                                <td class="small text-muted">{{ item['submitted_at'][:16] if item['submitted_at'] else '-' }}</td>
+                                <td class="small text-muted">{{- item['submitted_at'].strftime('%Y-%m-%d %H:%M') if item['submitted_at'] and item['submitted_at'].__class__.__name__ == 'datetime' else (item['submitted_at'][:16] if item['submitted_at'] else '-') -}}</td>
                                 <!-- 操作 -->
                                 <td>
                                     <div class="d-flex gap-1 flex-wrap">
