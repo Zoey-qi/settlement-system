@@ -11,6 +11,8 @@ import sqlite3
 import hashlib
 import shutil
 import io
+import secrets
+import time
 from datetime import datetime, date
 from functools import wraps
 from flask import (
@@ -25,6 +27,11 @@ from db import connect, USE_POSTGRES, init_schema, seed_default_data, insert_ret
 # ===========================================================================
 IS_VERCEL = bool(os.environ.get('VERCEL'))
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# 配置管理密码会话：token -> 过期时间戳
+# 30 分钟无活动自动失效（同一 token 在写操作时会刷新）
+PASSWORD_SESSION_TTL = 30 * 60  # 秒
+password_sessions = {}  # {token: expire_ts}
 
 if IS_VERCEL:
     # Vercel 文件系统只读，用 /tmp
@@ -673,7 +680,100 @@ def api_unsubmit_item():
 # ===========================================================================
 # 配置管理 API
 # ===========================================================================
+def require_config_password(f):
+    """装饰器：要求带有效密码 token（X-Config-Token 头或 form/config_token）"""
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        token = request.headers.get('X-Config-Token') or request.form.get('config_token')
+        if not token:
+            return jsonify({'error': '未授权：缺少访问令牌'}), 401
+        expire = password_sessions.get(token)
+        if not expire or expire < time.time():
+            password_sessions.pop(token, None)
+            return jsonify({'error': '会话已过期，请重新输入密码'}), 401
+        # 滑动续期：每次写操作刷新过期时间
+        password_sessions[token] = time.time() + PASSWORD_SESSION_TTL
+        return f(*args, **kwargs)
+    return wrapper
+
+
+@app.route('/api/config/verify-password', methods=['POST'])
+def api_verify_config_password():
+    """校验配置管理密码，返回 30 分钟有效的 token"""
+    db = get_db()
+    password = (request.form.get('password') or '').strip()
+    if not password or not password.isdigit() or len(password) != 4:
+        return jsonify({'error': '请输入4位数字密码'}), 400
+
+    row = db.execute("SELECT value FROM system_config WHERE key='config_password'").fetchone()
+    stored = row['value'] if row else '1111'
+    if password != stored:
+        return jsonify({'error': '密码错误'}), 403
+
+    # 生成 32 字节随机 token
+    token = secrets.token_urlsafe(32)
+    password_sessions[token] = time.time() + PASSWORD_SESSION_TTL
+    return jsonify({
+        'ok': True,
+        'token': token,
+        'ttl_seconds': PASSWORD_SESSION_TTL,
+        'expires_at': datetime.fromtimestamp(password_sessions[token]).strftime('%Y-%m-%d %H:%M:%S'),
+    })
+
+
+@app.route('/api/config/change-password', methods=['POST'])
+def api_change_config_password():
+    """修改配置管理密码（需先通过旧密码验证）"""
+    db = get_db()
+    old_pwd = (request.form.get('old_password') or '').strip()
+    new_pwd = (request.form.get('new_password') or '').strip()
+
+    if not new_pwd.isdigit() or len(new_pwd) != 4:
+        return jsonify({'error': '新密码必须是4位数字'}), 400
+
+    row = db.execute("SELECT value FROM system_config WHERE key='config_password'").fetchone()
+    stored = row['value'] if row else '1111'
+    if old_pwd != stored:
+        return jsonify({'error': '当前密码错误'}), 403
+
+    if new_pwd == stored:
+        return jsonify({'error': '新密码不能与旧密码相同'}), 400
+
+    db.execute(
+        "UPDATE system_config SET value=?, updated_at=CURRENT_TIMESTAMP WHERE key='config_password'",
+        (new_pwd,)
+    )
+    db.commit()
+    # 让所有现有 token 失效，下次需重新输入新密码
+    password_sessions.clear()
+    return jsonify({'ok': True, 'message': '密码已修改，请重新登录'})
+
+
+@app.route('/api/config/check-session', methods=['GET'])
+def api_check_config_session():
+    """检查 token 是否有效（前端定期检查）"""
+    token = request.headers.get('X-Config-Token')
+    if not token:
+        return jsonify({'ok': False}), 200
+    expire = password_sessions.get(token)
+    if not expire or expire < time.time():
+        password_sessions.pop(token, None)
+        return jsonify({'ok': False}), 200
+    remaining = int(expire - time.time())
+    return jsonify({'ok': True, 'remaining_seconds': remaining})
+
+
+@app.route('/api/config/logout', methods=['POST'])
+def api_config_logout():
+    """主动登出：清掉 token"""
+    token = request.headers.get('X-Config-Token') or request.form.get('config_token')
+    if token:
+        password_sessions.pop(token, None)
+    return jsonify({'ok': True})
+
+
 @app.route('/api/config/update-deadline', methods=['POST'])
+@require_config_password
 def api_update_deadline():
     """更新任务的截止日期（task_configs.deadline_day）"""
     db = get_db()
@@ -700,6 +800,7 @@ def api_update_deadline():
 
 
 @app.route('/api/config/update-contact', methods=['POST'])
+@require_config_password
 def api_update_contact():
     """更新部门联系人姓名"""
     db = get_db()
@@ -901,6 +1002,7 @@ def config_page():
 
 
 @app.route('/config/upload', methods=['POST'])
+@require_config_password
 def upload_config():
     db = get_db()
     file = request.files.get('file')

@@ -237,6 +237,11 @@ def init_schema(db):
             content TEXT,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )''',
+        f'''CREATE TABLE IF NOT EXISTS system_config (
+            key TEXT PRIMARY KEY,
+            value TEXT,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )''',
     ]
 
     for table_sql in tables:
@@ -316,5 +321,11 @@ def seed_default_data(db):
                 VALUES (?,?,?,?,?,1)
                 ON CONFLICT DO NOTHING
             ''', (dept[0], st_id, materials, deadline, remarks))
+
+    # 默认密码：4 位数字（配置管理页面保护用）
+    db.execute('''
+        INSERT INTO system_config (key, value) VALUES ('config_password', '1111')
+        ON CONFLICT DO NOTHING
+    ''')
 
     db.commit()
