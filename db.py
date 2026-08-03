@@ -245,7 +245,11 @@ def init_schema(db):
     ]
 
     for table_sql in tables:
-        db.execute(table_sql)
+        try:
+            db.execute(table_sql)
+        except Exception as e:
+            # 单条 CREATE 失败不影响后续（兼容历史库已有部分表的情况）
+            print(f'[init_schema] skip table (already exists or incompatible): {e}')
 
     # 兼容已有数据库：为历史 departments 表补充联系人字段
     try:
@@ -323,9 +327,13 @@ def seed_default_data(db):
             ''', (dept[0], st_id, materials, deadline, remarks))
 
     # 默认密码：4 位数字（配置管理页面保护用）
-    db.execute('''
-        INSERT INTO system_config (key, value) VALUES ('config_password', '1111')
-        ON CONFLICT DO NOTHING
-    ''')
+    try:
+        db.execute('''
+            INSERT INTO system_config (key, value) VALUES ('config_password', '1111')
+            ON CONFLICT DO NOTHING
+        ''')
+    except Exception as e:
+        # 如果表不存在（init_schema 中某条语句失败导致），这里跳过 — 引导用户走修改密码流程重置
+        print(f'[seed_default_data] skip system_config seed: {e}')
 
     db.commit()
