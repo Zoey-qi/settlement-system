@@ -114,19 +114,6 @@ def init_db():
     """初始化数据库并预填充数据"""
     conn = connect()
     init_schema(conn)
-    # 诊断：检查 system_config 表是否存在
-    try:
-        r = conn.execute("SELECT to_regclass('public.system_config')").fetchone()
-        print(f'[init_db] system_config in PG: {r[0] if r else None}')
-    except Exception:
-        pass
-    try:
-        r = conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='system_config'"
-        ).fetchone() if not USE_POSTGRES else None
-        print(f'[init_db] system_config in SQLite: {r}')
-    except Exception:
-        pass
     seed_default_data(conn)
 
     # 迁移：将已有 task_configs 拆分为 task_items
@@ -693,69 +680,6 @@ def api_unsubmit_item():
 # ===========================================================================
 # 配置管理 API
 # ===========================================================================
-@app.route('/api/_repair_tables', methods=['GET'])
-def api_repair_tables():
-    """一次性端点：补全 Neon 上缺失的 system_config 表"""
-    from db import USE_POSTGRES
-    db = get_db()
-    result = []
-    # 列出所有表
-    try:
-        if USE_POSTGRES:
-            rows = db.execute(
-                "SELECT table_name FROM information_schema.tables WHERE table_schema='public' ORDER BY table_name"
-            ).fetchall()
-            result.append(['existing', [r[0] for r in rows]])
-        else:
-            rows = db.execute(
-                "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
-            ).fetchall()
-            result.append(['existing', [r[0] for r in rows]])
-    except Exception as e:
-        result.append(['list_error', str(e)])
-
-    # 强制建 system_config
-    try:
-        if USE_POSTGRES:
-            db.execute('''
-                CREATE TABLE IF NOT EXISTS system_config (
-                    key TEXT PRIMARY KEY,
-                    value TEXT,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            ''')
-        else:
-            db.execute('''
-                CREATE TABLE IF NOT EXISTS system_config (
-                    key TEXT PRIMARY KEY,
-                    value TEXT,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            ''')
-        db.commit()
-        result.append(['create', 'OK'])
-    except Exception as e:
-        result.append(['create_error', str(e)])
-
-    # 插入默认密码（如果还没有）
-    try:
-        existing = db.execute(
-            "SELECT value FROM system_config WHERE key='config_password'"
-        ).fetchone()
-        if not existing:
-            db.execute(
-                "INSERT INTO system_config (key, value) VALUES ('config_password', '1111')"
-            )
-            db.commit()
-            result.append(['insert', 'INSERTED 1111'])
-        else:
-            result.append(['insert', f'already={existing["value"]}'])
-    except Exception as e:
-        result.append(['insert_error', str(e)])
-
-    return jsonify({'steps': result})
-
-
 def require_config_password(f):
     """装饰器：要求带有效密码 token（X-Config-Token 头或 form/config_token）"""
     @wraps(f)
