@@ -79,6 +79,7 @@
                                 <th style="width:50px">#</th>
                                 <th>结算类型</th>
                                 <th>部门</th>
+                                <th>联络人</th>
                                 <th>需提供资料</th>
                                 <th style="width:70px">条目数</th>
                                 <th style="width:90px">截止日期</th>
@@ -97,6 +98,16 @@
                                 <td class="fw-bold">
                                     {{ c['dept_name'] }}
                                     {% if c['is_active'] == 0 %}<span class="badge bg-secondary ms-1">已停用</span>{% endif %}
+                                </td>
+                                <td>
+                                    <button type="button" class="btn btn-sm btn-outline-primary contact-edit-btn"
+                                            data-bs-toggle="modal" data-bs-target="#contactModal"
+                                            data-department-id="{{ c['department_id'] }}"
+                                            data-department-name="{{ c['dept_name'] }}"
+                                            data-current-contact="{{ c['contact_person'] or '' }}">
+                                        <span class="contact-name">{{ c['contact_person'] or '未设置' }}</span>
+                                        <i class="bi bi-pencil-square"></i>
+                                    </button>
                                 </td>
                                 <td class="small">{{ c['required_materials'] }}</td>
                                 <td><span class="badge bg-info text-dark">{{ c['item_count'] }}</span></td>
@@ -150,11 +161,76 @@
     </div>
 </div>
 
+<!-- 联系人编辑弹窗 -->
+<div class="modal fade" id="contactModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-person-lines-fill"></i> 设置部门联络人</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small">部门：<strong id="contactModalDepartmentName"></strong></p>
+                <label class="form-label">联络人姓名</label>
+                <input type="text" class="form-control form-control-lg" id="contactInput" maxlength="50" placeholder="请输入姓名">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" id="contactSaveBtn"><i class="bi bi-check-lg"></i> 保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
 <script>
 (function() {
+    const contactModal = document.getElementById('contactModal');
+    const contactInput = document.getElementById('contactInput');
+    const contactSaveBtn = document.getElementById('contactSaveBtn');
+    const contactDepartmentName = document.getElementById('contactModalDepartmentName');
+    let currentDepartmentId = null;
+    let currentContactBtn = null;
+
+    contactModal.addEventListener('show.bs.modal', function(event) {
+        const trigger = event.relatedTarget;
+        currentDepartmentId = trigger.dataset.departmentId;
+        currentContactBtn = trigger;
+        contactDepartmentName.textContent = trigger.dataset.departmentName;
+        contactInput.value = trigger.dataset.currentContact || '';
+        contactSaveBtn.disabled = false;
+        contactSaveBtn.innerHTML = '<i class="bi bi-check-lg"></i> 保存';
+    });
+
+    contactSaveBtn.addEventListener('click', function() {
+        const contact = contactInput.value.trim();
+        if (contact.length > 50) {
+            alert('联络人姓名不能超过50个字符');
+            return;
+        }
+        contactSaveBtn.disabled = true;
+        contactSaveBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 保存中...';
+        const formData = new FormData();
+        formData.append('department_id', currentDepartmentId);
+        formData.append('contact_person', contact);
+        fetch('/api/config/update-contact', { method: 'POST', body: formData })
+            .then(r => r.json())
+            .then(data => {
+                if (!data.ok) throw new Error(data.error || '保存失败');
+                currentContactBtn.dataset.currentContact = data.contact_person;
+                currentContactBtn.querySelector('.contact-name').textContent = data.contact_person || '未设置';
+                bootstrap.Modal.getInstance(contactModal).hide();
+                showToast('✓ 联络人已更新');
+            })
+            .catch(err => {
+                alert('保存失败：' + err.message);
+                contactSaveBtn.disabled = false;
+                contactSaveBtn.innerHTML = '<i class="bi bi-check-lg"></i> 保存';
+            });
+    });
+
     const modal = document.getElementById('deadlineModal');
     const input = document.getElementById('deadlineInput');
     const saveBtn = document.getElementById('deadlineSaveBtn');

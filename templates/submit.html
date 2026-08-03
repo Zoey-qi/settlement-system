@@ -19,6 +19,7 @@
                                 </span>
                             </p>
                             <p class="mb-1"><strong>提交部门：</strong>{{ task['dept_name'] }}</p>
+                            {% if task['contact_person'] %}<p class="mb-1"><strong>部门联络人：</strong>{{ task['contact_person'] }}</p>{% endif %}
                             <p class="mb-1"><strong>结算月份：</strong>{{ task['month'] }}</p>
                             <p class="mb-1"><strong>截止日期：</strong>每月{{ task['deadline_day'] }}日前</p>
                         </div>

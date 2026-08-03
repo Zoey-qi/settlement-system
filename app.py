@@ -302,7 +302,7 @@ def dashboard():
 
     db = get_db()
     tasks = db.execute('''
-        SELECT t.*, d.name as dept_name, d.sort_order,
+        SELECT t.*, d.name as dept_name, d.contact_person, d.sort_order,
                st.code as st_code, st.name as st_name,
                tc.id as task_config_id, tc.remarks as config_remarks
         FROM tasks t
@@ -351,7 +351,7 @@ def submit():
     ensure_tasks_for_month(month)
 
     tasks = db.execute('''
-        SELECT t.*, d.name as dept_name, d.sort_order,
+        SELECT t.*, d.name as dept_name, d.contact_person, d.sort_order,
                st.code as st_code, st.name as st_name,
                tc.id as task_config_id, tc.deadline_day, tc.remarks as config_remarks
         FROM tasks t
@@ -385,7 +385,7 @@ def submit_task(task_id):
     ensure_tasks_for_month(month)
 
     task = db.execute('''
-        SELECT t.*, d.name as dept_name, d.sort_order,
+        SELECT t.*, d.name as dept_name, d.contact_person, d.sort_order,
                st.code as st_code, st.name as st_name,
                tc.id as task_config_id, tc.deadline_day, tc.remarks as config_remarks
         FROM tasks t
@@ -506,7 +506,7 @@ def summary():
     db = get_db()
 
     query = '''
-        SELECT t.*, d.name as dept_name, d.sort_order,
+        SELECT t.*, d.name as dept_name, d.contact_person, d.sort_order,
                st.code as st_code, st.name as st_name,
                tc.id as task_config_id, tc.deadline_day, tc.remarks as config_remarks
         FROM tasks t
@@ -697,6 +697,26 @@ def api_update_deadline():
     return jsonify({'ok': True, 'task_config_id': task_config_id, 'deadline_day': deadline_day})
 
 
+@app.route('/api/config/update-contact', methods=['POST'])
+def api_update_contact():
+    """更新部门联系人姓名"""
+    db = get_db()
+    department_id = request.form.get('department_id')
+    contact_person = (request.form.get('contact_person') or '').strip()
+    try:
+        department_id = int(department_id)
+    except (TypeError, ValueError):
+        return jsonify({'error': '部门参数无效'}), 400
+    if len(contact_person) > 50:
+        return jsonify({'error': '联系人姓名不能超过50个字符'}), 400
+    department = db.execute('SELECT id FROM departments WHERE id = ?', (department_id,)).fetchone()
+    if not department:
+        return jsonify({'error': '部门不存在'}), 404
+    db.execute('UPDATE departments SET contact_person = ? WHERE id = ?', (contact_person or None, department_id))
+    db.commit()
+    return jsonify({'ok': True, 'department_id': department_id, 'contact_person': contact_person})
+
+
 # ===========================================================================
 # 文件下载路由
 # ===========================================================================
@@ -862,7 +882,7 @@ def config_page():
     db = get_db()
     departments = db.execute('SELECT * FROM departments ORDER BY sort_order').fetchall()
     configs = db.execute('''
-        SELECT tc.*, d.name as dept_name, d.sort_order,
+        SELECT tc.*, d.name as dept_name, d.contact_person, d.sort_order,
                st.code as st_code, st.name as st_name,
                (SELECT COUNT(*) FROM task_items WHERE task_config_id = tc.id AND is_active = 1) as item_count
         FROM task_configs tc

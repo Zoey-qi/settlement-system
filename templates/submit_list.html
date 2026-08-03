@@ -24,7 +24,7 @@
                             <tr>
                                 <th style="width:50px">#</th>
                                 <th>结算类型</th>
-                                <th>部门</th>
+                                <th>部门 / 联络人</th>
                                 <th>备注</th>
                                 <th>条目进度</th>
                                 <th style="width:90px">截止日期</th>
@@ -41,7 +41,7 @@
                                         {{ t['st_name'] }}
                                     </span>
                                 </td>
-                                <td class="fw-bold">{{ t['dept_name'] }}</td>
+                                <td class="fw-bold">{{ t['dept_name'] }}{% if t['contact_person'] %}<div class="small text-muted fw-normal"><i class="bi bi-person"></i> {{ t['contact_person'] }}</div>{% endif %}</td>
                                 <td class="small text-muted">{{ t['config_remarks'] or '-' }}</td>
                                 <td>
                                     <div class="d-flex align-items-center gap-2">

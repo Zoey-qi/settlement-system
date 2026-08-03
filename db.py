@@ -241,6 +241,12 @@ def init_schema(db):
 
     for table_sql in tables:
         db.execute(table_sql)
+
+    # 兼容已有数据库：为历史 departments 表补充联系人字段
+    try:
+        db.execute('ALTER TABLE departments ADD COLUMN contact_person TEXT')
+    except Exception:
+        pass
     db.commit()
 
 
