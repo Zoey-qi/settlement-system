@@ -2186,6 +2186,23 @@ def api_init_users():
     return jsonify({'ok': True, 'seeded': False, 'message': f'已存在 {count} 个用户'})
 
 
+@app.route('/api/_diag-tables', methods=['GET'])
+def api_diag_tables():
+    """临时诊断端点：列出数据库中所有表 + 用户表行数"""
+    db = get_db()
+    rows = db.execute(
+        "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name"
+    ).fetchall()
+    tables = [r['table_name'] for r in rows]
+    info = {'tables': tables, 'postgres': USE_POSTGRES}
+    try:
+        info['users_count'] = db.execute('SELECT COUNT(*) as c FROM users').fetchone()['c']
+    except Exception as e:
+        info['users_error'] = str(e)
+    db.commit()
+    return jsonify(info)
+
+
 # ===========================================================================
 # 错误处理
 # ===========================================================================
