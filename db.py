@@ -288,12 +288,16 @@ def init_schema(db):
         )''',
     ]
 
-    for table_sql in tables:
+    for i, table_sql in enumerate(tables):
         try:
             db.execute(table_sql)
+            if i >= 7:  # 第 8 张起为新增表（users/settlement_records/department_files），打 success 日志
+                first_line = table_sql.strip().split('\n')[0][:80]
+                print(f'[init_schema] OK: {first_line}...')
         except Exception as e:
             # 单条 CREATE 失败不影响后续（兼容历史库已有部分表的情况）
-            print(f'[init_schema] skip table (already exists or incompatible): {e}')
+            first_line = table_sql.strip().split('\n')[0][:80]
+            print(f'[init_schema] FAIL ({first_line}...): {e}')
 
     # 兼容已有数据库：为历史 departments 表补充联系人字段
     try:

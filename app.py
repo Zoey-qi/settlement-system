@@ -2158,21 +2158,30 @@ def api_init_users():
     """首次访问自动 seed 用户（公开接口，仅当 users 表为空时生效）
 
     支持表不存在的情况：先调 init_schema() 建表，再 seed_users()。
-    旧连接事务可能已 abort，用新连接跑建表，再回到原连接 seed。
     """
     db = get_db()
     try:
         count = db.execute('SELECT COUNT(*) as c FROM users').fetchone()['c']
-    except Exception:
+    except Exception as e:
+        print(f'[_init-users] users 表查询失败：{e}')
         # users 表不存在 → 用全新连接建表（避免在已 abort 的事务里跑 DDL）
         new_conn = connect()
         try:
             init_schema(new_conn)
+            new_conn.commit()
+            print('[_init-users] init_schema 已执行（独立连接）')
         finally:
             new_conn.close()
-        count = 0
+        # 重新拿一次连接查询 count
+        db2 = connect()
+        try:
+            count = db2.execute('SELECT COUNT(*) as c FROM users').fetchone()['c']
+            print(f'[_init-users] 重建后 users 表行数：{count}')
+        finally:
+            db2.close()
     if count == 0:
         seed_users(db)
+        db.commit()
         return jsonify({'ok': True, 'seeded': True, 'message': '已初始化 10 个内置用户'})
     return jsonify({'ok': True, 'seeded': False, 'message': f'已存在 {count} 个用户'})
 
