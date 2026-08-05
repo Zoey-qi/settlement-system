@@ -2482,16 +2482,21 @@ if __name__ == '__main__':
 @app.route('/api/_purge_finance_2026', methods=['GET'])
 def api_purge_finance_2026():
     if request.args.get('secret') != 'purge-finance-2026':
-        return jsonify({'ok': False, 'error': 'invalid secret'}), 403
+        return jsonify(ok=False, error='invalid secret'), 403
     try:
-        return _do_purge_finance()
+        result = _do_purge_finance()
+        if isinstance(result, tuple):
+            return result
+        return result
     except Exception as e:
         import traceback
-        return jsonify({
-            'ok': False,
-            'error': str(e),
-            'traceback': traceback.format_exc().splitlines()[-10:],
-        }, ensure_ascii=False), 500
+        app.logger.error(f'PURGE FINANCE FAILED: {traceback.format_exc()}')
+        return jsonify(
+            ok=False,
+            error=str(e),
+            error_type=type(e).__name__,
+            traceback_tail=traceback.format_exc().splitlines()[-15:],
+        ), 500
 
 
 def _do_purge_finance():
@@ -2499,58 +2504,39 @@ def _do_purge_finance():
     target = '财务资金部'
     placeholder = '%s' if USE_POSTGRES else '?'
 
-    # 1. 检查现状
-    diag = {}
-    diag['departments_table'] = [dict(r) for r in db.execute(
-        f"SELECT id, name FROM departments WHERE name = {placeholder}", (target,)
-    ).fetchall()]
+    def q(sql, params=()):
+        cur = db.execute(sql, params)
+        return cur
 
-    # 2. 找出所有引用"财务资金部"作为 dept_name 的 task_configs
-    rows = db.execute(
-        f"SELECT id, name, dept_name FROM task_configs WHERE dept_name = {placeholder}", (target,)
-    ).fetchall()
-    finance_task_config_ids = [r['id'] for r in rows]
-    # 关键：rows 是 psycopg2 DictRow，UUID/int 直接 dict() 没问题，但安全起见转 str
-    def _row_to_dict(r):
-        return {k: (str(v) if hasattr(v, 'hex') else v) for k, v in dict(r).items()}
-    diag['finance_task_configs'] = [_row_to_dict(r) for r in rows]
+    # 1. 找出所有引用"财务资金部"作为 dept_name 的 task_configs
+    rows = q(f"SELECT id FROM task_configs WHERE dept_name = {placeholder}", (target,)).fetchall()
+    finance_task_config_ids = [str(r['id']) for r in rows] if rows else []
+    diag_configs_count = len(finance_task_config_ids)
 
-    # 3. 删除这些 task_configs 引用的 task_items
+    # 2. 删除 task_items（按 task_config_id）
     items_deleted = 0
-    if finance_task_config_ids:
-        for tc_id in finance_task_config_ids:
-            cur = db.execute(
-                f"DELETE FROM task_items WHERE task_config_id = {placeholder}", (tc_id,)
-            )
-            items_deleted += cur.rowcount
+    for tc_id in finance_task_config_ids:
+        cur = q(f"DELETE FROM task_items WHERE task_config_id = {placeholder}", (tc_id,))
+        items_deleted += cur.rowcount
 
-    # 4. 删除这些 task_configs 本身
+    # 3. 删除 task_configs
     configs_deleted = 0
-    if finance_task_config_ids:
-        for tc_id in finance_task_config_ids:
-            cur = db.execute(
-                f"DELETE FROM task_configs WHERE id = {placeholder}", (tc_id,)
-            )
-            configs_deleted += cur.rowcount
+    for tc_id in finance_task_config_ids:
+        cur = q(f"DELETE FROM task_configs WHERE id = {placeholder}", (tc_id,))
+        configs_deleted += cur.rowcount
 
-    # 5. 检查 settlement_records 里是否还有 dept_name='财务资金部'（保留为历史）
-    sr_rows = db.execute(
-        f"SELECT id, dept_name FROM settlement_records WHERE dept_name = {placeholder}", (target,)
-    ).fetchall()
-    diag['finance_settlement_records'] = [_row_to_dict(r) for r in sr_rows]
+    # 4. settlement_records 历史数据：仅统计，不删
+    sr_count = q(f"SELECT COUNT(*) AS c FROM settlement_records WHERE dept_name = {placeholder}", (target,)).fetchone()['c']
 
     db.commit()
 
-    # 6. 验证：再次查询应该都是空
-    verify = {}
-    verify['task_configs_with_finance'] = db.execute(
-        f"SELECT COUNT(*) AS c FROM task_configs WHERE dept_name = {placeholder}", (target,)
-    ).fetchone()['c']
+    # 5. 验证
+    remaining = q(f"SELECT COUNT(*) AS c FROM task_configs WHERE dept_name = {placeholder}", (target,)).fetchone()['c']
 
-    return jsonify({
-        'ok': True,
-        'message': f'已清理 task_configs({configs_deleted}) + task_items({items_deleted}) 中财务资金部残留',
-        'diagnostic': diag,
-        'verify': verify,
-        'settlement_records_kept': diag.get('finance_settlement_records', []),
-    }, ensure_ascii=False)
+    return jsonify(
+        ok=True,
+        message=f'已清理 task_configs({configs_deleted}) + task_items({items_deleted}) 中财务资金部残留',
+        finance_task_configs_found=diag_configs_count,
+        task_configs_remaining=remaining,
+        settlement_records_kept=sr_count,
+    )
