@@ -1839,6 +1839,31 @@ def seed_users(db):
     db.commit()
 
 
+# ===========================================================================
+# 🔧 一次性密码修正端点（2026-08-05）：把 admin 密码从 gtglb888 修正为 htglb888
+# 用法：GET /api/_fix_admin_password?secret=reset-admin-2026
+# 验证成功后请删除本段代码
+# ===========================================================================
+@app.route('/api/_fix_admin_password', methods=['GET'])
+def fix_admin_password():
+    """一次性密码修正：htglb888（按用户文档要求）"""
+    secret = request.args.get('secret', '')
+    if secret != 'reset-admin-2026':
+        return jsonify({'error': 'forbidden'}), 403
+
+    db = get_db()
+    db.execute("UPDATE users SET password='htglb888' WHERE username='admin'")
+    db.commit()
+
+    # 验证
+    row = db.execute("SELECT username, password FROM users WHERE username='admin'").fetchone()
+    return jsonify({
+        'ok': True,
+        'message': 'admin 密码已修正为 htglb888',
+        'verified': dict(row) if row else None
+    })
+
+
 # ---------- 登录 / 登出 ----------
 @app.route('/login')
 def login_page():
