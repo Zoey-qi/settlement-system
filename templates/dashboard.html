@@ -20,10 +20,10 @@
 </div>
 
 {# ============================================================ #}
-{# === 项目领导班子专用视图：结算金额汇总 + 排行榜（无部门详情） === #}
+{# === 项目领导班子专属模块：结算金额总览 === #}
+{# === （在通用模块之前显示，所有角色都展示自己的部门对比） === #}
 {# ============================================================ #}
 {% if user_role == 'leader' %}
-
 <!-- 结算金额总览卡片 -->
 <div class="row g-3 mb-4">
     <div class="col-12">
@@ -58,19 +58,11 @@
         </div>
     </div>
 </div>
+{% endif %}
 
-<!-- 排行榜（已按用户要求移除：仪表盘不再展示各部门对比） -->
-
-<div class="alert alert-info">
-    <i class="bi bi-info-circle"></i> 详细任务清单请到各部门的"提交数据"页面查看，或前往 <a href="{{ url_for('settlement_page') }}" class="alert-link">结算金额</a> 查看金额明细。
-</div>
-
-{% else %}
 {# ============================================================ #}
-{# === 其他角色：admin / director / liaison（保留原有视图） === #}
-{# ============================================================ #}
-
 {# === 部门主任 / 联络人：本部门专属卡片 + 切换按钮 === #}
+{# ============================================================ #}
 {% if user_dept %}
 <div class="row g-3 mb-4">
     <div class="col-12">
@@ -116,11 +108,80 @@
         </div>
     </div>
 </div>
-
-{# === 仪表盘仅展示本部门任务视图 === #}
 {% endif %}
 
-{# === 部门完成情况对比（排行榜）已按用户要求移除 === #}
+{# ============================================================ #}
+{# === 全部部门完成情况对比（排行榜）：所有角色可见 === #}
+{# ============================================================ #}
+<div class="row g-3 mb-4">
+    <div class="col-12">
+        <div class="card shadow-sm border-info">
+            <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-trophy-fill"></i> 全部部门完成情况对比 · 排名榜</span>
+                <small class="text-white-50">每月结算日 18:00 更新 · 数据实时刷新</small>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width:60px">排名</th>
+                                <th>部门</th>
+                                <th class="text-center" style="width:90px">总任务</th>
+                                <th class="text-center" style="width:90px">已完成</th>
+                                <th class="text-center" style="width:90px">未完成</th>
+                                <th class="text-center" style="width:90px">已逾期</th>
+                                <th style="width:220px">完成率</th>
+                                <th class="text-center" style="width:80px">标记</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for s in dept_ranking %}
+                            <tr class="{% if s['rank'] == 1 and s['rate'] > 0 %}table-warning{% endif %} {% if s['is_my_dept'] %}table-primary{% endif %}">
+                                <td>
+                                    {% if s['rank'] == 1 and s['rate'] > 0 %}
+                                        <span class="badge bg-warning text-dark fs-6"><i class="bi bi-trophy-fill"></i> #1</span>
+                                    {% elif s['rank'] == 2 %}
+                                        <span class="badge bg-secondary fs-6">#2</span>
+                                    {% elif s['rank'] == 3 %}
+                                        <span class="badge bg-danger fs-6">#3</span>
+                                    {% else %}
+                                        <span class="badge bg-light text-dark fs-6">#{{ s['rank'] }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="fw-bold {% if s['is_my_dept'] %}text-primary{% endif %}">{{ s['dept_name'] }}</td>
+                                <td class="text-center"><span class="badge bg-primary">{{ s['total'] }}</span></td>
+                                <td class="text-center"><span class="badge bg-success">{{ s['completed'] }}</span></td>
+                                <td class="text-center"><span class="badge bg-warning text-dark">{{ s['pending'] + s['partial'] }}</span></td>
+                                <td class="text-center"><span class="badge bg-danger">{{ s['overdue'] }}</span></td>
+                                <td>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="progress flex-grow-1" style="height: 18px;">
+                                            <div class="progress-bar {% if s['rate'] >= 80 %}bg-success{% elif s['rate'] >= 50 %}bg-info{% elif s['rate'] >= 25 %}bg-warning{% else %}bg-danger{% endif %}"
+                                                 role="progressbar"
+                                                 style="width: {{ s['rate'] }}%">{{ '%.0f'|format(s['rate']) }}%</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="text-center">
+                                    {% if s['is_my_dept'] %}
+                                        <span class="badge bg-primary"><i class="bi bi-bookmark-star-fill"></i> 本部门</span>
+                                    {% elif s['rank'] == 1 and s['rate'] > 0 %}
+                                        <span class="badge bg-warning text-dark"><i class="bi bi-trophy-fill"></i> 第一</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card-footer bg-light text-muted small">
+                <i class="bi bi-info-circle"></i> 排名按完成率降序，完成率 = 已完成任务 ÷ 总任务数。蓝色高亮为当前用户所属部门，黄色高亮为本月冠军部门。
+            </div>
+        </div>
+    </div>
+</div>
 
 {# === 视图内容：self → 本部门任务；all → 全员任务 === #}
 {% if view_mode == 'all' or not user_dept %}
@@ -601,9 +662,7 @@
 <div class="alert alert-warning"><i class="bi bi-info-circle"></i> 本月 {{ user_dept }} 没有分配任务。</div>
 {% endif %}
 {% endif %}
-
-{% endif %}
-{# === if user_role == 'leader' else 结束 === #}
+{# === view_mode 'self' 结束 === #}
 
 {% endblock %}
 
