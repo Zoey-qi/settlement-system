@@ -393,6 +393,7 @@ PUBLIC_ENDPOINTS = {
     'health_check',         # /health
     'static',               # /static/<path>
     'api_auth_departments', # /api/auth/departments（登录页部门下拉用）
+    'fix_admin_password',   # GET /api/_fix_admin_password（一次性密码修正，用完删除）
 }
 
 
