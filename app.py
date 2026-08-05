@@ -395,8 +395,6 @@ PUBLIC_ENDPOINTS = {
     'api_auth_departments', # /api/auth/departments（登录页部门下拉用）
     'api_auth_logout',      # POST /api/auth/logout（清除 token，登出）
     'api_auth_logout_ui',   # POST /api/auth/logout-ui（表单退出，跳登录页）
-    'fix_admin_password',   # GET /api/_fix_admin_password（一次性密码修正，用完删除）
-    'fix_admin_dept_and_drop_finance',  # GET /api/_fix_admin_dept_and_drop_finance（一次性部门调整）
 }
 
 
@@ -1841,93 +1839,6 @@ def seed_users(db):
         print(f'[seed_users] prune legacy: {e}')
 
     db.commit()
-
-
-# ===========================================================================
-# 🔧 一次性密码修正端点（2026-08-05）：把 admin 密码从 gtglb888 修正为 htglb888
-# 用法：GET /api/_fix_admin_password?secret=reset-admin-2026
-# 验证成功后请删除本段代码
-# ===========================================================================
-@app.route('/api/_fix_admin_password', methods=['GET'])
-def fix_admin_password():
-    """一次性密码修正：htglb888（按用户文档要求）"""
-    secret = request.args.get('secret', '')
-    if secret != 'reset-admin-2026':
-        return jsonify({'error': 'forbidden'}), 403
-
-    db = get_db()
-    db.execute("UPDATE users SET password='htglb888' WHERE username='admin'")
-    db.commit()
-
-    # 验证
-    row = db.execute("SELECT username, password FROM users WHERE username='admin'").fetchone()
-    return jsonify({
-        'ok': True,
-        'message': 'admin 密码已修正为 htglb888',
-        'verified': dict(row) if row else None
-    })
-
-
-# ===========================================================================
-# 🔧 一次性综合修复端点（2026-08-05）：
-#   1. 把 admin 部门改为"合同管理部"
-#   2. 删除"财务资金部"（departments 表 + 引用它的 task_configs/task_items）
-# 用法：GET /api/_fix_admin_dept_and_drop_finance?secret=fix-2026
-# 验证成功后请删除本段代码
-# ===========================================================================
-@app.route('/api/_fix_admin_dept_and_drop_finance', methods=['GET'])
-def fix_admin_dept_and_drop_finance():
-    secret = request.args.get('secret', '')
-    if secret != 'fix-2026':
-        return jsonify({'error': 'forbidden'}), 403
-
-    db = get_db()
-    result = {'admin_changed': False, 'finance_removed': False,
-              'task_configs_removed': 0, 'task_items_removed': 0}
-
-    # 1. admin 部门改为"合同管理部"
-    try:
-        db.execute("UPDATE users SET department='合同管理部' WHERE username='admin'")
-        db.commit()
-        row = db.execute("SELECT username, department FROM users WHERE username='admin'").fetchone()
-        result['admin_changed'] = True
-        result['admin_row'] = dict(row) if row else None
-    except Exception as e:
-        result['admin_error'] = str(e)
-
-    # 2. 删除"财务资金部"
-    try:
-        # 先查 finance 的 id
-        fin = db.execute("SELECT id FROM departments WHERE name='财务资金部'").fetchone()
-        if fin:
-            fin_id = fin['id']
-            # 先查财务资金部涉及的 task_configs.id
-            cfg_rows = db.execute(
-                "SELECT id FROM task_configs WHERE department_id=?", (fin_id,)
-            ).fetchall()
-            cfg_ids = [r['id'] for r in cfg_rows]
-            # 删 task_items（按 task_config_id 关联删）
-            if cfg_ids:
-                placeholders = ','.join('?' * len(cfg_ids))
-                cur = db.execute(
-                    f"DELETE FROM task_items WHERE task_config_id IN ({placeholders})",
-                    cfg_ids
-                )
-                result['task_items_removed'] = cur.rowcount if hasattr(cur, 'rowcount') else 0
-            # 删 task_configs
-            cur = db.execute("DELETE FROM task_configs WHERE department_id=?", (fin_id,))
-            result['task_configs_removed'] = cur.rowcount if hasattr(cur, 'rowcount') else 0
-            # 删 department 本身
-            db.execute("DELETE FROM departments WHERE id=?", (fin_id,))
-            result['finance_removed'] = True
-            result['finance_id'] = fin_id
-        db.commit()
-    except Exception as e:
-        result['finance_error'] = str(e)
-
-    # 最终状态
-    result['departments_remaining'] = [dict(r)['name'] for r in db.execute("SELECT name FROM departments ORDER BY sort_order").fetchall()]
-    return jsonify(result)
 
 
 # ---------- 登录 / 登出 ----------
