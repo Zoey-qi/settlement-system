@@ -10,9 +10,6 @@ import re
 # 检测是否在 Vercel 环境（有 PostgreSQL 连接串）
 DATABASE_URL = os.environ.get('POSTGRES_URL') or os.environ.get('DATABASE_URL') or os.environ.get('POSTGRES_URL_NON_POOLING')
 USE_POSTGRES = bool(DATABASE_URL)
-# 把使用中的连接串打印（首 30 字符，便于诊断）
-if USE_POSTGRES:
-    print(f'[db] USE_POSTGRES=True url_prefix={DATABASE_URL[:40]}...')
 
 if USE_POSTGRES:
     import psycopg2
@@ -306,13 +303,9 @@ def init_schema(db):
     for i, table_sql in enumerate(tables):
         try:
             db.execute(table_sql)
-            if i >= 7:  # 第 8 张起为新增表（users/settlement_records/department_files），打 success 日志
-                first_line = table_sql.strip().split('\n')[0][:80]
-                print(f'[init_schema] OK: {first_line}...')
         except Exception as e:
             # 单条 CREATE 失败不影响后续（兼容历史库已有部分表的情况）
-            first_line = table_sql.strip().split('\n')[0][:80]
-            print(f'[init_schema] FAIL ({first_line}...): {e}')
+            print(f'[init_schema] skip table (already exists or incompatible): {e}')
 
     # 兼容已有数据库：为历史 departments 表补充联系人字段
     try:
