@@ -1,0 +1,51 @@
+# 大文件 / 本地工具
+cpolar.zip
+cloudflared.exe
+tunnel.log
+
+# 本地数据
+data/
+uploads/
+template_files/
+logs/
+backups/
+
+# 本地服务器脚本
+server.py
+backup_db.py
+backup-cron.sh
+wsgi.py
+
+# 本地导入脚本
+import_templates.py
+reimport_templates.py
+reimport_templates_v3.py
+generate_config_template.py
+
+# Docker 部署文件
+Dockerfile
+docker-compose.yml
+.dockerignore
+deploy.sh
+
+# Windows 脚本
+*.bat
+*.vbs
+*.lnk
+
+# 部署指南
+*.md
+
+# Git
+.git/
+.gitignore
+
+# Python 缓存
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Vercel
+.vercel/

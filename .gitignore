@@ -33,3 +33,16 @@ Desktop.ini
 部门结算任务配置模板.xlsx
 
 .vercel
+
+# 环境变量（敏感，绝不提交）
+.env
+.env.local
+.env.production
+.env.production.local
+.env.development.local
+
+# 迁移 / 一次性脚本（不入版本）
+fix_datetime_template.py
+migrate_to_neon.py
+reupload_templates.py
+template_test.xlsx
