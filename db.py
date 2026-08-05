@@ -8,8 +8,11 @@ import os
 import re
 
 # 检测是否在 Vercel 环境（有 PostgreSQL 连接串）
-DATABASE_URL = os.environ.get('POSTGRES_URL') or os.environ.get('DATABASE_URL')
+DATABASE_URL = os.environ.get('POSTGRES_URL') or os.environ.get('DATABASE_URL') or os.environ.get('POSTGRES_URL_NON_POOLING')
 USE_POSTGRES = bool(DATABASE_URL)
+# 把使用中的连接串打印（首 30 字符，便于诊断）
+if USE_POSTGRES:
+    print(f'[db] USE_POSTGRES=True url_prefix={DATABASE_URL[:40]}...')
 
 if USE_POSTGRES:
     import psycopg2
@@ -28,7 +31,8 @@ class PgConnection:
 
     def __init__(self, dsn):
         self._conn = psycopg2.connect(dsn)
-        self._conn.autocommit = False
+        # 使用 autocommit 模式：避免 PgBouncer transaction pool 下 DDL/commit 跨连接不可见
+        self._conn.autocommit = True
 
     @property
     def row_factory(self):
@@ -50,9 +54,14 @@ class PgConnection:
         return cur
 
     def commit(self):
-        self._conn.commit()
+        # autocommit=True 下 commit 是 no-op，保留兼容
+        try:
+            self._conn.commit()
+        except Exception:
+            pass
 
     def rollback(self):
+        # autocommit=True 下 rollback 是 no-op
         try:
             self._conn.rollback()
         except Exception:
