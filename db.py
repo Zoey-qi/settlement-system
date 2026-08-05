@@ -52,6 +52,12 @@ class PgConnection:
     def commit(self):
         self._conn.commit()
 
+    def rollback(self):
+        try:
+            self._conn.rollback()
+        except Exception:
+            pass
+
     def close(self):
         self._conn.close()
 

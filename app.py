@@ -2168,6 +2168,7 @@ def api_init_users():
             print(f'[_init-users] users 表已存在，行数 {count}')
         except Exception as e:
             print(f'[_init-users] users 表不存在，开始建表：{e}')
+            fresh.rollback()  # 关键：清掉 SELECT 失败造成的 aborted 状态
             init_schema(fresh)
             fresh.commit()
             # 立刻用同一个连接 SELECT 验证
