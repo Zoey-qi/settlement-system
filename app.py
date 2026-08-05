@@ -1732,7 +1732,7 @@ BUILTIN_USERS = [
     # 1. 项目领导班子
     {'username': 'leader', 'display_name': '项目领导班子', 'password': 'pakil123456', 'role': 'leader', 'department': '项目领导', 'phone': ''},
     # 2. 系统管理员
-    {'username': 'admin', 'display_name': '系统管理员', 'password': 'gtglb888', 'role': 'admin', 'department': '综合办公室', 'phone': ''},
+    {'username': 'admin', 'display_name': '系统管理员', 'password': 'htglb888', 'role': 'admin', 'department': '综合办公室', 'phone': ''},
     # 3. 各部门主任（严格按 Excel 密码表）
     {'username': 'director_scdd', 'display_name': '生产调度部主任', 'password': 'scddb111', 'role': 'director', 'department': '生产调度部', 'phone': ''},
     {'username': 'director_gczljs', 'display_name': '工程质量技术部主任', 'password': 'gczljsb222', 'role': 'director', 'department': '工程质量技术部', 'phone': ''},
