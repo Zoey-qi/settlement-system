@@ -2155,9 +2155,22 @@ def download_department_file(fid):
 
 @app.route('/api/_init-users', methods=['GET'])
 def api_init_users():
-    """首次访问自动 seed 用户（公开接口，仅当 users 表为空时生效）"""
+    """首次访问自动 seed 用户（公开接口，仅当 users 表为空时生效）
+
+    支持表不存在的情况：先调 init_schema() 建表，再 seed_users()。
+    旧连接事务可能已 abort，用新连接跑建表，再回到原连接 seed。
+    """
     db = get_db()
-    count = db.execute('SELECT COUNT(*) as c FROM users').fetchone()['c']
+    try:
+        count = db.execute('SELECT COUNT(*) as c FROM users').fetchone()['c']
+    except Exception:
+        # users 表不存在 → 用全新连接建表（避免在已 abort 的事务里跑 DDL）
+        new_conn = connect()
+        try:
+            init_schema(new_conn)
+        finally:
+            new_conn.close()
+        count = 0
     if count == 0:
         seed_users(db)
         return jsonify({'ok': True, 'seeded': True, 'message': '已初始化 10 个内置用户'})
