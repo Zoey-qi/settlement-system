@@ -21,6 +21,16 @@
             </button>
             <div class="collapse navbar-collapse" id="navMain">
                 <ul class="navbar-nav ms-auto">
+                    {# === 项目领导班子：仅结算金额 === #}
+                    {% if g.current_user and g.current_user.role == 'leader' %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'settlement_page' %}active{% endif %}" href="{{ url_for('settlement_page') }}">
+                            <i class="bi bi-cash-stack"></i> 结算金额
+                        </a>
+                    </li>
+
+                    {# === 管理员：全权 === #}
+                    {% elif g.current_user.role == 'admin' %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}">
                             <i class="bi bi-speedometer2"></i> 仪表盘
@@ -41,11 +51,7 @@
                             <i class="bi bi-cash-stack"></i> 结算金额
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'department_files_page' %}active{% endif %}" href="{{ url_for('department_files_page') }}">
-                            <i class="bi bi-folder2-open"></i> 部门文件
-                        </a>
-                    </li>
+                    {# 注意：部门文件模块已移除（用户要求"不用再加部门文件模块"），此处不再显示 #}
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'templates_page' %}active{% endif %}" href="{{ url_for('templates_page') }}">
                             <i class="bi bi-file-earmark-spreadsheet"></i> 模板文件
@@ -71,6 +77,35 @@
                             <i class="bi bi-server"></i> 系统状态
                         </a>
                     </li>
+
+                    {# === 部门主任 / 联络人：仪表盘 + 提交数据 + 模板 + 历史 + 使用指引 === #}
+                    {% else %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}">
+                            <i class="bi bi-speedometer2"></i> 仪表盘
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint in ['submit'] %}active{% endif %}" href="{{ url_for('submit') }}">
+                            <i class="bi bi-cloud-arrow-up"></i> 提交数据
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'summary' %}active{% endif %}" href="{{ url_for('summary') }}">
+                            <i class="bi bi-clipboard-data"></i> 汇总视图
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'history' %}active{% endif %}" href="{{ url_for('history') }}">
+                            <i class="bi bi-clock-history"></i> 历史记录
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'guide' %}active{% endif %}" href="{{ url_for('guide') }}">
+                            <i class="bi bi-book"></i> 使用指引
+                        </a>
+                    </li>
+                    {% endif %}
                 </ul>
                 {% if g.get('current_user') %}
                 <ul class="navbar-nav ms-2">

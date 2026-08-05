@@ -53,9 +53,10 @@ if not USE_POSTGRES:
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'pakil-settlement-2025'
-# Vercel Hobby 限制 4.5MB，本地无限制
+# Vercel Hobby 限制请求体 4.5MB；本地无限制
+# 注：单次请求 4MB 仍较小，但够用。若需要大文件可改为流式上传（Vercel 受 serverless body 限制）。
 if USE_POSTGRES:
-    app.config['MAX_CONTENT_LENGTH'] = 4 * 1024 * 1024  # 4MB (Vercel safe)
+    app.config['MAX_CONTENT_LENGTH'] = 4 * 1024 * 1024  # 4MB (Vercel safe，含 PDF 等)
 else:
     app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB (local)
 app.config['JSON_AS_ASCII'] = False
@@ -68,6 +69,87 @@ ALLOWED_EXTENSIONS = {
     '.pdf', '.jpg', '.jpeg', '.png', '.zip', '.rar',
     '.ppt', '.pptx', '.txt'
 }
+
+# ===========================================================================
+# 权限装饰器与辅助函数（必须定义在所有路由之前）
+# ===========================================================================
+def require_auth(f):
+    """装饰器：要求登录。"""
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        user = get_current_user()
+        if not user:
+            if request.path.startswith('/api/'):
+                return jsonify({'error': '未登录或会话已过期'}), 401
+            return redirect(url_for('login_page', next=request.path))
+        g.current_user = user
+        return f(*args, **kwargs)
+    return wrapper
+
+
+def require_role(*roles):
+    """装饰器：要求指定角色之一。"""
+    def decorator(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            user = get_current_user()
+            if not user:
+                if request.path.startswith('/api/'):
+                    return jsonify({'error': '未登录'}), 401
+                return redirect(url_for('login_page'))
+            if user['role'] not in roles:
+                if request.path.startswith('/api/'):
+                    return jsonify({'error': '权限不足'}), 403
+                flash('权限不足，无法访问该页面', 'danger')
+                return redirect(url_for('dashboard'))
+            g.current_user = user
+            return f(*args, **kwargs)
+        return wrapper
+    return decorator
+
+
+def user_can_write_to_dept(user, dept_name):
+    """判断当前用户是否有权对指定部门进行写操作。
+
+    权限矩阵：
+      - admin    → 所有部门
+      - liaison  → 仅本部门
+      - director → 仅本部门只读（不允许写）
+      - leader   → 完全不允许写
+    """
+    if not user:
+        return False
+    role = user['role']
+    if role == 'admin':
+        return True
+    if role == 'liaison':
+        return dept_name == user.get('department', '')
+    return False
+
+
+def user_can_view_dept(user, dept_name):
+    """判断当前用户是否可查看指定部门数据。"""
+    if not user:
+        return False
+    role = user['role']
+    if role in ('admin', 'leader'):
+        return True
+    return dept_name == user.get('department', '')
+
+
+def _check_task_dept_or_403(task_config_id):
+    """根据 task_config_id 查询对应部门名，供路由层做权限校验。"""
+    db = get_db()
+    row = db.execute('''
+        SELECT tc.id, d.name as dept_name
+        FROM task_configs tc
+        JOIN departments d ON tc.department_id = d.id
+        WHERE tc.id = ?
+    ''', (task_config_id,)).fetchone()
+    if not row:
+        return db, None
+    return db, row['dept_name']
+
 
 # ===========================================================================
 # 数据库
@@ -83,14 +165,6 @@ def close_db(exc):
     db = g.pop('db', None)
     if db is not None:
         db.close()
-
-
-@app.before_request
-def inject_current_user():
-    """全局注入当前登录用户，供 base.html 导航栏使用"""
-    user = get_current_user()
-    if user:
-        g.current_user = user
 
 
 def split_materials(materials_text):
@@ -311,14 +385,67 @@ def save_upload_file(file, subdir='item_submissions'):
 # ===========================================================================
 # 路由 - 页面
 # ===========================================================================
+# 公开路由（无需登录）：登录页 / 登录接口 / 健康检查 / 静态资源
+# 除此之外的所有路由全部需要登录态（@require_auth 装饰器统一处理）
+PUBLIC_ENDPOINTS = {
+    'login_page',           # /login
+    'api_auth_login',       # POST /api/auth/login
+    'health_check',         # /health
+    'static',               # /static/<path>
+    'api_auth_departments', # /api/auth/departments（登录页部门下拉用）
+}
+
+
+@app.before_request
+def enforce_login():
+    """全局拦截：未登录访问任何非公开路由 → 跳 /login
+
+    - 配合 require_auth / require_role 实现"打开网站就是登录页"
+    - 公开路由（login / auth/login / health / static / 部门下拉）仍可访问
+    """
+    if request.endpoint in PUBLIC_ENDPOINTS:
+        return None
+    user = get_current_user()
+    if user:
+        g.current_user = user
+        return None
+    # /api/* 未登录返回 401 JSON，其余页面跳登录
+    if request.path.startswith('/api/'):
+        return jsonify({'error': '未登录或会话已过期'}), 401
+    return redirect(url_for('login_page', next=request.path))
+
+
+@app.before_request
+def inject_current_user():
+    """全局注入当前登录用户，供 base.html 导航栏使用。
+    未登录时设置一个匿名对象，避免模板出现 UndefinedError。
+    """
+    user = get_current_user()
+    if user:
+        g.current_user = user
+    else:
+        # 匿名占位对象：role=None 使任何角色判断都为假
+        class _Anon:
+            role = None
+            display_name = ''
+            department = ''
+        g.current_user = _Anon()
+
+
 @app.route('/')
+@require_auth
 def dashboard():
     month = request.args.get('month', get_current_month())
     ensure_tasks_for_month(month)
 
     db = get_db()
+    user = g.current_user
+    user_role = user['role']
+    user_dept = user.get('department', '') if user_role in ('director', 'liaison') else None
+
+    # --- 1. 取所有任务（包含部门关联） ---
     tasks = db.execute('''
-        SELECT t.*, d.name as dept_name, d.contact_person, d.sort_order,
+        SELECT t.*, d.name as dept_name, d.contact_person, d.sort_order, d.id as dept_id,
                st.code as st_code, st.name as st_name,
                tc.id as task_config_id, tc.remarks as config_remarks,
                tc.deadline_day as config_deadline_day
@@ -353,22 +480,105 @@ def dashboard():
     upstream_tasks = [t for t in task_list if t['st_code'] == 'upstream']
     downstream_tasks = [t for t in task_list if t['st_code'] == 'downstream']
 
+    # --- 2. 各部门完成情况汇总（用于"相互激励"） ---
+    # 计算每个部门的：总任务数、已完成、未完成、完成率、排名分
+    dept_stats = {}
+    for t in task_list:
+        dn = t['dept_name']
+        if dn not in dept_stats:
+            dept_stats[dn] = {
+                'dept_name': dn,
+                'sort_order': t['sort_order'] or 999,
+                'total': 0, 'completed': 0, 'partial': 0, 'pending': 0, 'overdue': 0,
+                'upstream_total': 0, 'upstream_completed': 0,
+                'downstream_total': 0, 'downstream_completed': 0,
+            }
+        s = dept_stats[dn]
+        s['total'] += 1
+        if t['status'] == 'completed':
+            s['completed'] += 1
+        elif t['status'] == 'partial':
+            s['partial'] += 1
+        else:
+            s['pending'] += 1
+        if is_overdue(t):
+            s['overdue'] += 1
+        if t['st_code'] == 'upstream':
+            s['upstream_total'] += 1
+            if t['status'] == 'completed':
+                s['upstream_completed'] += 1
+        elif t['st_code'] == 'downstream':
+            s['downstream_total'] += 1
+            if t['status'] == 'completed':
+                s['downstream_completed'] += 1
+
+    # 计算完成率 + 排名
+    for dn, s in dept_stats.items():
+        s['rate'] = round(s['completed'] / s['total'] * 100, 1) if s['total'] > 0 else 0.0
+
+    # 按完成率降序
+    dept_ranking = sorted(dept_stats.values(), key=lambda x: (-x['rate'], x['sort_order']))
+    # 标 rank
+    for i, s in enumerate(dept_ranking, 1):
+        s['rank'] = i
+        s['is_top'] = (i == 1 and s['rate'] > 0)
+        s['is_my_dept'] = (dn == user_dept) if user_dept else False
+    # 修复 is_my_dept 标注
+    for s in dept_ranking:
+        s['is_my_dept'] = (s['dept_name'] == user_dept) if user_dept else False
+
+    # --- 3. 视图模式：self 仅自己部门；all 全部部门对比 ---
+    view_mode = request.args.get('view', 'self' if user_dept else 'all')
+    if not user_dept:
+        view_mode = 'all'  # 管理员/领导班子只看全部
+
+    # --- 4. 当前部门专属任务（用于"我的部门" Tab） ---
+    my_dept_tasks = task_list
+    if user_dept:
+        my_dept_tasks = [t for t in task_list if t['dept_name'] == user_dept]
+
+    my_dept_total = len(my_dept_tasks)
+    my_dept_completed = sum(1 for t in my_dept_tasks if t['status'] == 'completed')
+    my_dept_partial = sum(1 for t in my_dept_tasks if t['status'] == 'partial')
+    my_dept_pending = sum(1 for t in my_dept_tasks if t['status'] == 'pending')
+    my_dept_overdue = sum(1 for t in my_dept_tasks if is_overdue(t))
+    my_dept_rate = round(my_dept_completed / my_dept_total * 100, 1) if my_dept_total > 0 else 0.0
+
+    my_dept_upstream = [t for t in my_dept_tasks if t['st_code'] == 'upstream']
+    my_dept_downstream = [t for t in my_dept_tasks if t['st_code'] == 'downstream']
+
     return render_template('dashboard.html',
                            month=month, tasks=task_list,
                            total=total, completed=completed,
                            pending=pending, partial=partial, overdue=overdue,
                            upstream_tasks=upstream_tasks,
-                           downstream_tasks=downstream_tasks)
+                           downstream_tasks=downstream_tasks,
+                           dept_ranking=dept_ranking,
+                           view_mode=view_mode,
+                           user_role=user_role,
+                           user_dept=user_dept,
+                           my_dept_tasks=my_dept_tasks,
+                           my_dept_total=my_dept_total,
+                           my_dept_completed=my_dept_completed,
+                           my_dept_partial=my_dept_partial,
+                           my_dept_pending=my_dept_pending,
+                           my_dept_overdue=my_dept_overdue,
+                           my_dept_rate=my_dept_rate,
+                           my_dept_upstream=my_dept_upstream,
+                           my_dept_downstream=my_dept_downstream)
 
 
 @app.route('/submit', methods=['GET'])
+@require_auth
 def submit():
     """提交数据列表页 - 显示所有任务及其条目完成进度"""
     db = get_db()
     month = request.args.get('month', get_current_month())
     ensure_tasks_for_month(month)
+    user = g.current_user
+    user_dept = user.get('department', '') if user['role'] in ('director', 'liaison') else None
 
-    tasks = db.execute('''
+    sql = '''
         SELECT t.*, d.name as dept_name, d.contact_person, d.sort_order,
                st.code as st_code, st.name as st_name,
                tc.id as task_config_id, tc.deadline_day, tc.remarks as config_remarks
@@ -377,8 +587,13 @@ def submit():
         JOIN settlement_types st ON t.settlement_type_id = st.id
         JOIN task_configs tc ON t.task_config_id = tc.id
         WHERE t.month = ?
-        ORDER BY st.id, d.sort_order
-    ''', (month,)).fetchall()
+    '''
+    params = [month]
+    if user_dept:
+        sql += ' AND d.name = ?'
+        params.append(user_dept)
+    sql += ' ORDER BY st.id, d.sort_order'
+    tasks = db.execute(sql, params).fetchall()
 
     task_list = []
     for t in tasks:
@@ -392,13 +607,16 @@ def submit():
         task_dict['status'] = compute_task_status(t['task_config_id'], month, db)
         task_list.append(task_dict)
 
-    return render_template('submit_list.html', tasks=task_list, month=month)
+    return render_template('submit_list.html', tasks=task_list, month=month,
+                           user_role=user['role'], user_dept=user_dept)
 
 
 @app.route('/submit/task/<int:task_id>')
+@require_auth
 def submit_task(task_id):
     """提交任务详情页 - 显示该任务下所有条目，可逐条独立提交"""
     db = get_db()
+    user = g.current_user
     month = request.args.get('month', get_current_month())
     ensure_tasks_for_month(month)
 
@@ -415,6 +633,12 @@ def submit_task(task_id):
     if not task:
         abort(404)
 
+    # 部门隔离：director/liaison 只能访问本部门任务
+    if user['role'] in ('director', 'liaison'):
+        if task['dept_name'] != user.get('department', ''):
+            flash('权限不足：只能访问本部门的任务', 'danger')
+            return redirect(url_for('submit'))
+
     items = get_items_with_status(task['task_config_id'], month)
 
     # 获取所有模板供关联选择
@@ -424,6 +648,7 @@ def submit_task(task_id):
 
 
 @app.route('/submit/item/<int:item_id>', methods=['POST'])
+@require_auth
 def submit_item(item_id):
     """条目级提交 - 上传文件或标记为无"""
     db = get_db()
@@ -443,6 +668,11 @@ def submit_item(item_id):
     ''', (item_id,)).fetchone()
     if not item:
         return jsonify({'error': '条目不存在'}), 404
+
+    # 部门隔离 + 角色校验：director/leader 不能写；liaison 仅本部门
+    if not user_can_write_to_dept(g.current_user, item['dept_name']):
+        flash('权限不足：您不能向该部门提交/修改条目', 'danger')
+        return redirect(url_for('submit'))
 
     if submission_type == 'none':
         # 标记为"无" - 先删除旧提交再插入
@@ -487,6 +717,7 @@ def submit_item(item_id):
 
 
 @app.route('/submit/all-none/<int:task_id>', methods=['POST'])
+@require_role('admin', 'liaison')
 def mark_all_none(task_id):
     """将某任务下所有未提交条目标记为无"""
     db = get_db()
@@ -496,6 +727,13 @@ def mark_all_none(task_id):
     task = db.execute('SELECT * FROM tasks WHERE id = ?', (task_id,)).fetchone()
     if not task:
         abort(404)
+
+    # 部门隔离
+    dept = db.execute('SELECT d.name FROM tasks t JOIN departments d ON t.department_id = d.id WHERE t.id = ?',
+                      (task_id,)).fetchone()
+    if dept and not user_can_write_to_dept(g.current_user, dept['name']):
+        flash('权限不足：不能操作其他部门的任务', 'danger')
+        return redirect(url_for('submit'))
 
     items = db.execute('SELECT * FROM task_items WHERE task_config_id = ? AND is_active = 1', (task['task_config_id'],)).fetchall()
     count = 0
@@ -515,6 +753,7 @@ def mark_all_none(task_id):
 
 
 @app.route('/summary')
+@require_auth
 def summary():
     """汇总视图 - 所有条目提交情况，含模板下载列"""
     month = request.args.get('month', get_current_month())
@@ -522,6 +761,8 @@ def summary():
     ensure_tasks_for_month(month)
 
     db = get_db()
+    user = g.current_user
+    user_dept = user.get('department', '') if user['role'] in ('director', 'liaison') else None
 
     query = '''
         SELECT t.*, d.name as dept_name, d.contact_person, d.sort_order,
@@ -537,6 +778,9 @@ def summary():
     if st_code in ('upstream', 'downstream'):
         query += ' AND st.code = ?'
         params.append(st_code)
+    if user_dept:
+        query += ' AND d.name = ?'
+        params.append(user_dept)
     query += ' ORDER BY st.id, d.sort_order'
 
     tasks = db.execute(query, params).fetchall()
@@ -583,8 +827,9 @@ def summary():
 # API - 条目编辑/增删/模板关联
 # ===========================================================================
 @app.route('/api/item/edit', methods=['POST'])
+@require_role('admin', 'liaison')
 def api_edit_item():
-    """编辑条目名称"""
+    """编辑条目名称（管理员 / 联络人）"""
     db = get_db()
     item_id = request.form.get('item_id')
     item_name = request.form.get('item_name', '').strip()
@@ -596,6 +841,10 @@ def api_edit_item():
     item = db.execute('SELECT * FROM task_items WHERE id = ?', (item_id,)).fetchone()
     if not item:
         return jsonify({'error': '条目不存在'}), 404
+    # 部门隔离
+    _, dept = _check_task_dept_or_403(item['task_config_id'])
+    if not user_can_write_to_dept(g.current_user, dept or ''):
+        return jsonify({'error': '只能编辑本部门条目'}), 403
 
     db.execute('UPDATE task_items SET item_name = ?, description = ? WHERE id = ?',
                (item_name, description, item_id))
@@ -604,8 +853,9 @@ def api_edit_item():
 
 
 @app.route('/api/item/add', methods=['POST'])
+@require_role('admin', 'liaison')
 def api_add_item():
-    """新增条目"""
+    """新增条目（管理员 / 联络人）"""
     db = get_db()
     task_config_id = request.form.get('task_config_id')
     item_name = request.form.get('item_name', '').strip()
@@ -613,6 +863,10 @@ def api_add_item():
 
     if not item_name:
         return jsonify({'error': '条目名称不能为空'}), 400
+
+    _, dept = _check_task_dept_or_403(task_config_id)
+    if not user_can_write_to_dept(g.current_user, dept or ''):
+        return jsonify({'error': '只能在本部门任务下新增条目'}), 403
 
     max_order = db.execute('SELECT MAX(sort_order) as m FROM task_items WHERE task_config_id = ?', (task_config_id,)).fetchone()['m'] or 0
     db.execute('''
@@ -625,13 +879,17 @@ def api_add_item():
 
 
 @app.route('/api/item/delete', methods=['POST'])
+@require_role('admin', 'liaison')
 def api_delete_item():
-    """删除条目"""
+    """删除条目（管理员 / 联络人）"""
     db = get_db()
     item_id = request.form.get('item_id')
     item = db.execute('SELECT * FROM task_items WHERE id = ?', (item_id,)).fetchone()
     if not item:
         return jsonify({'error': '条目不存在'}), 404
+    _, dept = _check_task_dept_or_403(item['task_config_id'])
+    if not user_can_write_to_dept(g.current_user, dept or ''):
+        return jsonify({'error': '只能删除本部门条目'}), 403
 
     db.execute('DELETE FROM item_submissions WHERE task_item_id = ?', (item_id,))
     db.execute('DELETE FROM task_items WHERE id = ?', (item_id,))
@@ -640,8 +898,9 @@ def api_delete_item():
 
 
 @app.route('/api/item/link-template', methods=['POST'])
+@require_role('admin', 'liaison')
 def api_link_template():
-    """关联条目与模板文件"""
+    """关联条目与模板文件（管理员 / 联络人）"""
     db = get_db()
     item_id = request.form.get('item_id')
     template_file_id = request.form.get('template_file_id') or None
@@ -649,6 +908,9 @@ def api_link_template():
     item = db.execute('SELECT * FROM task_items WHERE id = ?', (item_id,)).fetchone()
     if not item:
         return jsonify({'error': '条目不存在'}), 404
+    _, dept = _check_task_dept_or_403(item['task_config_id'])
+    if not user_can_write_to_dept(g.current_user, dept or ''):
+        return jsonify({'error': '只能操作本部门条目'}), 403
 
     if template_file_id:
         tpl = db.execute('SELECT * FROM template_files WHERE id = ?', (template_file_id,)).fetchone()
@@ -664,8 +926,9 @@ def api_link_template():
 
 
 @app.route('/api/item/unsubmit', methods=['POST'])
+@require_role('admin', 'liaison')
 def api_unsubmit_item():
-    """撤销条目提交"""
+    """撤销条目提交（管理员 / 联络人）"""
     db = get_db()
     item_id = request.form.get('item_id')
     month = request.form.get('month', get_current_month())
@@ -673,6 +936,12 @@ def api_unsubmit_item():
     sub = db.execute('SELECT * FROM item_submissions WHERE task_item_id = ? AND month = ?', (item_id, month)).fetchone()
     if not sub:
         return jsonify({'error': '无提交记录'}), 404
+
+    item = db.execute('SELECT * FROM task_items WHERE id = ?', (item_id,)).fetchone()
+    if item:
+        _, dept = _check_task_dept_or_403(item['task_config_id'])
+        if not user_can_write_to_dept(g.current_user, dept or ''):
+            return jsonify({'error': '只能撤销本部门的提交'}), 403
 
     # 如果有文件，删除物理文件（本地模式）
     if not USE_POSTGRES and sub['stored_name']:
@@ -872,6 +1141,7 @@ def download_template_by_id(tid):
 # 模板文件管理
 # ===========================================================================
 @app.route('/templates')
+@require_role('admin', 'liaison')
 def templates_page():
     db = get_db()
     search = request.args.get('q', '').strip()
@@ -895,6 +1165,7 @@ def templates_page():
 
 
 @app.route('/templates/upload', methods=['POST'])
+@require_role('admin', 'liaison')
 def upload_template():
     db = get_db()
     name = request.form.get('name', '').strip()
@@ -956,6 +1227,7 @@ def download_template(tid):
 
 
 @app.route('/templates/delete/<int:tid>', methods=['POST'])
+@require_role('admin', 'liaison')
 def delete_template(tid):
     db = get_db()
     tpl = db.execute('SELECT * FROM template_files WHERE id = ?', (tid,)).fetchone()
@@ -990,6 +1262,7 @@ def download_submission(sub_id):
 # 配置管理
 # ===========================================================================
 @app.route('/config')
+@require_role('admin')
 def config_page():
     db = get_db()
     departments = db.execute('SELECT * FROM departments ORDER BY sort_order').fetchall()
@@ -1219,6 +1492,7 @@ def parse_config_file(filepath):
 # 使用指引
 # ===========================================================================
 @app.route('/guide')
+@require_auth
 def guide():
     db = get_db()
     fee_rates = db.execute('SELECT * FROM fee_rates ORDER BY id').fetchall()
@@ -1284,6 +1558,7 @@ def api_update_fee_rate():
 # 历史记录
 # ===========================================================================
 @app.route('/history')
+@require_role('admin', 'director', 'liaison')
 def history():
     db = get_db()
     page = int(request.args.get('page', 1))
@@ -1368,6 +1643,7 @@ def health_check():
 
 
 @app.route('/system-status')
+@require_role('admin')
 def system_status():
     """系统状态页面：显示服务信息、备份情况、数据库统计"""
     import platform
@@ -1563,41 +1839,6 @@ def seed_users(db):
     db.commit()
 
 
-def require_auth(f):
-    """装饰器：要求登录"""
-    @wraps(f)
-    def wrapper(*args, **kwargs):
-        user = get_current_user()
-        if not user:
-            if request.path.startswith('/api/'):
-                return jsonify({'error': '未登录或会话已过期'}), 401
-            return redirect(url_for('login_page', next=request.path))
-        g.current_user = user
-        return f(*args, **kwargs)
-    return wrapper
-
-
-def require_role(*roles):
-    """装饰器：要求指定角色"""
-    def decorator(f):
-        @wraps(f)
-        def wrapper(*args, **kwargs):
-            user = get_current_user()
-            if not user:
-                if request.path.startswith('/api/'):
-                    return jsonify({'error': '未登录'}), 401
-                return redirect(url_for('login_page'))
-            if user['role'] not in roles:
-                if request.path.startswith('/api/'):
-                    return jsonify({'error': '权限不足'}), 403
-                flash('权限不足，无法访问该页面', 'danger')
-                return redirect(url_for('dashboard'))
-            g.current_user = user
-            return f(*args, **kwargs)
-        return wrapper
-    return decorator
-
-
 # ---------- 登录 / 登出 ----------
 @app.route('/login')
 def login_page():
@@ -1719,16 +1960,16 @@ def api_auth_users():
 
 # ---------- 对上对下结算金额统计 ----------
 @app.route('/settlement')
-@require_auth
+@require_role('leader', 'admin')
 def settlement_page():
-    """结算金额统计页"""
+    """结算金额统计页 - 仅项目领导班子 + 系统管理员可见"""
     return render_template('settlement.html')
 
 
 @app.route('/api/settlement-records', methods=['GET'])
-@require_auth
+@require_role('leader', 'admin')
 def api_list_settlement_records():
-    """查询结算金额记录（按角色过滤）"""
+    """查询结算金额记录（领导班子 + 管理员可见全部，director/liaison 无权访问）"""
     db = get_db()
     user = g.current_user
 
@@ -1752,12 +1993,8 @@ def api_list_settlement_records():
         query += ' AND (created_by LIKE ? OR notes LIKE ?)'
         params.extend([f'%{department_filter}%', f'%{department_filter}%'])
 
-    # 角色过滤：director/liaison 只能看本部门
-    if user['role'] in ('director', 'liaison'):
-        dept = user.get('department', '')
-        if dept:
-            query += ' AND (created_by LIKE ? OR notes LIKE ?)'
-            params.extend([f'%{dept}%', f'%{dept}%'])
+    # 访问角色：仅 leader + admin（按 @require_role 拦截）
+    # 此处不再追加 director/liaison 部门过滤
 
     query += ' ORDER BY settle_date DESC, id DESC'
     rows = db.execute(query, params).fetchall()
@@ -1771,19 +2008,12 @@ def api_list_settlement_records():
 
 
 @app.route('/api/settlement-records/summary')
-@require_auth
+@require_role('leader', 'admin')
 def api_settlement_summary():
-    """汇总统计卡（对上/对下 总金额、已完成、办理中、本月新增）"""
+    """汇总统计卡（对上/对下 总金额、已完成、办理中、本月新增）
+    访问角色：仅 leader + admin（按 @require_role 拦截），不再追加部门过滤。
+    """
     db = get_db()
-    user = g.current_user
-
-    base_filter = ''
-    base_params = []
-    if user['role'] in ('director', 'liaison'):
-        dept = user.get('department', '')
-        if dept:
-            base_filter = " AND (created_by LIKE %s OR notes LIKE %s)"
-            base_params = [f'%{dept}%', f'%{dept}%']
 
     def safe_query(sql, params):
         try:
@@ -1793,23 +2023,23 @@ def api_settlement_summary():
 
     def get_one(direction):
         rows = safe_query(
-            "SELECT COALESCE(SUM(amount), 0) as total, COUNT(*) as cnt FROM settlement_records WHERE direction = ?" + (' AND (created_by LIKE ? OR notes LIKE ?)' if user['role'] in ('director', 'liaison') else ''),
-            [direction] + base_params
+            "SELECT COALESCE(SUM(amount), 0) as total, COUNT(*) as cnt FROM settlement_records WHERE direction = ?",
+            [direction]
         )
         return float(rows['total']) if rows else 0.0, (rows['cnt'] if rows else 0)
 
     def get_status_sum(direction, status):
         rows = safe_query(
-            "SELECT COALESCE(SUM(amount), 0) as total FROM settlement_records WHERE direction = ? AND status = ?" + (' AND (created_by LIKE ? OR notes LIKE ?)' if user['role'] in ('director', 'liaison') else ''),
-            [direction, status] + base_params
+            "SELECT COALESCE(SUM(amount), 0) as total FROM settlement_records WHERE direction = ? AND status = ?",
+            [direction, status]
         )
         return float(rows['total']) if rows else 0.0
 
     def get_month_new(direction):
         month_prefix = datetime.now().strftime('%Y-%m')
         rows = safe_query(
-            "SELECT COALESCE(SUM(amount), 0) as total, COUNT(*) as cnt FROM settlement_records WHERE direction = ? AND settle_date LIKE ?" + (' AND (created_by LIKE ? OR notes LIKE ?)' if user['role'] in ('director', 'liaison') else ''),
-            [direction, f'{month_prefix}%'] + base_params
+            "SELECT COALESCE(SUM(amount), 0) as total, COUNT(*) as cnt FROM settlement_records WHERE direction = ? AND settle_date LIKE ?",
+            [direction, f'{month_prefix}%']
         )
         return float(rows['total']) if rows else 0.0, (rows['cnt'] if rows else 0)
 
@@ -1995,7 +2225,7 @@ def api_delete_settlement_record(rid):
 
 
 @app.route('/download/settlement-attachment/<int:rid>')
-@require_auth
+@require_role('leader', 'admin')
 def download_settlement_attachment(rid):
     """下载结算金额附件"""
     db = get_db()
@@ -2013,14 +2243,13 @@ def download_settlement_attachment(rid):
 
 
 # ---------- 部门文件管理 ----------
+# 说明：用户要求"不用再加部门文件模块"，此模块已下线。
+# 为防止通过旧链接/书签直链误入，本路由直接 404；如需恢复可放开 @require_auth。
 @app.route('/department-files')
-@require_auth
 def department_files_page():
-    """部门文件管理页"""
-    user = g.current_user
-    # 仅联络人/管理员可上传；部门主任只读，不显示上传按钮
-    can_upload = user['role'] in ('admin', 'liaison')
-    return render_template('department_files.html', can_upload=can_upload, current_user=user)
+    """部门文件管理页 - 已下线（统一返回 404）"""
+    from flask import abort
+    abort(404)
 
 
 @app.route('/api/department-files', methods=['GET'])
