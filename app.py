@@ -562,7 +562,8 @@ def dashboard():
                            my_dept_overdue=my_dept_overdue,
                            my_dept_rate=my_dept_rate,
                            my_dept_upstream=my_dept_upstream,
-                           my_dept_downstream=my_dept_downstream)
+                           my_dept_downstream=my_dept_downstream,
+                           server_now=datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
 
 
 @app.route('/submit', methods=['GET'])
