@@ -46,3 +46,6 @@ fix_datetime_template.py
 migrate_to_neon.py
 reupload_templates.py
 template_test.xlsx
+
+# 部署助手脚本（本地用，不入版本）
+push_to_github.py
