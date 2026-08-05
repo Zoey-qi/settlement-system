@@ -395,7 +395,6 @@ PUBLIC_ENDPOINTS = {
     'api_auth_departments', # /api/auth/departments（登录页部门下拉用）
     'api_auth_logout',      # POST /api/auth/logout（清除 token，登出）
     'api_auth_logout_ui',   # POST /api/auth/logout-ui（表单退出，跳登录页）
-    'api_purge_finance_2026',  # 一次性修复端点：清理"财务资金部"数据残留（用完删除）
 }
 
 
@@ -2473,99 +2472,3 @@ if __name__ == '__main__':
         app.run(host='0.0.0.0', port=5000, debug=False)
 
 
-# =========================================================================
-# 一次性远程修复端点（用完即删）
-# 用途：清理 task_configs / task_items / settlement_records 表中
-#       dept_name='财务资金部' 的所有残留数据，避免排行榜里还出现该部门。
-# Secret: purge-finance-2026
-# =========================================================================
-@app.route('/api/_purge_finance_2026', methods=['GET'])
-def api_purge_finance_2026():
-    if request.args.get('secret') != 'purge-finance-2026':
-        return jsonify(ok=False, error='invalid secret'), 403
-    try:
-        result = _do_purge_finance()
-        if isinstance(result, tuple):
-            return result
-        return result
-    except Exception as e:
-        import traceback
-        app.logger.error(f'PURGE FINANCE FAILED: {traceback.format_exc()}')
-        return jsonify(
-            ok=False,
-            error=str(e),
-            error_type=type(e).__name__,
-            traceback_tail=traceback.format_exc().splitlines()[-15:],
-        ), 500
-
-
-def _do_purge_finance():
-    db = get_db()
-    target = '财务资金部'
-    placeholder = '%s' if USE_POSTGRES else '?'
-
-    def q(sql, params=()):
-        cur = db.execute(sql, params)
-        return cur
-
-    # 1. 找出"财务资金部"部门的 id
-    dept_row = q(f"SELECT id FROM departments WHERE name = {placeholder}", (target,)).fetchone()
-    finance_dept_id = str(dept_row['id']) if dept_row else None
-    dept_found = dept_row is not None
-
-    # 2. 通过 department_id 找出所有 task_configs
-    configs_deleted = 0
-    items_deleted = 0
-    tasks_deleted = 0
-    if finance_dept_id:
-        rows = q(f"SELECT id FROM task_configs WHERE department_id = {placeholder}", (finance_dept_id,)).fetchall()
-        finance_task_config_ids = [str(r['id']) for r in rows]
-        diag_configs_count = len(finance_task_config_ids)
-
-        # 3. 删除 task_items
-        for tc_id in finance_task_config_ids:
-            cur = q(f"DELETE FROM task_items WHERE task_config_id = {placeholder}", (tc_id,))
-            items_deleted += cur.rowcount
-
-        # 4. 删除 task_configs
-        for tc_id in finance_task_config_ids:
-            cur = q(f"DELETE FROM task_configs WHERE id = {placeholder}", (tc_id,))
-            configs_deleted += cur.rowcount
-
-        # 5. 删除 tasks（这是排行榜数据的来源！必须删！）
-        cur = q(f"DELETE FROM tasks WHERE department_id = {placeholder}", (finance_dept_id,))
-        tasks_deleted = cur.rowcount
-
-        # 6. 删除 department 本身
-        dept_cur = q(f"DELETE FROM departments WHERE id = {placeholder}", (finance_dept_id,))
-        dept_deleted_count = dept_cur.rowcount
-    else:
-        diag_configs_count = 0
-        dept_deleted_count = 0
-
-    # 7. settlement_records 历史金额数据：仅统计，不删
-    sr_count = 0
-    if finance_dept_id:
-        try:
-            sr_count = q(f"SELECT COUNT(*) AS c FROM settlement_records WHERE department_id = {placeholder}", (finance_dept_id,)).fetchone()['c']
-        except Exception:
-            sr_count = -1
-
-    db.commit()
-
-    # 8. 验证
-    verify_dept = q(f"SELECT COUNT(*) AS c FROM departments WHERE name = {placeholder}", (target,)).fetchone()['c']
-    verify_tasks = q(f"SELECT COUNT(*) AS c FROM tasks WHERE department_id = {placeholder}", (finance_dept_id,)).fetchone()['c'] if finance_dept_id else 0
-    verify_configs = q(f"SELECT COUNT(*) AS c FROM task_configs WHERE department_id = {placeholder}", (finance_dept_id,)).fetchone()['c'] if finance_dept_id else 0
-
-    return jsonify(
-        ok=True,
-        message=f'已清理 财务资金部：departments({dept_deleted_count}) + task_configs({configs_deleted}) + task_items({items_deleted}) + tasks({tasks_deleted})',
-        dept_found=dept_found,
-        finance_dept_id=finance_dept_id,
-        finance_task_configs_found=diag_configs_count,
-        departments_remaining=verify_dept,
-        tasks_remaining=verify_tasks,
-        task_configs_remaining=verify_configs,
-        settlement_records_with_finance_dept=sr_count,
-    )
