@@ -2198,6 +2198,8 @@ def api_diag_tables():
     info = {'tables': tables, 'postgres': USE_POSTGRES}
     try:
         info['users_count'] = db.execute('SELECT COUNT(*) as c FROM users').fetchone()['c']
+        # 列出所有用户名（用于核对密码）
+        info['usernames'] = [dict(r) for r in db.execute('SELECT username, role, department, display_name, password FROM users ORDER BY id').fetchall()]
     except Exception as e:
         info['users_error'] = str(e)
     db.commit()
