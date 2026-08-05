@@ -641,7 +641,12 @@ def submit_task(task_id):
     # 获取所有模板供关联选择
     all_templates = db.execute('SELECT * FROM template_files ORDER BY name').fetchall()
 
-    return render_template('submit_task.html', task=task, items=items, month=month, all_templates=all_templates)
+    return render_template(
+        'submit_task.html',
+        task=task, items=items, month=month, all_templates=all_templates,
+        user_role=user['role'],
+        user_department=user.get('department', ''),
+    )
 
 
 @app.route('/submit/item/<int:item_id>', methods=['POST'])
@@ -950,6 +955,43 @@ def api_unsubmit_item():
     db.commit()
     ensure_tasks_for_month(month)
     return jsonify({'ok': True})
+
+
+@app.route('/api/item/edit-remarks', methods=['POST'])
+@require_role('admin')
+def api_edit_item_remarks():
+    """修改部门提交条目备注（仅合同管理部可操作任意部门）
+
+    不影响已上传的文件/无标记，仅更新 item_submissions.remarks。
+    适用于"部门联络人提交时漏写或写错备注，事后由合同管理部统一修正"的场景。
+    """
+    db = get_db()
+    item_id = request.form.get('item_id')
+    month = request.form.get('month', get_current_month())
+    remarks = request.form.get('remarks', '').strip()
+
+    if not item_id:
+        return jsonify({'error': '缺少条目 ID'}), 400
+    if remarks and len(remarks) > 500:
+        return jsonify({'error': '备注不能超过 500 个字符'}), 400
+
+    # 仅合同管理部可执行（虽然 admin 角色都能访问本接口，但额外卡一道部门判断）
+    if g.current_user.get('department', '') != '合同管理部':
+        return jsonify({'error': '仅合同管理部可修改部门提交备注'}), 403
+
+    # 必须先有提交记录才能修改备注（不允许凭空加备注）
+    sub = db.execute('SELECT * FROM item_submissions WHERE task_item_id = ? AND month = ?', (item_id, month)).fetchone()
+    if not sub:
+        return jsonify({'error': '该条目暂无提交记录，无法修改备注'}), 404
+
+    # 任意部门都可改（合同管理部 admin 全部门通行）
+    item = db.execute('SELECT * FROM task_items WHERE id = ?', (item_id,)).fetchone()
+    if not item:
+        return jsonify({'error': '条目不存在'}), 404
+
+    db.execute('UPDATE item_submissions SET remarks = ? WHERE id = ?', (remarks, sub['id']))
+    db.commit()
+    return jsonify({'ok': True, 'remarks': remarks})
 
 
 # ===========================================================================

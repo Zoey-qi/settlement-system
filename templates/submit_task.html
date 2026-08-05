@@ -117,7 +117,13 @@
                                     {% else %}
                                         <span class="text-muted">-</span>
                                     {% endif %}
-                                    {% if item['sub_remarks'] %}<br><span class="text-muted small">{{ item['sub_remarks'] }}</span>{% endif %}
+                                    {% if item['sub_remarks'] %}<br><span class="text-muted small sub-remarks-display" data-sub-id="{{ item['sub_id'] }}">{{ item['sub_remarks'] }}</span>{% endif %}
+                                    {% if item['sub_id'] and user_role == 'admin' and user_department == '合同管理部' %}
+                                    <br>
+                                    <button class="btn btn-sm btn-outline-secondary py-0 mt-1" onclick="openRemarksModal({{ item['id'] }}, {{ item['sub_id'] }}, '{{ item['sub_remarks']|replace("'", "\\'") if item['sub_remarks'] else '' }}', '{{ item['item_name']|replace("'", "\\'") }}', '{{ month }}')">
+                                        <i class="bi bi-pencil-square"></i> 编辑备注
+                                    </button>
+                                    {% endif %}
                                 </td>
                                 <!-- 提交人 -->
                                 <td class="small">{{ item['submitter'] or '-' }}</td>
@@ -234,6 +240,41 @@
                 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
                 <button type="button" class="btn btn-success" onclick="addItem()">
                     <i class="bi bi-check-lg"></i> 添加
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 编辑条目备注模态框（仅合同管理部） -->
+<div class="modal fade" id="remarksModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-light">
+                <h5 class="modal-title"><i class="bi bi-pencil-square"></i> 修改部门提交备注</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info py-2 small">
+                    <i class="bi bi-info-circle"></i>
+                    您正在以合同管理部身份修改部门提交备注。
+                    本操作仅修改备注文字，不会变更文件或"无"标记状态。
+                </div>
+                <p class="small text-muted mb-1">条目：<strong id="remarksItemName"></strong></p>
+                <p class="small text-muted mb-3">月份：<strong id="remarksMonth"></strong></p>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">备注内容 <small class="text-muted">(最多 500 字)</small></label>
+                    <textarea class="form-control" id="remarksContent" rows="4" maxlength="500" placeholder="请输入新的备注内容"></textarea>
+                    <div class="d-flex justify-content-between mt-1">
+                        <small class="text-muted">提交人：<span id="remarksOriginalSubmitter"></span></small>
+                        <small class="text-muted"><span id="remarksCharCount">0</span>/500</small>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="saveRemarks()">
+                    <i class="bi bi-check-lg"></i> 保存修改
                 </button>
             </div>
         </div>
@@ -371,5 +412,59 @@ function addItem() {
         }
     });
 }
+
+// 编辑条目备注（合同管理部专用）
+let _editingRemarksItemId = null;
+function openRemarksModal(itemId, subId, currentRemarks, itemName, month) {
+    _editingRemarksItemId = itemId;
+    document.getElementById('remarksItemName').textContent = itemName;
+    document.getElementById('remarksMonth').textContent = month;
+    document.getElementById('remarksContent').value = currentRemarks || '';
+    updateRemarksCharCount();
+    // 抓取提交人
+    const row = document.getElementById('row-' + itemId);
+    if (row) {
+        // 提交人是第 6 列（0-based 5）
+        const cells = row.querySelectorAll('td');
+        const submitter = cells[5] ? cells[5].textContent.trim() : '-';
+        document.getElementById('remarksOriginalSubmitter').textContent = submitter || '-';
+    }
+    new bootstrap.Modal(document.getElementById('remarksModal')).show();
+}
+
+function updateRemarksCharCount() {
+    const v = document.getElementById('remarksContent').value;
+    document.getElementById('remarksCharCount').textContent = v.length;
+}
+
+function saveRemarks() {
+    if (!_editingRemarksItemId) return;
+    const month = document.getElementById('remarksMonth').textContent;
+    const remarks = document.getElementById('remarksContent').value.trim();
+    if (remarks.length > 500) {
+        alert('备注不能超过 500 个字符');
+        return;
+    }
+    fetch('{{ url_for("api_edit_item_remarks") }}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: `item_id=${_editingRemarksItemId}&month=${encodeURIComponent(month)}&remarks=${encodeURIComponent(remarks)}`
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.ok) {
+            bootstrap.Modal.getInstance(document.getElementById('remarksModal')).hide();
+            location.reload();
+        } else {
+            alert('保存失败: ' + (data.error || ''));
+        }
+    })
+    .catch(err => alert('请求失败: ' + err));
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const ta = document.getElementById('remarksContent');
+    if (ta) ta.addEventListener('input', updateRemarksCharCount);
+});
 </script>
 {% endblock %}
