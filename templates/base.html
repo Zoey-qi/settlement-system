@@ -21,8 +21,13 @@
             </button>
             <div class="collapse navbar-collapse" id="navMain">
                 <ul class="navbar-nav ms-auto">
-                    {# === 项目领导班子：仅结算金额 === #}
+                    {# === 项目领导班子：仪表盘 + 结算金额 === #}
                     {% if g.current_user and g.current_user.role == 'leader' %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}">
+                            <i class="bi bi-speedometer2"></i> 仪表盘
+                        </a>
+                    </li>
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'settlement_page' %}active{% endif %}" href="{{ url_for('settlement_page') }}">
                             <i class="bi bi-cash-stack"></i> 结算金额
@@ -120,7 +125,7 @@
                                 <i class="bi bi-building"></i> {{ g.current_user.department or '—' }}
                             </span></li>
                             <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="#" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
+                            <li><a class="dropdown-item" href="#" onclick="event.preventDefault(); try { localStorage.removeItem('auth_token'); localStorage.removeItem('current_user'); document.cookie = 'auth_token=; path=/; max-age=0'; } catch (e) {} document.getElementById('logout-form').submit();">
                                 <i class="bi bi-box-arrow-right"></i> 退出登录
                             </a></li>
                         </ul>

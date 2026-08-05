@@ -49,3 +49,7 @@ template_test.xlsx
 
 # 部署助手脚本（本地用，不入版本）
 push_to_github.py
+一键部署到GitHub.ps1
+vercel_deploy.ps1
+smoke_test.py
+Vercel诊断步骤.md

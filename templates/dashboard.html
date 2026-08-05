@@ -19,6 +19,123 @@
     </div>
 </div>
 
+{# ============================================================ #}
+{# === 项目领导班子专用视图：结算金额汇总 + 排行榜（无部门详情） === #}
+{# ============================================================ #}
+{% if user_role == 'leader' %}
+
+<!-- 结算金额总览卡片 -->
+<div class="row g-3 mb-4">
+    <div class="col-12">
+        <div class="card border-warning shadow-sm">
+            <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-cash-coin"></i> 结算金额总览（本月新增）</span>
+                <small class="text-muted" id="summary-loading"><span class="spinner-border spinner-border-sm"></span> 加载中…</small>
+            </div>
+            <div class="card-body">
+                <div class="row g-3 text-center" id="summary-cards">
+                    <div class="col-md-6">
+                        <div class="p-3 border rounded bg-light">
+                            <small class="text-muted d-block"><i class="bi bi-arrow-up-circle-fill text-danger"></i> 对上结算（向总承包单位申报）</small>
+                            <h3 class="mb-1 text-danger mt-2" id="up-month-amt">—</h3>
+                            <small class="text-muted">本月新增 <span id="up-month-cnt">0</span> 笔 · 累计 <span id="up-total-amt">—</span></small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="p-3 border rounded bg-light">
+                            <small class="text-muted d-block"><i class="bi bi-arrow-down-circle-fill text-info"></i> 对下结算（分包结算审核）</small>
+                            <h3 class="mb-1 text-info mt-2" id="down-month-amt">—</h3>
+                            <small class="text-muted">本月新增 <span id="down-month-cnt">0</span> 笔 · 累计 <span id="down-total-amt">—</span></small>
+                        </div>
+                    </div>
+                </div>
+                <div class="text-end mt-3">
+                    <a href="{{ url_for('settlement_page') }}" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-arrow-right"></i> 查看详细结算金额
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 排行榜 -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-trophy-fill text-warning"></i> 各部门完成情况对比 · 排名榜</span>
+                <small class="text-muted">按完成率排序，鼓励先进</small>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width:60px">排名</th>
+                                <th>部门</th>
+                                <th style="width:120px">完成进度</th>
+                                <th style="width:90px" class="text-center">完成率</th>
+                                <th class="text-center">总任务</th>
+                                <th class="text-center">已完成</th>
+                                <th class="text-center">未完成</th>
+                                <th class="text-center">已逾期</th>
+                                <th class="text-center">对上/对下</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for s in dept_ranking %}
+                            <tr class="{% if s.is_top %}table-warning{% endif %}">
+                                <td class="text-center">
+                                    {% if s.is_top %}
+                                        <span class="badge bg-warning text-dark fs-6">🥇 第1</span>
+                                    {% else %}
+                                        <span class="text-muted">第{{ s.rank }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="fw-bold">
+                                    <i class="bi bi-building"></i>
+                                    {{ s.dept_name }}
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="progress flex-grow-1" style="height: 10px;">
+                                            <div class="progress-bar {% if s.rate >= 80 %}bg-success{% elif s.rate >= 50 %}bg-info{% elif s.rate > 0 %}bg-warning{% else %}bg-secondary{% endif %}"
+                                                 style="width: {{ s.rate }}%"></div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="text-center fw-bold {% if s.rate >= 80 %}text-success{% elif s.rate >= 50 %}text-info{% else %}text-warning{% endif %}">
+                                    {{ s.rate }}%
+                                </td>
+                                <td class="text-center">{{ s.total }}</td>
+                                <td class="text-center text-success fw-bold">{{ s.completed }}</td>
+                                <td class="text-center text-warning">{{ s.pending + s.partial }}</td>
+                                <td class="text-center text-danger">{{ s.overdue }}</td>
+                                <td class="text-center small text-muted">
+                                    <span title="对上完成">{{ s.upstream_completed }}/{{ s.upstream_total }}</span>
+                                    /
+                                    <span title="对下完成">{{ s.downstream_completed }}/{{ s.downstream_total }}</span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="alert alert-info">
+    <i class="bi bi-info-circle"></i> 详细任务清单请到各部门的"提交数据"页面查看，或前往 <a href="{{ url_for('settlement_page') }}" class="alert-link">结算金额</a> 查看金额明细。
+</div>
+
+{% else %}
+{# ============================================================ #}
+{# === 其他角色：admin / director / liaison（保留原有视图） === #}
+{# ============================================================ #}
+
 {# === 部门主任 / 联络人：本部门专属卡片 + 切换按钮 === #}
 {% if user_dept %}
 <div class="row g-3 mb-4">
@@ -628,5 +745,43 @@
 {% if not my_dept_upstream and not my_dept_downstream %}
 <div class="alert alert-warning"><i class="bi bi-info-circle"></i> 本月 {{ user_dept }} 没有分配任务。</div>
 {% endif %}
+{% endif %}
+
+{% endif %}
+{# === if user_role == 'leader' else 结束 === #}
+
+{% endblock %}
+
+{% block scripts %}
+{% if user_role == 'leader' %}
+<script>
+function getCookie(name) {
+  const m = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
+  return m ? m[1] : '';
+}
+function fmt(n) {
+  return Number(n || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+(async function() {
+  const token = localStorage.getItem('auth_token') || getCookie('auth_token');
+  try {
+    const res = await fetch('/api/settlement-records/summary', { headers: { 'X-Auth-Token': token } });
+    const data = await res.json();
+    if (data.ok) {
+      document.getElementById('up-month-amt').textContent = '₱ ' + fmt(data.upstream.month_amount);
+      document.getElementById('up-month-cnt').textContent = data.upstream.month_count;
+      document.getElementById('up-total-amt').textContent = '₱ ' + fmt(data.upstream.total_amount);
+      document.getElementById('down-month-amt').textContent = '₱ ' + fmt(data.downstream.month_amount);
+      document.getElementById('down-month-cnt').textContent = data.downstream.month_count;
+      document.getElementById('down-total-amt').textContent = '₱ ' + fmt(data.downstream.total_amount);
+      document.getElementById('summary-loading').innerHTML = '<i class="bi bi-check-circle text-success"></i> 已更新';
+    } else {
+      document.getElementById('summary-loading').innerHTML = '<i class="bi bi-exclamation-triangle text-warning"></i> 加载失败';
+    }
+  } catch (e) {
+    document.getElementById('summary-loading').innerHTML = '<i class="bi bi-exclamation-triangle text-danger"></i> 网络错误';
+  }
+})();
+</script>
 {% endif %}
 {% endblock %}

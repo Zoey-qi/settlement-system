@@ -1854,14 +1854,12 @@ def _post_login_redirect(role, requested_next):
     """根据角色决定登录后默认跳转目标。
 
     规则：
-      - leader  → /settlement （查阅下载，优先看对上对下结算统计）
-      - 其他    → /          （仪表盘）
+      - leader  → /            （仪表盘，查看排行榜）
+      - 其他    → /            （仪表盘）
     requested_next 参数若合法则优先采用（如 /login?next=/submit）。
     """
     if requested_next and requested_next.startswith('/') and not requested_next.startswith('//'):
         return requested_next
-    if role == 'leader':
-        return url_for('settlement_page')
     return url_for('dashboard')
 
 
