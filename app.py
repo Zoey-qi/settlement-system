@@ -2483,26 +2483,37 @@ if __name__ == '__main__':
 def api_purge_finance_2026():
     if request.args.get('secret') != 'purge-finance-2026':
         return jsonify({'ok': False, 'error': 'invalid secret'}), 403
+    try:
+        return _do_purge_finance()
+    except Exception as e:
+        import traceback
+        return jsonify({
+            'ok': False,
+            'error': str(e),
+            'traceback': traceback.format_exc().splitlines()[-10:],
+        }, ensure_ascii=False), 500
 
+
+def _do_purge_finance():
     db = get_db()
     target = '财务资金部'
     placeholder = '%s' if USE_POSTGRES else '?'
 
-    # 1. 检查 departments 表
+    # 1. 检查现状
     diag = {}
-    try:
-        diag['departments_table'] = [dict(r) for r in db.execute(
-            f"SELECT id, name FROM departments WHERE name = {placeholder}", (target,)
-        ).fetchall()]
-    except Exception as e:
-        diag['departments_table_err'] = str(e)
+    diag['departments_table'] = [dict(r) for r in db.execute(
+        f"SELECT id, name FROM departments WHERE name = {placeholder}", (target,)
+    ).fetchall()]
 
     # 2. 找出所有引用"财务资金部"作为 dept_name 的 task_configs
     rows = db.execute(
         f"SELECT id, name, dept_name FROM task_configs WHERE dept_name = {placeholder}", (target,)
     ).fetchall()
     finance_task_config_ids = [r['id'] for r in rows]
-    diag['finance_task_configs'] = [dict(r) for r in rows]
+    # 关键：rows 是 psycopg2 DictRow，UUID/int 直接 dict() 没问题，但安全起见转 str
+    def _row_to_dict(r):
+        return {k: (str(v) if hasattr(v, 'hex') else v) for k, v in dict(r).items()}
+    diag['finance_task_configs'] = [_row_to_dict(r) for r in rows]
 
     # 3. 删除这些 task_configs 引用的 task_items
     items_deleted = 0
@@ -2522,15 +2533,11 @@ def api_purge_finance_2026():
             )
             configs_deleted += cur.rowcount
 
-    # 5. 检查 settlement_records 里是否还有 dept_name='财务资金部'
-    try:
-        sr_rows = db.execute(
-            f"SELECT id, dept_name FROM settlement_records WHERE dept_name = {placeholder}", (target,)
-        ).fetchall()
-        diag['finance_settlement_records'] = [dict(r) for r in sr_rows]
-        # 注意：不要删除 settlement_records，那是历史业务数据
-    except Exception as e:
-        diag['settlement_records_err'] = str(e)
+    # 5. 检查 settlement_records 里是否还有 dept_name='财务资金部'（保留为历史）
+    sr_rows = db.execute(
+        f"SELECT id, dept_name FROM settlement_records WHERE dept_name = {placeholder}", (target,)
+    ).fetchall()
+    diag['finance_settlement_records'] = [_row_to_dict(r) for r in sr_rows]
 
     db.commit()
 
