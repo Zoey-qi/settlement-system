@@ -1729,7 +1729,7 @@ def backup_now():
 #   leader    - 项目领导班子（查阅下载，登录后默认跳转到 /settlement）
 #   admin     - 系统管理员（全权：可查阅/下载/上传/修改/删除，含对上对下结算）
 #   director  - 各部门部门主任（仅查阅本部门文件，不允许上传）
-#   liaison   - 各部门联络人（上传/查阅/删除本部门文件，密码暂未确定）
+#   liaison   - 各部门联络人（上传/查阅/删除本部门文件）
 BUILTIN_USERS = [
     # 1. 项目领导班子
     {'username': 'leader', 'display_name': '项目领导班子', 'password': 'pakil123456', 'role': 'leader', 'department': '项目领导', 'phone': ''},
@@ -1742,13 +1742,13 @@ BUILTIN_USERS = [
     {'username': 'director_sbwzb', 'display_name': '设备物资部主任', 'password': 'sbwzb444', 'role': 'director', 'department': '设备物资部', 'phone': ''},
     {'username': 'director_rlzyb', 'display_name': '人力资源部主任', 'password': 'rlzyb555', 'role': 'director', 'department': '人力资源部', 'phone': ''},
     {'username': 'director_zhbgs', 'display_name': '综合办公室主任', 'password': 'zhbgs666', 'role': 'director', 'department': '综合办公室', 'phone': ''},
-    # 4. 各部门联络人（密码暂未确定，用临时密码占位，管理员可在用户管理中改）
-    {'username': 'liaison_scdd', 'display_name': '生产调度部联络人', 'password': 'scddb_liaison_待定', 'role': 'liaison', 'department': '生产调度部', 'phone': ''},
-    {'username': 'liaison_gczljs', 'display_name': '工程质量技术部联络人', 'password': 'gczljsb_liaison_待定', 'role': 'liaison', 'department': '工程质量技术部', 'phone': ''},
-    {'username': 'liaison_aqhbb', 'display_name': '安全环保部联络人', 'password': 'aqhbb_liaison_待定', 'role': 'liaison', 'department': '安全环保部', 'phone': ''},
-    {'username': 'liaison_sbwzb', 'display_name': '设备物资部联络人', 'password': 'sbwzb_liaison_待定', 'role': 'liaison', 'department': '设备物资部', 'phone': ''},
-    {'username': 'liaison_rlzyb', 'display_name': '人力资源部联络人', 'password': 'rlzyb_liaison_待定', 'role': 'liaison', 'department': '人力资源部', 'phone': ''},
-    {'username': 'liaison_zhbgs', 'display_name': '综合办公室联络人', 'password': 'zhbgs_liaison_待定', 'role': 'liaison', 'department': '综合办公室', 'phone': ''},
+    # 4. 各部门联络人（密码按用户提供，2026-08-05 部署）
+    {'username': 'liaison_scdd', 'display_name': '生产调度部联络人', 'password': 'scddbabc', 'role': 'liaison', 'department': '生产调度部', 'phone': ''},
+    {'username': 'liaison_gczljs', 'display_name': '工程质量技术部联络人', 'password': 'gczljsbdef', 'role': 'liaison', 'department': '工程质量技术部', 'phone': ''},
+    {'username': 'liaison_aqhbb', 'display_name': '安全环保部联络人', 'password': 'aqhbbghi', 'role': 'liaison', 'department': '安全环保部', 'phone': ''},
+    {'username': 'liaison_sbwzb', 'display_name': '设备物资部联络人', 'password': 'sbwzbjkl', 'role': 'liaison', 'department': '设备物资部', 'phone': ''},
+    {'username': 'liaison_rlzyb', 'display_name': '人力资源部联络人', 'password': 'rlzybmno', 'role': 'liaison', 'department': '人力资源部', 'phone': ''},
+    {'username': 'liaison_zhbgs', 'display_name': '综合办公室联络人', 'password': 'zhbgspqr', 'role': 'liaison', 'department': '综合办公室', 'phone': ''},
 ]
 
 # 已注册部门列表（用于前端下拉）
