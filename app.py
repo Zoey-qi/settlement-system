@@ -486,17 +486,37 @@ def _do_purge_finance():
         finance_task_config_ids = [str(r['id']) for r in rows]
         diag_configs_count = len(finance_task_config_ids)
 
-        # 3. 删除 task_items
-        for tc_id in finance_task_config_ids:
-            cur = q(f"DELETE FROM task_items WHERE task_config_id = {placeholder}", (tc_id,))
-            items_deleted += cur.rowcount
+        # 删除顺序很重要，要按依赖关系：
+        # item_submissions → task_items → task_configs → tasks → departments
+        # (item_submissions.task_item_id → task_items.id → task_configs.id)
 
-        # 4. 删除 task_configs
-        for tc_id in finance_task_config_ids:
-            cur = q(f"DELETE FROM task_configs WHERE id = {placeholder}", (tc_id,))
-            configs_deleted += cur.rowcount
+        # 3a. 找出所有关联的 task_item ids
+        if finance_task_config_ids:
+            placeholders_in = ','.join([placeholder] * len(finance_task_config_ids))
+            item_rows = q(f"SELECT id FROM task_items WHERE task_config_id IN ({placeholders_in})", finance_task_config_ids).fetchall()
+            finance_task_item_ids = [str(r['id']) for r in item_rows]
 
-        # 5. 删除 tasks（这是排行榜/任务列表数据的来源！必须删！）
+            # 3b. 删除 item_submissions（外键依赖 task_items）
+            if finance_task_item_ids:
+                placeholders_in2 = ','.join([placeholder] * len(finance_task_item_ids))
+                cur = q(f"DELETE FROM item_submissions WHERE task_item_id IN ({placeholders_in2})", finance_task_item_ids)
+                submissions_deleted = cur.rowcount
+            else:
+                submissions_deleted = 0
+
+            # 3c. 删除 task_items
+            for tc_id in finance_task_config_ids:
+                cur = q(f"DELETE FROM task_items WHERE task_config_id = {placeholder}", (tc_id,))
+                items_deleted += cur.rowcount
+
+            # 4. 删除 task_configs
+            for tc_id in finance_task_config_ids:
+                cur = q(f"DELETE FROM task_configs WHERE id = {placeholder}", (tc_id,))
+                configs_deleted += cur.rowcount
+        else:
+            submissions_deleted = 0
+
+        # 5. 删除 tasks（按 department_id）
         cur = q(f"DELETE FROM tasks WHERE department_id = {placeholder}", (finance_dept_id,))
         tasks_deleted = cur.rowcount
 
@@ -508,7 +528,7 @@ def _do_purge_finance():
 
     return jsonify(
         ok=True,
-        message=f'已清理 财务资金部：departments({dept_deleted_count}) + task_configs({configs_deleted}) + task_items({items_deleted}) + tasks({tasks_deleted})',
+        message=f'已清理 财务资金部：departments({dept_deleted_count}) + task_configs({configs_deleted}) + task_items({items_deleted}) + item_submissions({submissions_deleted}) + tasks({tasks_deleted})',
         dept_found=dept_found,
         finance_dept_id=finance_dept_id,
         finance_task_configs_found=diag_configs_count,
