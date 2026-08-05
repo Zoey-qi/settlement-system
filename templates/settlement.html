@@ -1,0 +1,305 @@
+{% extends 'base.html' %}
+{% block title %}结算金额统计 - {{ app_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h3 class="mb-0"><i class="bi bi-cash-stack text-primary"></i> 对上对下结算金额统计</h3>
+    <div>
+      <button class="btn btn-outline-primary btn-sm" onclick="loadAll()"><i class="bi bi-arrow-clockwise"></i> 刷新</button>
+      {% if g.current_user.role == 'admin' %}
+      <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#recordModal" onclick="openCreate()">
+        <i class="bi bi-plus-lg"></i> 新增结算单
+      </button>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if g.current_user.role == 'leader' %}
+  <div class="alert alert-info py-2 small">
+    <i class="bi bi-info-circle"></i> 您当前以「项目领导班子」身份登录，可查阅/下载已办理完成的结算单。
+  </div>
+  {% endif %}
+
+  <!-- Tab 切换 -->
+  <ul class="nav nav-tabs mb-3" id="dirTab">
+    <li class="nav-item">
+      <a class="nav-link active" data-bs-toggle="tab" href="#tab-up">
+        <i class="bi bi-arrow-up-circle"></i> 对上结算（向总包收）
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" data-bs-toggle="tab" href="#tab-down">
+        <i class="bi bi-arrow-down-circle"></i> 对下结算（向分包付）
+      </a>
+    </li>
+  </ul>
+
+  <div class="tab-content">
+    <div class="tab-pane fade show active" id="tab-up">
+      <div id="summary-up" class="row g-3 mb-3"></div>
+      <div class="card">
+        <div class="card-header bg-light">对上结算明细</div>
+        <div class="table-responsive">
+          <table class="table table-hover table-sm mb-0" id="table-up">
+            <thead class="table-light">
+              <tr>
+                <th>项目名称</th><th>对方单位</th><th>合同号</th><th>金额</th>
+                <th>结算日期</th><th>状态</th><th>备注</th><th>附件</th><th>操作</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-pane fade" id="tab-down">
+      <div id="summary-down" class="row g-3 mb-3"></div>
+      <div class="card">
+        <div class="card-header bg-light">对下结算明细</div>
+        <div class="table-responsive">
+          <table class="table table-hover table-sm mb-0" id="table-down">
+            <thead class="table-light">
+              <tr>
+                <th>项目名称</th><th>对方单位</th><th>合同号</th><th>金额</th>
+                <th>结算日期</th><th>状态</th><th>备注</th><th>附件</th><th>操作</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 新增/编辑 Modal -->
+<div class="modal fade" id="recordModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <form id="record-form" enctype="multipart/form-data">
+        <div class="modal-header">
+          <h5 class="modal-title" id="modal-title">新增结算单</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="record-id">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">结算方向 *</label>
+              <select class="form-select" id="direction" required>
+                <option value="up">对上结算（向总包收）</option>
+                <option value="down">对下结算（向分包付）</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">币种</label>
+              <select class="form-select" id="currency">
+                <option value="PHP">PHP（菲律宾比索）</option>
+                <option value="USD">USD（美元）</option>
+                <option value="CNY">CNY（人民币）</option>
+              </select>
+            </div>
+            <div class="col-md-8">
+              <label class="form-label">项目名称 *</label>
+              <input type="text" class="form-control" id="project_name" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">合同号</label>
+              <input type="text" class="form-control" id="contract_no">
+            </div>
+            <div class="col-md-8">
+              <label class="form-label">对方单位 *</label>
+              <input type="text" class="form-control" id="counterparty" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">金额 *</label>
+              <input type="number" step="0.01" class="form-control" id="amount" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">结算日期</label>
+              <input type="date" class="form-control" id="settle_date">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">状态</label>
+              <select class="form-select" id="status">
+                <option value="pending">办理中</option>
+                <option value="processing">审核中</option>
+                <option value="completed">已完成</option>
+                <option value="rejected">已驳回</option>
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label">备注</label>
+              <textarea class="form-control" id="notes" rows="2"></textarea>
+            </div>
+            <div class="col-12">
+              <label class="form-label">附件（可选）</label>
+              <input type="file" class="form-control" id="attachment">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+          <button type="submit" class="btn btn-primary">保存</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const TOKEN = localStorage.getItem('auth_token') || getCookie('auth_token');
+const USER = JSON.parse(localStorage.getItem('current_user') || '{}');
+// 权限细化：仅管理员可新建/修改/删除结算单
+const IS_ADMIN = USER.role === 'admin';
+const CAN_EDIT = IS_ADMIN;
+const CAN_DELETE = IS_ADMIN;
+
+function getCookie(name) {
+  const m = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
+  return m ? m[1] : '';
+}
+function api(path, opts = {}) {
+  opts.headers = Object.assign({ 'X-Auth-Token': TOKEN }, opts.headers || {});
+  if (opts.body instanceof FormData) {
+    // 浏览器自动设 multipart boundary，不要手动设 Content-Type
+  } else if (opts.body && typeof opts.body === 'object') {
+    opts.body = JSON.stringify(opts.body);
+    opts.headers['Content-Type'] = 'application/json';
+  }
+  return fetch(path, opts).then(r => r.json().then(j => ({ ok: r.ok, status: r.status, data: j })));
+}
+function esc(s) { return (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function fmt(n) { return Number(n || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function statusBadge(s) {
+  return { pending:'bg-warning text-dark', processing:'bg-info text-dark', completed:'bg-success', rejected:'bg-secondary' }[s] || 'bg-secondary';
+}
+function statusText(s) { return { pending:'办理中', processing:'审核中', completed:'已完成', rejected:'已驳回' }[s] || s; }
+
+let records = { up: [], down: [] };
+
+async function loadAll() {
+  const r = await api('/api/settlement-records');
+  if (!r.ok) { alert(r.data.error || '加载失败'); return; }
+  records = { up: [], down: [] };
+  (r.data.records || []).forEach(x => { records[x.direction === 'up' ? 'up' : 'down'].push(x); });
+  renderTable('up'); renderTable('down'); loadSummary();
+}
+
+async function loadSummary() {
+  const r = await api('/api/settlement-records/summary');
+  if (!r.ok) return;
+  ['up', 'down'].forEach(dir => {
+    const s = r.data[dir === 'up' ? 'upstream' : 'downstream'];
+    const el = document.getElementById('summary-' + dir);
+    const color = dir === 'up' ? 'success' : 'primary';
+    el.innerHTML = `
+      <div class="col-md-3"><div class="card border-${color}"><div class="card-body">
+        <small class="text-muted">累计总金额</small>
+        <h4 class="text-${color} mb-0">${s.total_count} 笔</h4>
+        <h5 class="text-${color} mb-0">${fmt(s.total_amount)}</h5>
+      </div></div></div>
+      <div class="col-md-3"><div class="card"><div class="card-body">
+        <small class="text-muted">已完成金额</small>
+        <h5 class="mb-0">${fmt(s.completed_amount)}</h5>
+      </div></div></div>
+      <div class="col-md-3"><div class="card"><div class="card-body">
+        <small class="text-muted">办理中金额</small>
+        <h5 class="mb-0">${fmt(s.pending_amount)}</h5>
+      </div></div></div>
+      <div class="col-md-3"><div class="card"><div class="card-body">
+        <small class="text-muted">本月新增</small>
+        <h5 class="mb-0">${s.month_count} 笔 / ${fmt(s.month_amount)}</h5>
+      </div></div></div>
+    `;
+  });
+}
+
+function renderTable(dir) {
+  const tbody = document.querySelector('#table-' + dir + ' tbody');
+  const list = records[dir];
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">暂无数据</td></tr>';
+    return;
+  }
+  tbody.innerHTML = list.map(r => `
+    <tr>
+      <td>${esc(r.project_name)}</td>
+      <td>${esc(r.counterparty)}</td>
+      <td><code>${esc(r.contract_no)}</code></td>
+      <td class="text-end fw-bold">${fmt(r.amount)} ${esc(r.currency)}</td>
+      <td>${esc(r.settle_date) || '—'}</td>
+      <td><span class="badge ${statusBadge(r.status)}">${statusText(r.status)}</span></td>
+      <td><small class="text-muted">${esc(r.notes || '')}</small></td>
+      <td>${r.attachment_name ? `<a href="/download/settlement-attachment/${r.id}" class="btn btn-sm btn-outline-secondary" title="${esc(r.attachment_name)}"><i class="bi bi-paperclip"></i></a>` : '—'}</td>
+      <td>
+        ${CAN_EDIT ? `<button class="btn btn-sm btn-outline-primary" onclick='openEdit(${JSON.stringify(r)})'><i class="bi bi-pencil"></i></button>` : ''}
+        ${CAN_DELETE ? `<button class="btn btn-sm btn-outline-danger" onclick="del(${r.id})"><i class="bi bi-trash"></i></button>` : ''}
+      </td>
+    </tr>
+  `).join('');
+}
+
+function openCreate() {
+  document.getElementById('modal-title').textContent = '新增结算单';
+  document.getElementById('record-form').reset();
+  document.getElementById('record-id').value = '';
+}
+function openEdit(r) {
+  document.getElementById('modal-title').textContent = '编辑结算单 #' + r.id;
+  document.getElementById('record-id').value = r.id;
+  document.getElementById('direction').value = r.direction;
+  document.getElementById('project_name').value = r.project_name || '';
+  document.getElementById('counterparty').value = r.counterparty || '';
+  document.getElementById('contract_no').value = r.contract_no || '';
+  document.getElementById('amount').value = r.amount || 0;
+  document.getElementById('currency').value = r.currency || 'PHP';
+  document.getElementById('settle_date').value = r.settle_date || '';
+  document.getElementById('status').value = r.status || 'pending';
+  document.getElementById('notes').value = r.notes || '';
+  new bootstrap.Modal(document.getElementById('recordModal')).show();
+}
+
+document.getElementById('record-form').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const id = document.getElementById('record-id').value;
+  const fd = new FormData();
+  fd.append('direction', document.getElementById('direction').value);
+  fd.append('project_name', document.getElementById('project_name').value);
+  fd.append('counterparty', document.getElementById('counterparty').value);
+  fd.append('contract_no', document.getElementById('contract_no').value);
+  fd.append('amount', document.getElementById('amount').value);
+  fd.append('currency', document.getElementById('currency').value);
+  fd.append('settle_date', document.getElementById('settle_date').value);
+  fd.append('status', document.getElementById('status').value);
+  fd.append('notes', document.getElementById('notes').value);
+  const file = document.getElementById('attachment').files[0];
+  if (file) fd.append('attachment', file);
+
+  const r = id
+    ? await api('/api/settlement-records/' + id, { method: 'PUT', body: fd })
+    : await api('/api/settlement-records', { method: 'POST', body: fd });
+
+  if (!r.ok) { alert(r.data.error || '保存失败'); return; }
+  bootstrap.Modal.getInstance(document.getElementById('recordModal')).hide();
+  loadAll();
+});
+
+async function del(id) {
+  if (!confirm('确认删除该结算单？此操作不可撤销。')) return;
+  const r = await api('/api/settlement-records/' + id, { method: 'DELETE' });
+  if (!r.ok) { alert(r.data.error || '删除失败'); return; }
+  loadAll();
+}
+
+if (!TOKEN) {
+  window.location.href = '/login';
+} else {
+  loadAll();
+}
+</script>
+{% endblock %}

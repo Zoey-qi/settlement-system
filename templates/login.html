@@ -1,0 +1,151 @@
+{% extends 'base.html' %}
+{% block title %}登录 - {{ app_title }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-5">
+  <div class="col-md-6 col-lg-5">
+    <div class="card shadow-sm">
+      <div class="card-header bg-primary text-white text-center">
+        <h4 class="mb-0"><i class="bi bi-shield-lock-fill"></i> 用户登录</h4>
+      </div>
+      <div class="card-body p-4">
+        <p class="text-muted text-center mb-4">
+          帕基尔项目月度结算管理系统<br>
+          <small>请输入账号、密码登录</small>
+        </p>
+
+        <div id="alert-box"></div>
+
+        <form id="login-form">
+          <div class="mb-3">
+            <label class="form-label">账号</label>
+            <select class="form-select" id="username" required>
+              <option value="">— 请选择身份 —</option>
+              <optgroup label="项目领导班子">
+                <option value="leader">项目领导班子</option>
+              </optgroup>
+              <optgroup label="系统管理员">
+                <option value="admin">系统管理员</option>
+              </optgroup>
+              <optgroup label="部门主任">
+                <option value="director_scdd">生产调度部主任</option>
+                <option value="director_gczljs">工程质量技术部主任</option>
+                <option value="director_aqhbb">安全环保部主任</option>
+                <option value="director_sbwzb">设备物资部主任</option>
+                <option value="director_rlzyb">人力资源部主任</option>
+                <option value="director_zhbgs">综合办公室主任</option>
+              </optgroup>
+              <optgroup label="部门联络人">
+                <option value="liaison_scdd">生产调度部联络人</option>
+                <option value="liaison_gczljs">工程质量技术部联络人</option>
+                <option value="liaison_aqhbb">安全环保部联络人</option>
+                <option value="liaison_sbwzb">设备物资部联络人</option>
+                <option value="liaison_rlzyb">人力资源部联络人</option>
+                <option value="liaison_zhbgs">综合办公室联络人</option>
+              </optgroup>
+            </select>
+          </div>
+
+          <div class="mb-3" id="department-wrap" style="display:none;">
+            <label class="form-label">所属部门</label>
+            <select class="form-select" id="department">
+              <option value="">— 请选择部门 —</option>
+              {% for d in departments %}
+              <option value="{{ d }}">{{ d }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">密码</label>
+            <input type="password" class="form-control" id="password" placeholder="请输入密码" required>
+          </div>
+
+          <button type="submit" class="btn btn-primary w-100" id="submit-btn">
+            <i class="bi bi-box-arrow-in-right"></i> 登录
+          </button>
+        </form>
+
+        <hr>
+        <details class="text-muted small">
+          <summary>密码说明（参考 "部门权限密码表.xlsx"）</summary>
+          <ul class="mt-2 mb-0">
+            <li>领导班子：<code>pakil123456</code></li>
+            <li>管理员：<code>gtglb888</code></li>
+            <li>生产调度部主任：<code>scddb111</code></li>
+            <li>工程质量技术部主任：<code>gczljsb222</code></li>
+            <li>安全环保部主任：<code>aqhbb333</code></li>
+            <li>设备物资部主任：<code>sbwzb444</code></li>
+            <li>人力资源部主任：<code>rlzyb555</code></li>
+            <li>综合办公室主任：<code>zhbgs666</code></li>
+            <li>联络人密码：另行发放，暂用占位符</li>
+          </ul>
+        </details>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const USERNAME_TO_DEPT = {
+  'director_scdd': '生产调度部', 'director_gczljs': '工程质量技术部', 'director_aqhbb': '安全环保部',
+  'director_sbwzb': '设备物资部', 'director_rlzyb': '人力资源部', 'director_zhbgs': '综合办公室',
+  'liaison_scdd': '生产调度部', 'liaison_gczljs': '工程质量技术部', 'liaison_aqhbb': '安全环保部',
+  'liaison_sbwzb': '设备物资部', 'liaison_rlzyb': '人力资源部', 'liaison_zhbgs': '综合办公室',
+};
+
+document.getElementById('username').addEventListener('change', function() {
+  const u = this.value;
+  const deptWrap = document.getElementById('department-wrap');
+  const deptSel = document.getElementById('department');
+  if (u && USERNAME_TO_DEPT[u]) {
+    deptWrap.style.display = '';
+    deptSel.value = USERNAME_TO_DEPT[u];
+  } else {
+    deptWrap.style.display = 'none';
+    deptSel.value = '';
+  }
+});
+
+document.getElementById('login-form').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const btn = document.getElementById('submit-btn');
+  const alertBox = document.getElementById('alert-box');
+  alertBox.innerHTML = '';
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 登录中...';
+
+  try {
+    const fd = new FormData();
+    fd.append('username', document.getElementById('username').value);
+    fd.append('password', document.getElementById('password').value);
+    fd.append('department', document.getElementById('department').value);
+
+    const res = await fetch('/api/auth/login', { method: 'POST', body: fd });
+    const data = await res.json();
+
+    if (!res.ok || !data.ok) {
+      alertBox.innerHTML = `<div class="alert alert-danger"><i class="bi bi-exclamation-triangle"></i> ${data.error || '登录失败'}</div>`;
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-box-arrow-in-right"></i> 登录';
+      return;
+    }
+
+    // 存 token 到 localStorage（前端用），同时存 cookie（页面导航用）
+    localStorage.setItem('auth_token', data.token);
+    localStorage.setItem('current_user', JSON.stringify(data.user));
+    document.cookie = `auth_token=${data.token}; path=/; max-age=${data.expires_in}`;
+
+    // 根据角色跳转：leader → /settlement，其它 → /
+    const nextPath = data.next || '/';
+    window.location.href = nextPath;
+  } catch (err) {
+    alertBox.innerHTML = `<div class="alert alert-danger"><i class="bi bi-exclamation-triangle"></i> 网络错误：${err.message}</div>`;
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-box-arrow-in-right"></i> 登录';
+  }
+});
+</script>
+{% endblock %}

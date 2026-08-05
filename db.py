@@ -242,6 +242,50 @@ def init_schema(db):
             value TEXT,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )''',
+        # =================================================================
+        # 新增：登录权限系统 + 对上对下结算金额统计 + 部门文件管理
+        # =================================================================
+        f'''CREATE TABLE IF NOT EXISTS users (
+            id {ai},
+            username TEXT NOT NULL UNIQUE,
+            display_name TEXT NOT NULL,
+            password TEXT NOT NULL,
+            role TEXT NOT NULL,
+            department TEXT,
+            phone TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )''',
+        f'''CREATE TABLE IF NOT EXISTS settlement_records (
+            id {ai},
+            direction TEXT NOT NULL,
+            project_name TEXT NOT NULL,
+            counterparty TEXT NOT NULL,
+            contract_no TEXT,
+            amount NUMERIC DEFAULT 0,
+            currency TEXT DEFAULT 'PHP',
+            settle_date DATE,
+            status TEXT DEFAULT 'pending',
+            notes TEXT,
+            attachment_name TEXT,
+            attachment_stored TEXT,
+            attachment_data BYTEA,
+            attachment_size INTEGER,
+            created_by TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )''',
+        f'''CREATE TABLE IF NOT EXISTS department_files (
+            id {ai},
+            department TEXT NOT NULL,
+            file_name TEXT NOT NULL,
+            stored_name TEXT NOT NULL,
+            file_data BYTEA,
+            file_size INTEGER,
+            uploader TEXT,
+            uploader_department TEXT,
+            description TEXT,
+            uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )''',
     ]
 
     for table_sql in tables:

@@ -37,6 +37,16 @@
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'settlement_page' %}active{% endif %}" href="{{ url_for('settlement_page') }}">
+                            <i class="bi bi-cash-stack"></i> 结算金额
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'department_files_page' %}active{% endif %}" href="{{ url_for('department_files_page') }}">
+                            <i class="bi bi-folder2-open"></i> 部门文件
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'templates_page' %}active{% endif %}" href="{{ url_for('templates_page') }}">
                             <i class="bi bi-file-earmark-spreadsheet"></i> 模板文件
                         </a>
@@ -62,6 +72,27 @@
                         </a>
                     </li>
                 </ul>
+                {% if g.get('current_user') %}
+                <ul class="navbar-nav ms-2">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+                            <i class="bi bi-person-circle"></i>
+                            {{ g.current_user.display_name }}
+                            <span class="badge bg-secondary ms-1">{{ {'leader':'班子','admin':'管理员','director':'主任','liaison':'联络人'}.get(g.current_user.role, g.current_user.role) }}</span>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><span class="dropdown-item-text text-muted small">
+                                <i class="bi bi-building"></i> {{ g.current_user.department or '—' }}
+                            </span></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="#" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
+                                <i class="bi bi-box-arrow-right"></i> 退出登录
+                            </a></li>
+                        </ul>
+                    </li>
+                </ul>
+                <form id="logout-form" method="post" action="/api/auth/logout-ui" style="display:none;"></form>
+                {% endif %}
             </div>
         </div>
     </nav>

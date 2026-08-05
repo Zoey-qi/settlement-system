@@ -85,6 +85,14 @@ def close_db(exc):
         db.close()
 
 
+@app.before_request
+def inject_current_user():
+    """全局注入当前登录用户，供 base.html 导航栏使用"""
+    user = get_current_user()
+    if user:
+        g.current_user = user
+
+
 def split_materials(materials_text):
     """将材料描述文本智能拆分为独立条目，处理括号内的顿号"""
     if not materials_text:
@@ -115,6 +123,7 @@ def init_db():
     conn = connect()
     init_schema(conn)
     seed_default_data(conn)
+    seed_users(conn)  # 新增：初始化登录用户
 
     # 迁移：将已有 task_configs 拆分为 task_items
     migrate_to_items(conn)
@@ -1432,6 +1441,727 @@ def backup_now():
         'success': True,
         'message': f'备份完成: settlement_{today}.db ({round(size_kb, 1)} KB)'
     })
+
+
+# ===========================================================================
+# 登录权限系统 + 对上对下结算金额统计 + 部门文件管理
+# ===========================================================================
+# 内置用户（密码与"部门权限密码表.xlsx"严格对应）
+# 角色权限：
+#   leader    - 项目领导班子（查阅下载，登录后默认跳转到 /settlement）
+#   admin     - 系统管理员（全权：可查阅/下载/上传/修改/删除，含对上对下结算）
+#   director  - 各部门部门主任（仅查阅本部门文件，不允许上传）
+#   liaison   - 各部门联络人（上传/查阅/删除本部门文件，密码暂未确定）
+BUILTIN_USERS = [
+    # 1. 项目领导班子
+    {'username': 'leader', 'display_name': '项目领导班子', 'password': 'pakil123456', 'role': 'leader', 'department': '项目领导', 'phone': ''},
+    # 2. 系统管理员
+    {'username': 'admin', 'display_name': '系统管理员', 'password': 'gtglb888', 'role': 'admin', 'department': '综合办公室', 'phone': ''},
+    # 3. 各部门主任（严格按 Excel 密码表）
+    {'username': 'director_scdd', 'display_name': '生产调度部主任', 'password': 'scddb111', 'role': 'director', 'department': '生产调度部', 'phone': ''},
+    {'username': 'director_gczljs', 'display_name': '工程质量技术部主任', 'password': 'gczljsb222', 'role': 'director', 'department': '工程质量技术部', 'phone': ''},
+    {'username': 'director_aqhbb', 'display_name': '安全环保部主任', 'password': 'aqhbb333', 'role': 'director', 'department': '安全环保部', 'phone': ''},
+    {'username': 'director_sbwzb', 'display_name': '设备物资部主任', 'password': 'sbwzb444', 'role': 'director', 'department': '设备物资部', 'phone': ''},
+    {'username': 'director_rlzyb', 'display_name': '人力资源部主任', 'password': 'rlzyb555', 'role': 'director', 'department': '人力资源部', 'phone': ''},
+    {'username': 'director_zhbgs', 'display_name': '综合办公室主任', 'password': 'zhbgs666', 'role': 'director', 'department': '综合办公室', 'phone': ''},
+    # 4. 各部门联络人（密码暂未确定，用临时密码占位，管理员可在用户管理中改）
+    {'username': 'liaison_scdd', 'display_name': '生产调度部联络人', 'password': 'scddb_liaison_待定', 'role': 'liaison', 'department': '生产调度部', 'phone': ''},
+    {'username': 'liaison_gczljs', 'display_name': '工程质量技术部联络人', 'password': 'gczljsb_liaison_待定', 'role': 'liaison', 'department': '工程质量技术部', 'phone': ''},
+    {'username': 'liaison_aqhbb', 'display_name': '安全环保部联络人', 'password': 'aqhbb_liaison_待定', 'role': 'liaison', 'department': '安全环保部', 'phone': ''},
+    {'username': 'liaison_sbwzb', 'display_name': '设备物资部联络人', 'password': 'sbwzb_liaison_待定', 'role': 'liaison', 'department': '设备物资部', 'phone': ''},
+    {'username': 'liaison_rlzyb', 'display_name': '人力资源部联络人', 'password': 'rlzyb_liaison_待定', 'role': 'liaison', 'department': '人力资源部', 'phone': ''},
+    {'username': 'liaison_zhbgs', 'display_name': '综合办公室联络人', 'password': 'zhbgs_liaison_待定', 'role': 'liaison', 'department': '综合办公室', 'phone': ''},
+]
+
+# 已注册部门列表（用于前端下拉）
+DEPARTMENT_LIST = [
+    '生产调度部', '工程质量技术部', '安全环保部', '设备物资部',
+    '人力资源部', '综合办公室', '财务资金部', '合同管理部',
+    '项目领导',
+]
+
+# 用户会话：token -> 用户信息 + 过期时间
+USER_SESSION_TTL = 8 * 3600  # 8 小时
+user_sessions = {}  # {token: {'user': dict, 'expire': ts}}
+
+
+def generate_token():
+    """生成 32 字节 URL-safe 随机 token"""
+    return secrets.token_urlsafe(32)
+
+
+def parse_token(token):
+    """解析 token，返回用户信息或 None"""
+    if not token:
+        return None
+    info = user_sessions.get(token)
+    if not info:
+        return None
+    if info['expire'] < time.time():
+        user_sessions.pop(token, None)
+        return None
+    # 滑动续期
+    info['expire'] = time.time() + USER_SESSION_TTL
+    return info['user']
+
+
+def get_current_user():
+    """从请求中获取当前登录用户"""
+    token = (request.headers.get('X-Auth-Token')
+             or request.form.get('auth_token')
+             or request.args.get('auth_token')
+             or request.cookies.get('auth_token'))
+    return parse_token(token)
+
+
+def seed_users(db):
+    """初始化内置用户。
+
+    策略：
+      - 如果 username 不存在 → INSERT
+      - 如果 username 已存在但 password 不同 → UPDATE（覆盖密码以反映 Excel 表的最新约定）
+      - 其它字段（display_name / role / department）始终同步到 BUILTIN_USERS
+      - 清理 BUILTIN_USERS 不再包含的旧 username（如旧的 director_zlyg 等已被新名替换）
+
+    这样历史部署已经 seed 过旧版用户（比如 director_zlyg → 工程质量技术部/zlygb222），
+    重新部署后会按最新的 Excel 表自动校正密码、部门、display_name，并删除残留旧账号。
+    """
+    builtin_usernames = {u['username'] for u in BUILTIN_USERS}
+
+    for u in BUILTIN_USERS:
+        try:
+            existing = db.execute(
+                'SELECT id, password, display_name, role, department, phone FROM users WHERE username = ?',
+                (u['username'],)
+            ).fetchone()
+            if existing is None:
+                db.execute('''
+                    INSERT INTO users (username, display_name, password, role, department, phone)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ''', (u['username'], u['display_name'], u['password'], u['role'], u['department'], u['phone']))
+            else:
+                # 同步密码、display_name、role、department；phone 保留旧值（除非为空）
+                new_phone = u['phone'] or existing['phone'] or ''
+                db.execute('''
+                    UPDATE users
+                    SET password = ?, display_name = ?, role = ?, department = ?, phone = ?
+                    WHERE username = ?
+                ''', (u['password'], u['display_name'], u['role'], u['department'], new_phone, u['username']))
+        except Exception as e:
+            print(f'[seed_users] upsert skip {u["username"]}: {e}')
+
+    # 清理已被新账号替换的残留旧账号（仅当 username 不在 BUILTIN_USERS 时删除）
+    try:
+        existing_rows = db.execute('SELECT id, username FROM users').fetchall()
+        for r in existing_rows:
+            if r['username'] not in builtin_usernames:
+                db.execute('DELETE FROM users WHERE id = ?', (r['id'],))
+                print(f'[seed_users] pruned legacy user: {r["username"]}')
+    except Exception as e:
+        print(f'[seed_users] prune legacy: {e}')
+
+    db.commit()
+
+
+def require_auth(f):
+    """装饰器：要求登录"""
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        user = get_current_user()
+        if not user:
+            if request.path.startswith('/api/'):
+                return jsonify({'error': '未登录或会话已过期'}), 401
+            return redirect(url_for('login_page', next=request.path))
+        g.current_user = user
+        return f(*args, **kwargs)
+    return wrapper
+
+
+def require_role(*roles):
+    """装饰器：要求指定角色"""
+    def decorator(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            user = get_current_user()
+            if not user:
+                if request.path.startswith('/api/'):
+                    return jsonify({'error': '未登录'}), 401
+                return redirect(url_for('login_page'))
+            if user['role'] not in roles:
+                if request.path.startswith('/api/'):
+                    return jsonify({'error': '权限不足'}), 403
+                flash('权限不足，无法访问该页面', 'danger')
+                return redirect(url_for('dashboard'))
+            g.current_user = user
+            return f(*args, **kwargs)
+        return wrapper
+    return decorator
+
+
+# ---------- 登录 / 登出 ----------
+@app.route('/login')
+def login_page():
+    """登录页"""
+    if get_current_user():
+        return redirect(url_for('dashboard'))
+    return render_template('login.html', departments=DEPARTMENT_LIST)
+
+
+def _post_login_redirect(role, requested_next):
+    """根据角色决定登录后默认跳转目标。
+
+    规则：
+      - leader  → /settlement （查阅下载，优先看对上对下结算统计）
+      - 其他    → /          （仪表盘）
+    requested_next 参数若合法则优先采用（如 /login?next=/submit）。
+    """
+    if requested_next and requested_next.startswith('/') and not requested_next.startswith('//'):
+        return requested_next
+    if role == 'leader':
+        return url_for('settlement_page')
+    return url_for('dashboard')
+
+
+@app.route('/api/auth/login', methods=['POST'])
+def api_auth_login():
+    """登录：username + password"""
+    db = get_db()
+    username = (request.form.get('username') or '').strip()
+    password = (request.form.get('password') or '').strip()
+    role_hint = (request.form.get('role') or '').strip()
+    department = (request.form.get('department') or '').strip()
+
+    if not username or not password:
+        return jsonify({'error': '请输入账号和密码'}), 400
+
+    # 优先从数据库查（兼容用户改过密码的场景）
+    user = db.execute(
+        'SELECT * FROM users WHERE username = ?', (username,)
+    ).fetchone()
+
+    if not user:
+        return jsonify({'error': '账号不存在'}), 401
+    if user['password'] != password:
+        return jsonify({'error': '密码错误'}), 401
+
+    user_dict = dict(user)
+    # 生成 token
+    token = generate_token()
+    user_sessions[token] = {
+        'user': user_dict,
+        'expire': time.time() + USER_SESSION_TTL
+    }
+
+    # 角色校验：director/liaison 必须匹配 department
+    if user_dict['role'] in ('director', 'liaison') and department:
+        if user_dict.get('department') and user_dict['department'] != department:
+            return jsonify({'error': f'该账号属于「{user_dict["department"]}」，与所选部门不一致'}), 403
+
+    next_path = _post_login_redirect(user_dict['role'], request.form.get('next') or request.args.get('next'))
+
+    return jsonify({
+        'ok': True,
+        'token': token,
+        'next': next_path,
+        'user': {
+            'id': user_dict['id'],
+            'username': user_dict['username'],
+            'display_name': user_dict['display_name'],
+            'role': user_dict['role'],
+            'department': user_dict.get('department', ''),
+            'phone': user_dict.get('phone', ''),
+        },
+        'expires_in': USER_SESSION_TTL,
+    })
+
+
+@app.route('/api/auth/logout', methods=['POST'])
+def api_auth_logout():
+    """登出：清掉 token"""
+    token = request.headers.get('X-Auth-Token') or request.form.get('auth_token')
+    if token:
+        user_sessions.pop(token, None)
+    return jsonify({'ok': True})
+
+
+@app.route('/api/auth/logout-ui', methods=['POST'])
+def api_auth_logout_ui():
+    """表单退出（页面按钮触发，跳转回登录页）"""
+    token = request.headers.get('X-Auth-Token') or request.form.get('auth_token')
+    if token:
+        user_sessions.pop(token, None)
+    return redirect(url_for('login_page'))
+
+
+@app.route('/api/auth/me')
+def api_auth_me():
+    """当前用户信息"""
+    user = get_current_user()
+    if not user:
+        return jsonify({'ok': False}), 401
+    return jsonify({'ok': True, 'user': user})
+
+
+@app.route('/api/auth/departments')
+def api_auth_departments():
+    """部门列表（公开，供登录页下拉用）"""
+    return jsonify({'ok': True, 'departments': DEPARTMENT_LIST})
+
+
+@app.route('/api/auth/users')
+@require_role('admin')
+def api_auth_users():
+    """用户列表（仅管理员可见）"""
+    db = get_db()
+    users = db.execute('SELECT id, username, display_name, role, department, phone, created_at FROM users ORDER BY id').fetchall()
+    return jsonify([dict(u) for u in users])
+
+
+# ---------- 对上对下结算金额统计 ----------
+@app.route('/settlement')
+@require_auth
+def settlement_page():
+    """结算金额统计页"""
+    return render_template('settlement.html')
+
+
+@app.route('/api/settlement-records', methods=['GET'])
+@require_auth
+def api_list_settlement_records():
+    """查询结算金额记录（按角色过滤）"""
+    db = get_db()
+    user = g.current_user
+
+    direction = request.args.get('direction', '')  # up / down
+    status = request.args.get('status', '')
+    project = request.args.get('project', '').strip()
+    department_filter = request.args.get('department', '').strip()
+
+    query = 'SELECT id, direction, project_name, counterparty, contract_no, amount, currency, settle_date, status, notes, attachment_name, attachment_size, created_by, created_at, updated_at FROM settlement_records WHERE 1=1'
+    params = []
+    if direction in ('up', 'down'):
+        query += ' AND direction = ?'
+        params.append(direction)
+    if status:
+        query += ' AND status = ?'
+        params.append(status)
+    if project:
+        query += ' AND project_name LIKE ?'
+        params.append(f'%{project}%')
+    if department_filter:
+        query += ' AND (created_by LIKE ? OR notes LIKE ?)'
+        params.extend([f'%{department_filter}%', f'%{department_filter}%'])
+
+    # 角色过滤：director/liaison 只能看本部门
+    if user['role'] in ('director', 'liaison'):
+        dept = user.get('department', '')
+        if dept:
+            query += ' AND (created_by LIKE ? OR notes LIKE ?)'
+            params.extend([f'%{dept}%', f'%{dept}%'])
+
+    query += ' ORDER BY settle_date DESC, id DESC'
+    rows = db.execute(query, params).fetchall()
+
+    records = []
+    for r in rows:
+        d = dict(r)
+        d['amount'] = float(d['amount']) if d['amount'] is not None else 0.0
+        records.append(d)
+    return jsonify({'ok': True, 'records': records})
+
+
+@app.route('/api/settlement-records/summary')
+@require_auth
+def api_settlement_summary():
+    """汇总统计卡（对上/对下 总金额、已完成、办理中、本月新增）"""
+    db = get_db()
+    user = g.current_user
+
+    base_filter = ''
+    base_params = []
+    if user['role'] in ('director', 'liaison'):
+        dept = user.get('department', '')
+        if dept:
+            base_filter = " AND (created_by LIKE %s OR notes LIKE %s)"
+            base_params = [f'%{dept}%', f'%{dept}%']
+
+    def safe_query(sql, params):
+        try:
+            return db.execute(sql, params).fetchone()
+        except Exception:
+            return None
+
+    def get_one(direction):
+        rows = safe_query(
+            "SELECT COALESCE(SUM(amount), 0) as total, COUNT(*) as cnt FROM settlement_records WHERE direction = ?" + (' AND (created_by LIKE ? OR notes LIKE ?)' if user['role'] in ('director', 'liaison') else ''),
+            [direction] + base_params
+        )
+        return float(rows['total']) if rows else 0.0, (rows['cnt'] if rows else 0)
+
+    def get_status_sum(direction, status):
+        rows = safe_query(
+            "SELECT COALESCE(SUM(amount), 0) as total FROM settlement_records WHERE direction = ? AND status = ?" + (' AND (created_by LIKE ? OR notes LIKE ?)' if user['role'] in ('director', 'liaison') else ''),
+            [direction, status] + base_params
+        )
+        return float(rows['total']) if rows else 0.0
+
+    def get_month_new(direction):
+        month_prefix = datetime.now().strftime('%Y-%m')
+        rows = safe_query(
+            "SELECT COALESCE(SUM(amount), 0) as total, COUNT(*) as cnt FROM settlement_records WHERE direction = ? AND settle_date LIKE ?" + (' AND (created_by LIKE ? OR notes LIKE ?)' if user['role'] in ('director', 'liaison') else ''),
+            [direction, f'{month_prefix}%'] + base_params
+        )
+        return float(rows['total']) if rows else 0.0, (rows['cnt'] if rows else 0)
+
+    up_total, up_cnt = get_one('up')
+    down_total, down_cnt = get_one('down')
+    up_completed = get_status_sum('up', 'completed')
+    down_completed = get_status_sum('down', 'completed')
+    up_pending = get_status_sum('up', 'pending') + get_status_sum('up', 'processing')
+    down_pending = get_status_sum('down', 'pending') + get_status_sum('down', 'processing')
+    up_month_amt, up_month_cnt = get_month_new('up')
+    down_month_amt, down_month_cnt = get_month_new('down')
+
+    return jsonify({
+        'ok': True,
+        'upstream': {
+            'total_amount': up_total,
+            'total_count': up_cnt,
+            'completed_amount': up_completed,
+            'pending_amount': up_pending,
+            'month_amount': up_month_amt,
+            'month_count': up_month_cnt,
+        },
+        'downstream': {
+            'total_amount': down_total,
+            'total_count': down_cnt,
+            'completed_amount': down_completed,
+            'pending_amount': down_pending,
+            'month_amount': down_month_amt,
+            'month_count': down_month_cnt,
+        },
+    })
+
+
+@app.route('/api/settlement-records', methods=['POST'])
+@require_role('admin')
+def api_create_settlement_record():
+    """新建结算金额记录（仅管理员）"""
+    db = get_db()
+    user = g.current_user
+
+    direction = (request.form.get('direction') or '').strip()
+    project_name = (request.form.get('project_name') or '').strip()
+    counterparty = (request.form.get('counterparty') or '').strip()
+    contract_no = (request.form.get('contract_no') or '').strip()
+    amount_raw = (request.form.get('amount') or '0').strip()
+    currency = (request.form.get('currency') or 'PHP').strip()
+    settle_date = (request.form.get('settle_date') or '').strip()
+    status = (request.form.get('status') or 'pending').strip()
+    notes = (request.form.get('notes') or '').strip()
+    department_tag = (request.form.get('department') or user.get('department', '')).strip()
+
+    if direction not in ('up', 'down'):
+        return jsonify({'error': '结算方向必须为 up 或 down'}), 400
+    if not project_name:
+        return jsonify({'error': '请填写项目名称'}), 400
+    if not counterparty:
+        return jsonify({'error': '请填写对方单位'}), 400
+    try:
+        amount = float(amount_raw)
+    except ValueError:
+        return jsonify({'error': '金额必须是数字'}), 400
+    if amount < 0:
+        return jsonify({'error': '金额不能为负数'}), 400
+
+    attachment_name = ''
+    attachment_stored = ''
+    attachment_data = None
+    attachment_size = 0
+
+    file = request.files.get('attachment')
+    if file and file.filename:
+        if not allowed_file(file.filename):
+            return jsonify({'error': '不支持的附件类型'}), 400
+        stored, size, original, data = save_upload_file(file, subdir='settlement_attachments')
+        attachment_name = original
+        attachment_stored = stored
+        attachment_size = size
+        attachment_data = data
+
+    created_by = f"{user['display_name']}({user['role']})"
+    # 把部门信息写入 notes，便于按部门过滤（director/liaison 的过滤查询依赖此字段）
+    if department_tag and department_tag not in notes:
+        notes = f"[{department_tag}] {notes}".strip()
+
+    if USE_POSTGRES:
+        new_id = insert_returning_id(db, '''
+            INSERT INTO settlement_records
+            (direction, project_name, counterparty, contract_no, amount, currency, settle_date, status, notes,
+             attachment_name, attachment_stored, attachment_data, attachment_size, created_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (direction, project_name, counterparty, contract_no, amount, currency,
+              settle_date or None, status, notes,
+              attachment_name, attachment_stored, attachment_data, attachment_size, created_by))
+    else:
+        db.execute('''
+            INSERT INTO settlement_records
+            (direction, project_name, counterparty, contract_no, amount, currency, settle_date, status, notes,
+             attachment_name, attachment_stored, attachment_size, created_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (direction, project_name, counterparty, contract_no, amount, currency,
+              settle_date or None, status, notes,
+              attachment_name, attachment_stored, attachment_size, created_by))
+        new_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
+    db.commit()
+    return jsonify({'ok': True, 'id': new_id})
+
+
+@app.route('/api/settlement-records/<int:rid>', methods=['PUT'])
+@require_role('admin')
+def api_update_settlement_record(rid):
+    """更新结算金额记录（仅管理员）"""
+    db = get_db()
+    user = g.current_user
+
+    row = db.execute('SELECT * FROM settlement_records WHERE id = ?', (rid,)).fetchone()
+    if not row:
+        return jsonify({'error': '记录不存在'}), 404
+
+    direction = (request.form.get('direction') or row['direction']).strip()
+    project_name = (request.form.get('project_name') or row['project_name']).strip()
+    counterparty = (request.form.get('counterparty') or row['counterparty']).strip()
+    contract_no = (request.form.get('contract_no') or row['contract_no'] or '').strip()
+    amount_raw = request.form.get('amount', str(row['amount'] or 0))
+    currency = (request.form.get('currency') or row['currency'] or 'PHP').strip()
+    settle_date = (request.form.get('settle_date') or row['settle_date'] or '').strip()
+    status = (request.form.get('status') or row['status'] or 'pending').strip()
+    notes = (request.form.get('notes') or row['notes'] or '').strip()
+
+    try:
+        amount = float(amount_raw)
+    except ValueError:
+        return jsonify({'error': '金额必须是数字'}), 400
+
+    file = request.files.get('attachment')
+    attachment_name = row['attachment_name']
+    attachment_stored = row['attachment_stored']
+    attachment_data = row['attachment_data']
+    attachment_size = row['attachment_size'] or 0
+    if file and file.filename:
+        if not allowed_file(file.filename):
+            return jsonify({'error': '不支持的附件类型'}), 400
+        stored, size, original, data = save_upload_file(file, subdir='settlement_attachments')
+        attachment_name = original
+        attachment_stored = stored
+        attachment_size = size
+        attachment_data = data
+
+    if USE_POSTGRES:
+        db.execute('''
+            UPDATE settlement_records
+            SET direction=?, project_name=?, counterparty=?, contract_no=?, amount=?, currency=?, settle_date=?,
+                status=?, notes=?, attachment_name=?, attachment_stored=?, attachment_data=?, attachment_size=?,
+                updated_at=CURRENT_TIMESTAMP
+            WHERE id=?
+        ''', (direction, project_name, counterparty, contract_no, amount, currency,
+              settle_date or None, status, notes,
+              attachment_name, attachment_stored, attachment_data, attachment_size, rid))
+    else:
+        db.execute('''
+            UPDATE settlement_records
+            SET direction=?, project_name=?, counterparty=?, contract_no=?, amount=?, currency=?, settle_date=?,
+                status=?, notes=?, attachment_name=?, attachment_stored=?, attachment_size=?,
+                updated_at=CURRENT_TIMESTAMP
+            WHERE id=?
+        ''', (direction, project_name, counterparty, contract_no, amount, currency,
+              settle_date or None, status, notes,
+              attachment_name, attachment_stored, attachment_size, rid))
+    db.commit()
+    return jsonify({'ok': True})
+
+
+@app.route('/api/settlement-records/<int:rid>', methods=['DELETE'])
+@require_role('admin')
+def api_delete_settlement_record(rid):
+    """删除结算金额记录（仅管理员）"""
+    db = get_db()
+    row = db.execute('SELECT * FROM settlement_records WHERE id = ?', (rid,)).fetchone()
+    if not row:
+        return jsonify({'error': '记录不存在'}), 404
+    db.execute('DELETE FROM settlement_records WHERE id = ?', (rid,))
+    db.commit()
+    return jsonify({'ok': True})
+
+
+@app.route('/download/settlement-attachment/<int:rid>')
+@require_auth
+def download_settlement_attachment(rid):
+    """下载结算金额附件"""
+    db = get_db()
+    row = db.execute('SELECT * FROM settlement_records WHERE id = ?', (rid,)).fetchone()
+    if not row or not row['attachment_stored']:
+        abort(404)
+    if USE_POSTGRES:
+        if not row['attachment_data']:
+            abort(404)
+        return send_file(io.BytesIO(row['attachment_data']), as_attachment=True, download_name=row['attachment_name'])
+    filepath = os.path.join(UPLOAD_DIR, 'settlement_attachments', row['attachment_stored'])
+    if not os.path.exists(filepath):
+        abort(404)
+    return send_file(filepath, as_attachment=True, download_name=row['attachment_name'])
+
+
+# ---------- 部门文件管理 ----------
+@app.route('/department-files')
+@require_auth
+def department_files_page():
+    """部门文件管理页"""
+    user = g.current_user
+    # 仅联络人/管理员可上传；部门主任只读，不显示上传按钮
+    can_upload = user['role'] in ('admin', 'liaison')
+    return render_template('department_files.html', can_upload=can_upload, current_user=user)
+
+
+@app.route('/api/department-files', methods=['GET'])
+@require_auth
+def api_list_department_files():
+    """查询部门文件列表"""
+    db = get_db()
+    user = g.current_user
+
+    department_filter = request.args.get('department', '').strip()
+
+    query = 'SELECT id, department, file_name, stored_name, file_size, uploader, uploader_department, description, uploaded_at FROM department_files WHERE 1=1'
+    params = []
+    if department_filter:
+        query += ' AND department = ?'
+        params.append(department_filter)
+    # 角色过滤
+    if user['role'] in ('director', 'liaison'):
+        dept = user.get('department', '')
+        if dept:
+            query += ' AND department = ?'
+            params.append(dept)
+    query += ' ORDER BY uploaded_at DESC'
+    rows = db.execute(query, params).fetchall()
+    files = []
+    for r in rows:
+        d = dict(r)
+        d['file_size'] = int(d['file_size']) if d['file_size'] is not None else 0
+        files.append(d)
+    return jsonify({'ok': True, 'files': files})
+
+
+@app.route('/api/department-files', methods=['POST'])
+@require_role('admin', 'liaison')
+def api_upload_department_file():
+    """上传部门文件（仅管理员 + 联络人）
+
+    - admin：可上传到任意部门
+    - liaison：只能上传到本部门（系统自动锁定）
+    """
+    db = get_db()
+    user = g.current_user
+
+    department = (request.form.get('department') or user.get('department', '')).strip()
+    description = (request.form.get('description') or '').strip()
+    file = request.files.get('file')
+
+    if not file or not file.filename:
+        return jsonify({'error': '请选择文件'}), 400
+    if not allowed_file(file.filename):
+        return jsonify({'error': '不支持的文件类型'}), 400
+    if not department:
+        return jsonify({'error': '请指定部门'}), 400
+
+    # 联络人：强制限只能上传到自己的部门（防止选错）
+    if user['role'] == 'liaison':
+        own_dept = user.get('department', '')
+        if department != own_dept:
+            return jsonify({'error': f'联络人只能上传到本部门（{own_dept}）'}), 403
+
+    stored, size, original, data = save_upload_file(file, subdir='department_files')
+
+    uploader = user['display_name']
+    uploader_dept = user.get('department', '')
+
+    if USE_POSTGRES:
+        new_id = insert_returning_id(db, '''
+            INSERT INTO department_files
+            (department, file_name, stored_name, file_data, file_size, uploader, uploader_department, description)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (department, original, stored, data, size, uploader, uploader_dept, description))
+    else:
+        db.execute('''
+            INSERT INTO department_files
+            (department, file_name, stored_name, file_size, uploader, uploader_department, description)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (department, original, stored, size, uploader, uploader_dept, description))
+        new_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
+    db.commit()
+    return jsonify({'ok': True, 'id': new_id})
+
+
+@app.route('/api/department-files/<int:fid>', methods=['DELETE'])
+@require_role('admin', 'liaison')
+def api_delete_department_file(fid):
+    """删除部门文件
+
+    - admin：可删任意
+    - liaison：只能删自己上传的文件（且必须属于本部门）
+    - director：没有删除权限（只读）
+    """
+    db = get_db()
+    user = g.current_user
+
+    row = db.execute('SELECT * FROM department_files WHERE id = ?', (fid,)).fetchone()
+    if not row:
+        return jsonify({'error': '文件不存在'}), 404
+    if user['role'] == 'liaison':
+        own_dept = user.get('department', '')
+        if row['department'] != own_dept:
+            return jsonify({'error': '只能删除本部门文件'}), 403
+        if row['uploader'] != user['display_name']:
+            return jsonify({'error': '联络人只能删除自己上传的文件'}), 403
+
+    db.execute('DELETE FROM department_files WHERE id = ?', (fid,))
+    db.commit()
+    return jsonify({'ok': True})
+
+
+@app.route('/download/department-file/<int:fid>')
+@require_auth
+def download_department_file(fid):
+    """下载部门文件"""
+    db = get_db()
+    user = g.current_user
+    row = db.execute('SELECT * FROM department_files WHERE id = ?', (fid,)).fetchone()
+    if not row:
+        abort(404)
+    # 角色权限校验
+    if user['role'] in ('director', 'liaison'):
+        if row['department'] != user.get('department', ''):
+            abort(403)
+    if USE_POSTGRES:
+        if not row['file_data']:
+            abort(404)
+        return send_file(io.BytesIO(row['file_data']), as_attachment=True, download_name=row['file_name'])
+    filepath = os.path.join(UPLOAD_DIR, 'department_files', row['stored_name'])
+    if not os.path.exists(filepath):
+        abort(404)
+    return send_file(filepath, as_attachment=True, download_name=row['file_name'])
+
+
+@app.route('/api/_init-users', methods=['GET'])
+def api_init_users():
+    """首次访问自动 seed 用户（公开接口，仅当 users 表为空时生效）"""
+    db = get_db()
+    count = db.execute('SELECT COUNT(*) as c FROM users').fetchone()['c']
+    if count == 0:
+        seed_users(db)
+        return jsonify({'ok': True, 'seeded': True, 'message': '已初始化 10 个内置用户'})
+    return jsonify({'ok': True, 'seeded': False, 'message': f'已存在 {count} 个用户'})
 
 
 # ===========================================================================

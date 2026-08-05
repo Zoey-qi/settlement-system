@@ -1,0 +1,182 @@
+{% extends 'base.html' %}
+{% block title %}部门文件 - {{ app_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h3 class="mb-0"><i class="bi bi-folder2-open text-primary"></i> 部门文件管理</h3>
+    {% if can_upload %}
+    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#uploadModal">
+      <i class="bi bi-cloud-arrow-up"></i> 上传文件
+    </button>
+    {% endif %}
+  </div>
+
+  <div id="alert-box"></div>
+
+  <div class="card">
+    <div class="card-header bg-light">
+      <div class="row g-2 align-items-center">
+        <div class="col-md-4">
+          <select class="form-select form-select-sm" id="filter-dept" onchange="loadFiles()">
+            <option value="">全部部门</option>
+            {% for d in ['生产调度部','工程质量技术部','安全环保部','设备物资部','人力资源部','综合办公室','财务资金部','合同管理部'] %}
+            <option value="{{ d }}">{{ d }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-8 text-end text-muted small">
+          <span id="user-info">当前：{{ current_user.display_name }}（{{ current_user.department or '—' }}）</span>
+        </div>
+      </div>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover mb-0" id="file-table">
+        <thead class="table-light">
+          <tr>
+            <th>文件名</th><th>部门</th><th>大小</th><th>上传人</th>
+            <th>上传时间</th><th>说明</th><th>操作</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- 上传 Modal -->
+{% if can_upload %}
+<div class="modal fade" id="uploadModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="upload-form" enctype="multipart/form-data">
+        <div class="modal-header">
+          <h5 class="modal-title">上传部门文件</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">部门</label>
+            <select class="form-select" id="up-dept" required>
+              {% for d in ['生产调度部','工程质量技术部','安全环保部','设备物资部','人力资源部','综合办公室','财务资金部','合同管理部'] %}
+              <option value="{{ d }}" {% if d == current_user.department %}selected{% endif %}>{{ d }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">说明（可选）</label>
+            <input type="text" class="form-control" id="up-desc" placeholder="文件用途说明">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">选择文件 *</label>
+            <input type="file" class="form-control" id="up-file" required>
+            <small class="text-muted">支持 xlsx/docx/pdf/zip/png 等，最大 100MB</small>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+          <button type="submit" class="btn btn-primary">上传</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+const TOKEN = localStorage.getItem('auth_token') || getCookie('auth_token');
+const USER = JSON.parse(localStorage.getItem('current_user') || '{}');
+// 权限：管理员全权；联络人只能删除自己上传的文件；部门主任只读，无任何操作按钮
+const USER_DISPLAY_NAME = USER.display_name || '';
+function canDelete(f) {
+  if (USER.role === 'admin') return true;
+  if (USER.role === 'liaison') {
+    return f.uploader === USER_DISPLAY_NAME && f.department === (USER.department || '');
+  }
+  return false; // director / leader 没有删除权限
+}
+
+function getCookie(name) {
+  const m = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
+  return m ? m[1] : '';
+}
+function api(path, opts = {}) {
+  opts.headers = Object.assign({ 'X-Auth-Token': TOKEN }, opts.headers || {});
+  return fetch(path, opts).then(r => r.json().then(j => ({ ok: r.ok, status: r.status, data: j })));
+}
+function esc(s) { return (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function fmtSize(b) {
+  b = Number(b) || 0;
+  if (b < 1024) return b + ' B';
+  if (b < 1024*1024) return (b/1024).toFixed(1) + ' KB';
+  return (b/1024/1024).toFixed(2) + ' MB';
+}
+
+async function loadFiles() {
+  const dept = document.getElementById('filter-dept').value;
+  const url = '/api/department-files' + (dept ? '?department=' + encodeURIComponent(dept) : '');
+  const r = await api(url);
+  const tbody = document.querySelector('#file-table tbody');
+  if (!r.ok) {
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger py-3">' + (r.data.error || '加载失败') + '</td></tr>';
+    return;
+  }
+  const files = r.data.files || [];
+  if (!files.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">暂无文件</td></tr>';
+    return;
+  }
+  tbody.innerHTML = files.map(f => `
+    <tr>
+      <td><i class="bi bi-file-earmark"></i> ${esc(f.file_name)}</td>
+      <td><span class="badge bg-info">${esc(f.department)}</span></td>
+      <td>${fmtSize(f.file_size)}</td>
+      <td>${esc(f.uploader)} <small class="text-muted">${esc(f.uploader_department || '')}</small></td>
+      <td><small>${esc(f.uploaded_at)}</small></td>
+      <td><small class="text-muted">${esc(f.description || '')}</small></td>
+      <td>
+        <a class="btn btn-sm btn-outline-primary" href="/download/department-file/${f.id}" title="下载"><i class="bi bi-download"></i></a>
+        ${canDelete(f) ? `<button class="btn btn-sm btn-outline-danger" onclick="del(${f.id})" title="删除"><i class="bi bi-trash"></i></button>` : ''}
+      </td>
+    </tr>
+  `).join('');
+}
+
+const uploadForm = document.getElementById('upload-form');
+if (uploadForm) {
+  uploadForm.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const fd = new FormData();
+    fd.append('department', document.getElementById('up-dept').value);
+    fd.append('description', document.getElementById('up-desc').value);
+    fd.append('file', document.getElementById('up-file').files[0]);
+    const r = await api('/api/department-files', { method: 'POST', body: fd });
+    const box = document.getElementById('alert-box');
+    if (!r.ok) {
+      box.innerHTML = `<div class="alert alert-danger">${r.data.error || '上传失败'}</div>`;
+      return;
+    }
+    bootstrap.Modal.getInstance(document.getElementById('uploadModal')).hide();
+    box.innerHTML = '<div class="alert alert-success">上传成功</div>';
+    setTimeout(() => box.innerHTML = '', 2000);
+    uploadForm.reset();
+    loadFiles();
+  });
+}
+
+async function del(id) {
+  if (!confirm('确认删除？此操作不可撤销。')) return;
+  const r = await api('/api/department-files/' + id, { method: 'DELETE' });
+  if (!r.ok) { alert(r.data.error || '删除失败'); return; }
+  loadFiles();
+}
+
+if (!TOKEN) {
+  window.location.href = '/login';
+} else {
+  loadFiles();
+}
+</script>
+{% endblock %}
