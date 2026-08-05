@@ -2157,33 +2157,33 @@ def download_department_file(fid):
 def api_init_users():
     """首次访问自动 seed 用户（公开接口，仅当 users 表为空时生效）
 
-    支持表不存在的情况：先调 init_schema() 建表，再 seed_users()。
+    支持表不存在的情况：先用全新连接跑 init_schema 建表 + commit，
+    再用同一个全新连接 SELECT 验证表已存在，再 seed。
     """
-    db = get_db()
+    fresh = connect()
     try:
-        count = db.execute('SELECT COUNT(*) as c FROM users').fetchone()['c']
+        # 1. 验证/创建 users 表
+        try:
+            count = fresh.execute('SELECT COUNT(*) as c FROM users').fetchone()['c']
+            print(f'[_init-users] users 表已存在，行数 {count}')
+        except Exception as e:
+            print(f'[_init-users] users 表不存在，开始建表：{e}')
+            init_schema(fresh)
+            fresh.commit()
+            # 立刻用同一个连接 SELECT 验证
+            count = fresh.execute('SELECT COUNT(*) as c FROM users').fetchone()['c']
+            print(f'[_init-users] 同一连接 SELECT 验证：行数 {count}')
+        # 2. seed（仍在同一连接，避免 Neon PgBouncer 跨连接问题）
+        if count == 0:
+            seed_users(fresh)
+            fresh.commit()
+            return jsonify({'ok': True, 'seeded': True, 'message': '已初始化 10 个内置用户'})
+        return jsonify({'ok': True, 'seeded': False, 'message': f'已存在 {count} 个用户'})
     except Exception as e:
-        print(f'[_init-users] users 表查询失败：{e}')
-        # users 表不存在 → 用全新连接建表（避免在已 abort 的事务里跑 DDL）
-        new_conn = connect()
-        try:
-            init_schema(new_conn)
-            new_conn.commit()
-            print('[_init-users] init_schema 已执行（独立连接）')
-        finally:
-            new_conn.close()
-        # 重新拿一次连接查询 count
-        db2 = connect()
-        try:
-            count = db2.execute('SELECT COUNT(*) as c FROM users').fetchone()['c']
-            print(f'[_init-users] 重建后 users 表行数：{count}')
-        finally:
-            db2.close()
-    if count == 0:
-        seed_users(db)
-        db.commit()
-        return jsonify({'ok': True, 'seeded': True, 'message': '已初始化 10 个内置用户'})
-    return jsonify({'ok': True, 'seeded': False, 'message': f'已存在 {count} 个用户'})
+        print(f'[_init-users] 失败：{e}')
+        return jsonify({'ok': False, 'error': str(e)}), 500
+    finally:
+        fresh.close()
 
 
 @app.route('/api/_diag-tables', methods=['GET'])
