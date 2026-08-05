@@ -393,7 +393,10 @@ PUBLIC_ENDPOINTS = {
     'health_check',         # /health
     'static',               # /static/<path>
     'api_auth_departments', # /api/auth/departments（登录页部门下拉用）
+    'api_auth_logout',      # POST /api/auth/logout（清除 token，登出）
+    'api_auth_logout_ui',   # POST /api/auth/logout-ui（表单退出，跳登录页）
     'fix_admin_password',   # GET /api/_fix_admin_password（一次性密码修正，用完删除）
+    'fix_admin_dept_and_drop_finance',  # GET /api/_fix_admin_dept_and_drop_finance（一次性部门调整）
 }
 
 
@@ -1733,7 +1736,7 @@ BUILTIN_USERS = [
     # 1. 项目领导班子
     {'username': 'leader', 'display_name': '项目领导班子', 'password': 'pakil123456', 'role': 'leader', 'department': '项目领导', 'phone': ''},
     # 2. 系统管理员
-    {'username': 'admin', 'display_name': '系统管理员', 'password': 'htglb888', 'role': 'admin', 'department': '综合办公室', 'phone': ''},
+    {'username': 'admin', 'display_name': '系统管理员', 'password': 'htglb888', 'role': 'admin', 'department': '合同管理部', 'phone': ''},
     # 3. 各部门主任（严格按 Excel 密码表）
     {'username': 'director_scdd', 'display_name': '生产调度部主任', 'password': 'scddb111', 'role': 'director', 'department': '生产调度部', 'phone': ''},
     {'username': 'director_gczljs', 'display_name': '工程质量技术部主任', 'password': 'gczljsb222', 'role': 'director', 'department': '工程质量技术部', 'phone': ''},
@@ -1753,7 +1756,7 @@ BUILTIN_USERS = [
 # 已注册部门列表（用于前端下拉）
 DEPARTMENT_LIST = [
     '生产调度部', '工程质量技术部', '安全环保部', '设备物资部',
-    '人力资源部', '综合办公室', '财务资金部', '合同管理部',
+    '人力资源部', '综合办公室', '合同管理部',
     '项目领导',
 ]
 
@@ -1865,6 +1868,68 @@ def fix_admin_password():
     })
 
 
+# ===========================================================================
+# 🔧 一次性综合修复端点（2026-08-05）：
+#   1. 把 admin 部门改为"合同管理部"
+#   2. 删除"财务资金部"（departments 表 + 引用它的 task_configs/task_items）
+# 用法：GET /api/_fix_admin_dept_and_drop_finance?secret=fix-2026
+# 验证成功后请删除本段代码
+# ===========================================================================
+@app.route('/api/_fix_admin_dept_and_drop_finance', methods=['GET'])
+def fix_admin_dept_and_drop_finance():
+    secret = request.args.get('secret', '')
+    if secret != 'fix-2026':
+        return jsonify({'error': 'forbidden'}), 403
+
+    db = get_db()
+    result = {'admin_changed': False, 'finance_removed': False,
+              'task_configs_removed': 0, 'task_items_removed': 0}
+
+    # 1. admin 部门改为"合同管理部"
+    try:
+        db.execute("UPDATE users SET department='合同管理部' WHERE username='admin'")
+        db.commit()
+        row = db.execute("SELECT username, department FROM users WHERE username='admin'").fetchone()
+        result['admin_changed'] = True
+        result['admin_row'] = dict(row) if row else None
+    except Exception as e:
+        result['admin_error'] = str(e)
+
+    # 2. 删除"财务资金部"
+    try:
+        # 先查 finance 的 id
+        fin = db.execute("SELECT id FROM departments WHERE name='财务资金部'").fetchone()
+        if fin:
+            fin_id = fin['id']
+            # 先查财务资金部涉及的 task_configs.id
+            cfg_rows = db.execute(
+                "SELECT id FROM task_configs WHERE department_id=?", (fin_id,)
+            ).fetchall()
+            cfg_ids = [r['id'] for r in cfg_rows]
+            # 删 task_items（按 task_config_id 关联删）
+            if cfg_ids:
+                placeholders = ','.join('?' * len(cfg_ids))
+                cur = db.execute(
+                    f"DELETE FROM task_items WHERE task_config_id IN ({placeholders})",
+                    cfg_ids
+                )
+                result['task_items_removed'] = cur.rowcount if hasattr(cur, 'rowcount') else 0
+            # 删 task_configs
+            cur = db.execute("DELETE FROM task_configs WHERE department_id=?", (fin_id,))
+            result['task_configs_removed'] = cur.rowcount if hasattr(cur, 'rowcount') else 0
+            # 删 department 本身
+            db.execute("DELETE FROM departments WHERE id=?", (fin_id,))
+            result['finance_removed'] = True
+            result['finance_id'] = fin_id
+        db.commit()
+    except Exception as e:
+        result['finance_error'] = str(e)
+
+    # 最终状态
+    result['departments_remaining'] = [dict(r)['name'] for r in db.execute("SELECT name FROM departments ORDER BY sort_order").fetchall()]
+    return jsonify(result)
+
+
 # ---------- 登录 / 登出 ----------
 @app.route('/login')
 def login_page():
@@ -1944,20 +2009,30 @@ def api_auth_login():
 
 @app.route('/api/auth/logout', methods=['POST'])
 def api_auth_logout():
-    """登出：清掉 token"""
-    token = request.headers.get('X-Auth-Token') or request.form.get('auth_token')
+    """登出：清掉 token（兼容 header/form/cookie 三种来源）"""
+    token = (request.headers.get('X-Auth-Token')
+             or request.form.get('auth_token')
+             or request.cookies.get('auth_token'))
     if token:
         user_sessions.pop(token, None)
-    return jsonify({'ok': True})
+    # 清除浏览器 cookie（让前端即使 token 失效也能登出）
+    resp = jsonify({'ok': True, 'message': '已退出登录'})
+    resp.set_cookie('auth_token', '', max_age=0, path='/')
+    return resp
 
 
 @app.route('/api/auth/logout-ui', methods=['POST'])
 def api_auth_logout_ui():
     """表单退出（页面按钮触发，跳转回登录页）"""
-    token = request.headers.get('X-Auth-Token') or request.form.get('auth_token')
+    token = (request.headers.get('X-Auth-Token')
+             or request.form.get('auth_token')
+             or request.cookies.get('auth_token'))
     if token:
         user_sessions.pop(token, None)
-    return redirect(url_for('login_page'))
+    resp = redirect(url_for('login_page'))
+    # 强制清除浏览器 cookie
+    resp.set_cookie('auth_token', '', max_age=0, path='/')
+    return resp
 
 
 @app.route('/api/auth/me')

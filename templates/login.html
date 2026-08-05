@@ -89,6 +89,14 @@
 
 {% block scripts %}
 <script>
+// 进入登录页时清掉旧的登录态（保证"每次都是登录界面"）
+try {
+  localStorage.removeItem('auth_token');
+  localStorage.removeItem('current_user');
+  // 也清掉可能的旧 cookie（防止残留）
+  document.cookie = 'auth_token=; path=/; max-age=0';
+} catch (e) {}
+
 const USERNAME_TO_DEPT = {
   'director_scdd': '生产调度部', 'director_gczljs': '工程质量技术部', 'director_aqhbb': '安全环保部',
   'director_sbwzb': '设备物资部', 'director_rlzyb': '人力资源部', 'director_zhbgs': '综合办公室',

@@ -20,7 +20,7 @@
         <div class="col-md-4">
           <select class="form-select form-select-sm" id="filter-dept" onchange="loadFiles()">
             <option value="">全部部门</option>
-            {% for d in ['生产调度部','工程质量技术部','安全环保部','设备物资部','人力资源部','综合办公室','财务资金部','合同管理部'] %}
+            {% for d in ['生产调度部','工程质量技术部','安全环保部','设备物资部','人力资源部','综合办公室','合同管理部'] %}
             <option value="{{ d }}">{{ d }}</option>
             {% endfor %}
           </select>
@@ -58,7 +58,7 @@
           <div class="mb-3">
             <label class="form-label">部门</label>
             <select class="form-select" id="up-dept" required>
-              {% for d in ['生产调度部','工程质量技术部','安全环保部','设备物资部','人力资源部','综合办公室','财务资金部','合同管理部'] %}
+              {% for d in ['生产调度部','工程质量技术部','安全环保部','设备物资部','人力资源部','综合办公室','合同管理部'] %}
               <option value="{{ d }}" {% if d == current_user.department %}selected{% endif %}>{{ d }}</option>
               {% endfor %}
             </select>
