@@ -2,54 +2,12 @@
 {% block title %}配置管理 - {{ app_title }}{% endblock %}
 
 {% block content %}
-<!-- 锁屏遮罩（解锁前显示在内容上方） -->
-<div id="configGate" style="position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1050;display:flex;align-items:center;justify-content:center;">
-    <div class="card shadow-lg" style="max-width:420px;width:90%;">
-        <div class="card-body p-4 text-center">
-            <div class="mb-3">
-                <i class="bi bi-shield-lock-fill" style="font-size:3rem;color:#0d6efd;"></i>
-            </div>
-            <h5 class="mb-1">配置管理受密码保护</h5>
-            <p class="text-muted small mb-3">请输入4位数字密码以访问此页面</p>
-            <div class="mb-3">
-                <input type="password" inputmode="numeric" pattern="\d{4}" maxlength="4"
-                       class="form-control form-control-lg text-center fw-bold"
-                       id="configPwdInput" placeholder="● ● ● ●"
-                       style="letter-spacing:8px;font-size:1.5rem;" autocomplete="off">
-                <div class="invalid-feedback" id="configPwdError">密码错误</div>
-            </div>
-            <button type="button" class="btn btn-primary w-100" id="configPwdUnlockBtn">
-                <i class="bi bi-unlock-fill"></i> 解锁
-            </button>
-            <div class="mt-3 small">
-                <a href="{{ url_for('dashboard') }}" class="text-muted">
-                    <i class="bi bi-arrow-left"></i> 返回仪表盘
-                </a>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- 主内容（锁屏时不可交互） -->
-<div id="configContent" style="filter:blur(3px);pointer-events:none;user-select:none;">
 <div class="row mb-3">
     <div class="col-12">
         <div class="d-flex justify-content-between align-items-start">
             <div>
                 <h4><i class="bi bi-gear text-primary"></i> 部门与任务配置管理</h4>
                 <p class="text-muted small">在此上传配置文件来批量设置各部门的结算任务及截止时间节点，或查看当前配置。</p>
-            </div>
-            <div class="text-end">
-                <span class="badge bg-success-subtle text-success border border-success-subtle" id="sessionBadge" style="font-size:.8rem;display:none;">
-                    <i class="bi bi-unlock"></i> 已解锁 ·
-                    <span id="sessionRemain">--:--</span>
-                </span>
-                <button type="button" class="btn btn-sm btn-outline-secondary ms-2" id="changePwdBtn" style="display:none;" title="修改密码">
-                    <i class="bi bi-key"></i> 修改密码
-                </button>
-                <button type="button" class="btn btn-sm btn-outline-warning ms-1" id="lockNowBtn" style="display:none;" title="立即锁定">
-                    <i class="bi bi-lock"></i> 锁定
-                </button>
             </div>
         </div>
     </div>
@@ -71,7 +29,6 @@
                     </a>
                 </div>
                 <form method="POST" enctype="multipart/form-data" action="{{ url_for('upload_config') }}" id="uploadConfigForm">
-                    <input type="hidden" name="config_token" id="uploadConfigToken">
                     <div class="mb-3">
                         <label class="form-label">上传人</label>
                         <input type="text" class="form-control" name="uploader" placeholder="您的姓名">
@@ -177,7 +134,6 @@
         </div>
     </div>
 </div>
-</div><!-- /#configContent -->
 
 <!-- 截止日期编辑弹窗 -->
 <div class="modal fade" id="deadlineModal" tabindex="-1">
@@ -230,279 +186,11 @@
     </div>
 </div>
 
-<!-- 修改密码弹窗 -->
-<div class="modal fade" id="changePwdModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title"><i class="bi bi-key"></i> 修改配置管理密码</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="alert alert-warning small">
-                    <i class="bi bi-info-circle"></i> 修改后所有登录会话将立即失效，需重新输入新密码。
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">当前密码</label>
-                    <input type="password" inputmode="numeric" pattern="\d{4}" maxlength="4"
-                           class="form-control text-center fw-bold" id="oldPwdInput"
-                           style="letter-spacing:6px;" placeholder="● ● ● ●" autocomplete="off">
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">新密码（4位数字）</label>
-                    <input type="password" inputmode="numeric" pattern="\d{4}" maxlength="4"
-                           class="form-control text-center fw-bold" id="newPwdInput"
-                           style="letter-spacing:6px;" placeholder="● ● ● ●" autocomplete="off">
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">确认新密码</label>
-                    <input type="password" inputmode="numeric" pattern="\d{4}" maxlength="4"
-                           class="form-control text-center fw-bold" id="newPwd2Input"
-                           style="letter-spacing:6px;" placeholder="● ● ● ●" autocomplete="off">
-                </div>
-                <div class="text-danger small" id="changePwdError" style="display:none;"></div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                <button type="button" class="btn btn-primary" id="changePwdSaveBtn">
-                    <i class="bi bi-check-lg"></i> 修改
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
 {% endblock %}
 
 {% block scripts %}
 <script>
 (function() {
-    // ============================================================
-    // 配置管理密码保护
-    // ============================================================
-    const SESSION_KEY = 'configPwdToken';
-    const REMAIN_KEY = 'configPwdRemain';
-    let currentToken = sessionStorage.getItem(SESSION_KEY) || null;
-    let remainSeconds = parseInt(sessionStorage.getItem(REMAIN_KEY) || '0', 10);
-    let countdownTimer = null;
-
-    const gate = document.getElementById('configGate');
-    const content = document.getElementById('configContent');
-    const pwdInput = document.getElementById('configPwdInput');
-    const pwdError = document.getElementById('configPwdError');
-    const unlockBtn = document.getElementById('configPwdUnlockBtn');
-    const sessionBadge = document.getElementById('sessionBadge');
-    const sessionRemain = document.getElementById('sessionRemain');
-    const changePwdBtn = document.getElementById('changePwdBtn');
-    const lockNowBtn = document.getElementById('lockNowBtn');
-
-    // 立即锁定
-    function lockNow(reason) {
-        currentToken = null;
-        remainSeconds = 0;
-        sessionStorage.removeItem(SESSION_KEY);
-        sessionStorage.removeItem(REMAIN_KEY);
-        if (countdownTimer) clearInterval(countdownTimer);
-        gate.style.display = 'flex';
-        content.style.filter = 'blur(3px)';
-        content.style.pointerEvents = 'none';
-        content.style.userSelect = 'none';
-        sessionBadge.style.display = 'none';
-        changePwdBtn.style.display = 'none';
-        lockNowBtn.style.display = 'none';
-        // 关闭可能打开的子 modal
-        document.querySelectorAll('.modal.show').forEach(m => {
-            const inst = bootstrap.Modal.getInstance(m);
-            if (inst) inst.hide();
-        });
-        pwdInput.value = '';
-        pwdInput.classList.remove('is-invalid');
-        if (reason) showPwdError(reason);
-        setTimeout(() => pwdInput.focus(), 100);
-    }
-
-    function showPwdError(msg) {
-        pwdError.textContent = msg;
-        pwdInput.classList.add('is-invalid');
-    }
-
-    function unlock(token, ttl) {
-        currentToken = token;
-        remainSeconds = ttl;
-        sessionStorage.setItem(SESSION_KEY, token);
-        sessionStorage.setItem(REMAIN_KEY, String(ttl));
-        gate.style.display = 'none';
-        content.style.filter = '';
-        content.style.pointerEvents = '';
-        content.style.userSelect = '';
-        sessionBadge.style.display = 'inline-block';
-        changePwdBtn.style.display = 'inline-block';
-        lockNowBtn.style.display = 'inline-block';
-        startCountdown();
-    }
-
-    function startCountdown() {
-        if (countdownTimer) clearInterval(countdownTimer);
-        const tick = () => {
-            remainSeconds--;
-            sessionStorage.setItem(REMAIN_KEY, String(Math.max(remainSeconds, 0)));
-            const mm = Math.floor(Math.max(remainSeconds, 0) / 60);
-            const ss = Math.max(remainSeconds, 0) % 60;
-            sessionRemain.textContent =
-                String(mm).padStart(2, '0') + ':' + String(ss).padStart(2, '0');
-            if (remainSeconds <= 60) {
-                sessionBadge.classList.remove('bg-success-subtle', 'text-success', 'border-success-subtle');
-                sessionBadge.classList.add('bg-warning-subtle', 'text-warning', 'border-warning-subtle');
-            } else {
-                sessionBadge.classList.add('bg-success-subtle', 'text-success', 'border-success-subtle');
-                sessionBadge.classList.remove('bg-warning-subtle', 'text-warning', 'border-warning-subtle');
-            }
-            if (remainSeconds <= 0) {
-                lockNow('会话已过期，请重新输入密码');
-            }
-        };
-        tick();
-        countdownTimer = setInterval(tick, 1000);
-    }
-
-    // 密码输入回车 / 解锁按钮
-    function attemptUnlock() {
-        const pwd = pwdInput.value.trim();
-        if (!/^\d{4}$/.test(pwd)) {
-            showPwdError('请输入4位数字密码');
-            return;
-        }
-        unlockBtn.disabled = true;
-        unlockBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 验证中...';
-        const fd = new FormData();
-        fd.append('password', pwd);
-        fetch('/api/config/verify-password', { method: 'POST', body: fd })
-            .then(r => r.json().then(d => ({ status: r.status, body: d })))
-            .then(({ status, body }) => {
-                unlockBtn.disabled = false;
-                unlockBtn.innerHTML = '<i class="bi bi-unlock-fill"></i> 解锁';
-                if (status === 200 && body.ok) {
-                    unlock(body.token, body.ttl_seconds);
-                } else {
-                    showPwdError(body.error || '验证失败');
-                    pwdInput.select();
-                }
-            })
-            .catch(err => {
-                unlockBtn.disabled = false;
-                unlockBtn.innerHTML = '<i class="bi bi-unlock-fill"></i> 解锁';
-                showPwdError('网络错误：' + err.message);
-            });
-    }
-
-    pwdInput.addEventListener('input', () => {
-        pwdInput.classList.remove('is-invalid');
-        if (pwdInput.value.length === 4) attemptUnlock();
-    });
-    pwdInput.addEventListener('keydown', e => {
-        if (e.key === 'Enter') attemptUnlock();
-    });
-    unlockBtn.addEventListener('click', attemptUnlock);
-
-    lockNowBtn.addEventListener('click', () => {
-        // 调用后端清掉 token
-        if (currentToken) {
-            fetch('/api/config/logout', {
-                method: 'POST',
-                headers: { 'X-Config-Token': currentToken }
-            }).catch(() => {});
-        }
-        lockNow();
-    });
-
-    // 修改密码
-    changePwdBtn.addEventListener('click', () => {
-        document.getElementById('oldPwdInput').value = '';
-        document.getElementById('newPwdInput').value = '';
-        document.getElementById('newPwd2Input').value = '';
-        document.getElementById('changePwdError').style.display = 'none';
-        new bootstrap.Modal(document.getElementById('changePwdModal')).show();
-    });
-
-    document.getElementById('changePwdSaveBtn').addEventListener('click', function() {
-        const oldPwd = document.getElementById('oldPwdInput').value.trim();
-        const newPwd = document.getElementById('newPwdInput').value.trim();
-        const newPwd2 = document.getElementById('newPwd2Input').value.trim();
-        const errEl = document.getElementById('changePwdError');
-        errEl.style.display = 'none';
-        if (!/^\d{4}$/.test(newPwd)) { errEl.textContent = '新密码必须是4位数字'; errEl.style.display = 'block'; return; }
-        if (newPwd !== newPwd2) { errEl.textContent = '两次新密码输入不一致'; errEl.style.display = 'block'; return; }
-        const fd = new FormData();
-        fd.append('old_password', oldPwd);
-        fd.append('new_password', newPwd);
-        const btn = this;
-        btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 修改中...';
-        fetch('/api/config/change-password', {
-            method: 'POST',
-            headers: { 'X-Config-Token': currentToken },
-            body: fd
-        })
-        .then(r => r.json().then(d => ({ status: r.status, body: d })))
-        .then(({ status, body }) => {
-            btn.disabled = false;
-            btn.innerHTML = '<i class="bi bi-check-lg"></i> 修改';
-            if (status === 200 && body.ok) {
-                bootstrap.Modal.getInstance(document.getElementById('changePwdModal')).hide();
-                // 后端已清空所有 token
-                lockNow('密码已修改，请输入新密码登录');
-            } else {
-                errEl.textContent = body.error || '修改失败';
-                errEl.style.display = 'block';
-            }
-        })
-        .catch(err => {
-            btn.disabled = false;
-            btn.innerHTML = '<i class="bi bi-check-lg"></i> 修改';
-            errEl.textContent = '网络错误：' + err.message;
-            errEl.style.display = 'block';
-        });
-    });
-
-    // 上传配置文件：拦截表单，自动塞 token
-    document.getElementById('uploadConfigForm').addEventListener('submit', function(e) {
-        if (!currentToken) {
-            e.preventDefault();
-            showPwdError('请先解锁');
-            return;
-        }
-        document.getElementById('uploadConfigToken').value = currentToken;
-    });
-
-    // 检查已有 session 是否还有效（页面打开时）
-    function validateStoredSession() {
-        if (!currentToken) { setTimeout(() => pwdInput.focus(), 200); return; }
-        fetch('/api/config/check-session', {
-            method: 'GET',
-            headers: { 'X-Config-Token': currentToken }
-        })
-        .then(r => r.json())
-        .then(d => {
-            if (d.ok) {
-                // 用后端返回的剩余时间刷新（更准确）
-                unlock(currentToken, d.remaining_seconds);
-            } else {
-                sessionStorage.removeItem(SESSION_KEY);
-                sessionStorage.removeItem(REMAIN_KEY);
-                currentToken = null;
-                setTimeout(() => pwdInput.focus(), 200);
-            }
-        })
-        .catch(() => {
-            // 网络失败就先用本地时间，恢复显示
-            if (remainSeconds > 0) {
-                unlock(currentToken, remainSeconds);
-            } else {
-                setTimeout(() => pwdInput.focus(), 200);
-            }
-        });
-    }
-
     // ============================================================
     // 联络人编辑
     // ============================================================
@@ -536,15 +224,10 @@
         formData.append('contact_person', contact);
         fetch('/api/config/update-contact', {
             method: 'POST',
-            headers: { 'X-Config-Token': currentToken || '' },
             body: formData
         })
-        .then(r => r.json().then(d => ({ status: r.status, body: d })))
-        .then(({ status, body }) => {
-            if (status === 401) {
-                lockNow('会话已过期，请重新输入密码');
-                throw new Error('会话过期');
-            }
+        .then(r => r.json())
+        .then(body => {
             if (!body.ok) throw new Error(body.error || '保存失败');
             currentContactBtn.dataset.currentContact = body.contact_person;
             currentContactBtn.querySelector('.contact-name').textContent = body.contact_person || '未设置';
@@ -552,7 +235,6 @@
             showToast('✓ 联络人已更新');
         })
         .catch(err => {
-            if (err.message === '会话过期') return;
             alert('保存失败：' + err.message);
         })
         .finally(() => {
@@ -604,15 +286,10 @@
 
         fetch('/api/config/update-deadline', {
             method: 'POST',
-            headers: { 'X-Config-Token': currentToken || '' },
             body: formData
         })
-        .then(r => r.json().then(d => ({ status: r.status, body: d })))
-        .then(({ status, body }) => {
-            if (status === 401) {
-                lockNow('会话已过期，请重新输入密码');
-                throw new Error('会话过期');
-            }
+        .then(r => r.json())
+        .then(body => {
             if (body.ok) {
                 if (currentBtn) {
                     currentBtn.innerHTML = '每月 ' + body.deadline_day + ' 日前 <i class="bi bi-pencil-square"></i>';
@@ -627,7 +304,6 @@
             }
         })
         .catch(err => {
-            if (err.message === '会话过期') return;
             alert('网络错误：' + err);
             saveBtn.disabled = false;
             saveBtn.innerHTML = '<i class="bi bi-check-lg"></i> 保存';
@@ -642,9 +318,6 @@
         document.body.appendChild(toast);
         setTimeout(() => toast.remove(), 2500);
     }
-
-    // 启动
-    validateStoredSession();
 })();
 </script>
 {% endblock %}
