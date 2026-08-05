@@ -59,73 +59,7 @@
     </div>
 </div>
 
-<!-- 排行榜 -->
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header bg-light d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-trophy-fill text-warning"></i> 各部门完成情况对比 · 排名榜</span>
-                <small class="text-muted">按完成率排序，鼓励先进</small>
-            </div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th style="width:60px">排名</th>
-                                <th>部门</th>
-                                <th style="width:120px">完成进度</th>
-                                <th style="width:90px" class="text-center">完成率</th>
-                                <th class="text-center">总任务</th>
-                                <th class="text-center">已完成</th>
-                                <th class="text-center">未完成</th>
-                                <th class="text-center">已逾期</th>
-                                <th class="text-center">对上/对下</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for s in dept_ranking %}
-                            <tr class="{% if s.is_top %}table-warning{% endif %}">
-                                <td class="text-center">
-                                    {% if s.is_top %}
-                                        <span class="badge bg-warning text-dark fs-6">🥇 第1</span>
-                                    {% else %}
-                                        <span class="text-muted">第{{ s.rank }}</span>
-                                    {% endif %}
-                                </td>
-                                <td class="fw-bold">
-                                    <i class="bi bi-building"></i>
-                                    {{ s.dept_name }}
-                                </td>
-                                <td>
-                                    <div class="d-flex align-items-center gap-2">
-                                        <div class="progress flex-grow-1" style="height: 10px;">
-                                            <div class="progress-bar {% if s.rate >= 80 %}bg-success{% elif s.rate >= 50 %}bg-info{% elif s.rate > 0 %}bg-warning{% else %}bg-secondary{% endif %}"
-                                                 style="width: {{ s.rate }}%"></div>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td class="text-center fw-bold {% if s.rate >= 80 %}text-success{% elif s.rate >= 50 %}text-info{% else %}text-warning{% endif %}">
-                                    {{ s.rate }}%
-                                </td>
-                                <td class="text-center">{{ s.total }}</td>
-                                <td class="text-center text-success fw-bold">{{ s.completed }}</td>
-                                <td class="text-center text-warning">{{ s.pending + s.partial }}</td>
-                                <td class="text-center text-danger">{{ s.overdue }}</td>
-                                <td class="text-center small text-muted">
-                                    <span title="对上完成">{{ s.upstream_completed }}/{{ s.upstream_total }}</span>
-                                    /
-                                    <span title="对下完成">{{ s.downstream_completed }}/{{ s.downstream_total }}</span>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+<!-- 排行榜（已按用户要求移除：仪表盘不再展示各部门对比） -->
 
 <div class="alert alert-info">
     <i class="bi bi-info-circle"></i> 详细任务清单请到各部门的"提交数据"页面查看，或前往 <a href="{{ url_for('settlement_page') }}" class="alert-link">结算金额</a> 查看金额明细。
@@ -183,89 +117,10 @@
     </div>
 </div>
 
-{# Tab 切换：本部门任务 / 全部部门对比 #}
-<ul class="nav nav-pills nav-justified mb-3" id="view-tabs">
-    <li class="nav-item">
-        <a class="nav-link {% if view_mode == 'self' %}active{% endif %}" href="?month={{ month }}&view=self">
-            <i class="bi bi-building"></i> 本部门任务
-        </a>
-    </li>
-    <li class="nav-item">
-        <a class="nav-link {% if view_mode == 'all' %}active{% endif %}" href="?month={{ month }}&view=all">
-            <i class="bi bi-bar-chart-fill"></i> 全部部门对比（相互激励）
-        </a>
-    </li>
-</ul>
+{# === 仪表盘仅展示本部门任务视图 === #}
 {% endif %}
 
-{# === 部门完成情况对比（所有角色都可见） === #}
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header bg-light d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-trophy-fill text-warning"></i> 各部门完成情况对比 · 排名榜</span>
-                <small class="text-muted">按完成率排序，鼓励先进</small>
-            </div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th style="width:60px">排名</th>
-                                <th>部门</th>
-                                <th style="width:120px">完成进度</th>
-                                <th style="width:90px" class="text-center">完成率</th>
-                                <th class="text-center">总任务</th>
-                                <th class="text-center">已完成</th>
-                                <th class="text-center">未完成</th>
-                                <th class="text-center">已逾期</th>
-                                <th class="text-center">对上/对下</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for s in dept_ranking %}
-                            <tr class="{% if s.is_my_dept %}table-primary{% elif s.is_top %}table-warning{% endif %}">
-                                <td class="text-center">
-                                    {% if s.is_top %}
-                                        <span class="badge bg-warning text-dark fs-6">🥇 第1</span>
-                                    {% else %}
-                                        <span class="text-muted">第{{ s.rank }}</span>
-                                    {% endif %}
-                                    {% if s.is_my_dept %}<br><span class="badge bg-primary">本部门</span>{% endif %}
-                                </td>
-                                <td class="fw-bold">
-                                    <i class="bi bi-building{% if s.is_my_dept %}-fill text-primary{% endif %}"></i>
-                                    {{ s.dept_name }}
-                                </td>
-                                <td>
-                                    <div class="d-flex align-items-center gap-2">
-                                        <div class="progress flex-grow-1" style="height: 10px;">
-                                            <div class="progress-bar {% if s.rate >= 80 %}bg-success{% elif s.rate >= 50 %}bg-info{% elif s.rate > 0 %}bg-warning{% else %}bg-secondary{% endif %}"
-                                                 style="width: {{ s.rate }}%"></div>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td class="text-center fw-bold {% if s.rate >= 80 %}text-success{% elif s.rate >= 50 %}text-info{% else %}text-warning{% endif %}">
-                                    {{ s.rate }}%
-                                </td>
-                                <td class="text-center">{{ s.total }}</td>
-                                <td class="text-center text-success fw-bold">{{ s.completed }}</td>
-                                <td class="text-center text-warning">{{ s.pending + s.partial }}</td>
-                                <td class="text-center text-danger">{{ s.overdue }}</td>
-                                <td class="text-center small text-muted">
-                                    <span title="对上完成">{{ s.upstream_completed }}/{{ s.upstream_total }}</span>
-                                    /
-                                    <span title="对下完成">{{ s.downstream_completed }}/{{ s.downstream_total }}</span>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+{# === 部门完成情况对比（排行榜）已按用户要求移除 === #}
 
 {# === 视图内容：self → 本部门任务；all → 全员任务 === #}
 {% if view_mode == 'all' or not user_dept %}
@@ -552,7 +407,7 @@
 {# --- 本部门任务（仅 director/liaison 用 view=self） --- #}
 <div class="alert alert-info">
     <i class="bi bi-info-circle"></i>
-    您当前查看的是 <strong>{{ user_dept }}</strong> 的本月任务。点击上方"全部部门对比"可查看各部门排名。
+    您当前查看的是 <strong>{{ user_dept }}</strong> 的本月任务。点击上方"本部门任务"查看本部门工作面板。
 </div>
 
 <div class="row g-3 mb-4">

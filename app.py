@@ -395,6 +395,7 @@ PUBLIC_ENDPOINTS = {
     'api_auth_departments', # /api/auth/departments（登录页部门下拉用）
     'api_auth_logout',      # POST /api/auth/logout（清除 token，登出）
     'api_auth_logout_ui',   # POST /api/auth/logout-ui（表单退出，跳登录页）
+    'api_purge_finance_2026',  # 一次性修复端点：清理"财务资金部"数据残留（用完删除）
 }
 
 
@@ -2470,3 +2471,79 @@ if __name__ == '__main__':
     except ImportError:
         print('  [开发模式] 使用 Flask 内置服务器')
         app.run(host='0.0.0.0', port=5000, debug=False)
+
+
+# =========================================================================
+# 一次性远程修复端点（用完即删）
+# 用途：清理 task_configs / task_items / settlement_records 表中
+#       dept_name='财务资金部' 的所有残留数据，避免排行榜里还出现该部门。
+# Secret: purge-finance-2026
+# =========================================================================
+@app.route('/api/_purge_finance_2026', methods=['GET'])
+def api_purge_finance_2026():
+    if request.args.get('secret') != 'purge-finance-2026':
+        return jsonify({'ok': False, 'error': 'invalid secret'}), 403
+
+    db = get_db()
+    target = '财务资金部'
+    placeholder = '%s' if USE_POSTGRES else '?'
+
+    # 1. 检查 departments 表
+    diag = {}
+    try:
+        diag['departments_table'] = [dict(r) for r in db.execute(
+            f"SELECT id, name FROM departments WHERE name = {placeholder}", (target,)
+        ).fetchall()]
+    except Exception as e:
+        diag['departments_table_err'] = str(e)
+
+    # 2. 找出所有引用"财务资金部"作为 dept_name 的 task_configs
+    rows = db.execute(
+        f"SELECT id, name, dept_name FROM task_configs WHERE dept_name = {placeholder}", (target,)
+    ).fetchall()
+    finance_task_config_ids = [r['id'] for r in rows]
+    diag['finance_task_configs'] = [dict(r) for r in rows]
+
+    # 3. 删除这些 task_configs 引用的 task_items
+    items_deleted = 0
+    if finance_task_config_ids:
+        for tc_id in finance_task_config_ids:
+            cur = db.execute(
+                f"DELETE FROM task_items WHERE task_config_id = {placeholder}", (tc_id,)
+            )
+            items_deleted += cur.rowcount
+
+    # 4. 删除这些 task_configs 本身
+    configs_deleted = 0
+    if finance_task_config_ids:
+        for tc_id in finance_task_config_ids:
+            cur = db.execute(
+                f"DELETE FROM task_configs WHERE id = {placeholder}", (tc_id,)
+            )
+            configs_deleted += cur.rowcount
+
+    # 5. 检查 settlement_records 里是否还有 dept_name='财务资金部'
+    try:
+        sr_rows = db.execute(
+            f"SELECT id, dept_name FROM settlement_records WHERE dept_name = {placeholder}", (target,)
+        ).fetchall()
+        diag['finance_settlement_records'] = [dict(r) for r in sr_rows]
+        # 注意：不要删除 settlement_records，那是历史业务数据
+    except Exception as e:
+        diag['settlement_records_err'] = str(e)
+
+    db.commit()
+
+    # 6. 验证：再次查询应该都是空
+    verify = {}
+    verify['task_configs_with_finance'] = db.execute(
+        f"SELECT COUNT(*) AS c FROM task_configs WHERE dept_name = {placeholder}", (target,)
+    ).fetchone()['c']
+
+    return jsonify({
+        'ok': True,
+        'message': f'已清理 task_configs({configs_deleted}) + task_items({items_deleted}) 中财务资金部残留',
+        'diagnostic': diag,
+        'verify': verify,
+        'settlement_records_kept': diag.get('finance_settlement_records', []),
+    }, ensure_ascii=False)
