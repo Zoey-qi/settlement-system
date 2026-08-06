@@ -999,6 +999,7 @@ def api_edit_item_remarks():
 # 部门联络人 / 截止日期更新（管理员登录后直接可用）
 # ===========================================================================
 @app.route('/api/config/update-deadline', methods=['POST'])
+@require_role('admin')
 def api_update_deadline():
     """更新任务的截止日期（task_configs.deadline_day）"""
     db = get_db()
@@ -1025,6 +1026,7 @@ def api_update_deadline():
 
 
 @app.route('/api/config/update-contact', methods=['POST'])
+@require_role('admin')
 def api_update_contact():
     """更新部门联系人姓名"""
     db = get_db()
@@ -1042,6 +1044,62 @@ def api_update_contact():
     db.execute('UPDATE departments SET contact_person = ? WHERE id = ?', (contact_person or None, department_id))
     db.commit()
     return jsonify({'ok': True, 'department_id': department_id, 'contact_person': contact_person})
+
+
+@app.route('/api/config/update-materials-remarks', methods=['POST'])
+@require_role('admin')
+def api_update_materials_remarks():
+    """更新任务配置的「需提供资料」与「备注」（admin 专用）
+
+    - 同时更新 task_configs.required_materials 与 task_configs.remarks
+    - 修改 required_materials 后自动重新拆分 task_items（与 Excel 导入行为一致）
+    - 任意长度文本（前端用 textarea + 500 字校验）
+    """
+    db = get_db()
+    task_config_id = request.form.get('task_config_id')
+    required_materials = (request.form.get('required_materials') or '').strip()
+    remarks = (request.form.get('remarks') or '').strip()
+
+    try:
+        task_config_id = int(task_config_id)
+    except (TypeError, ValueError):
+        return jsonify({'error': '参数类型错误'}), 400
+
+    if not required_materials:
+        return jsonify({'error': '「需提供资料」不能为空'}), 400
+    if len(required_materials) > 1000:
+        return jsonify({'error': '「需提供资料」内容过长（>1000字），请精简'}), 400
+    if len(remarks) > 500:
+        return jsonify({'error': '「备注」不能超过 500 个字符'}), 400
+
+    cfg = db.execute('SELECT * FROM task_configs WHERE id = ?', (task_config_id,)).fetchone()
+    if not cfg:
+        return jsonify({'error': '配置项不存在'}), 404
+
+    db.execute('''
+        UPDATE task_configs SET required_materials = ?, remarks = ? WHERE id = ?
+    ''', (required_materials, remarks, task_config_id))
+
+    # 仅当材料文本相对旧值变化时才重新拆分条目（避免误删提交记录）
+    if required_materials != (cfg['required_materials'] or ''):
+        db.execute('DELETE FROM task_items WHERE task_config_id = ?', (task_config_id,))
+        items = split_materials(required_materials)
+        if not items:
+            items = [required_materials or '需提交资料']
+        for idx, item_name in enumerate(items):
+            db.execute('''
+                INSERT INTO task_items (task_config_id, item_name, sort_order, is_active)
+                VALUES (?, ?, ?, 1)
+            ''', (task_config_id, item_name, idx))
+        auto_link_templates(db)
+
+    db.commit()
+    return jsonify({
+        'ok': True,
+        'task_config_id': task_config_id,
+        'required_materials': required_materials,
+        'remarks': remarks,
+    })
 
 
 # ===========================================================================

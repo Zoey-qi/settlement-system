@@ -5,7 +5,7 @@
 {% block content %}
 <div class="page-header">
   <div class="ph-title">
-    <div class="ph-icon">{{ ui.icon('gear', 'bi', 16) }}</div>
+    <div class="ph-icon">{{ ui.icon('gear', '', 16) }}</div>
     <div>
       <h4 class="mb-0">部门与任务配置管理</h4>
       <div class="ph-sub">上传配置文件批量设置部门结算任务及截止时间节点</div>
@@ -18,14 +18,14 @@
     <div class="col-lg-8">
         <div class="card">
             <div class="card-header">
-                <h6 class="mb-0">{{ ui.icon('cloud-arrow-up', 'bi', 16) }} 上传配置文件</h6>
+                <h6 class="mb-0">{{ ui.icon('cloud-arrow-up', '', 16) }} 上传配置文件</h6>
             </div>
             <div class="card-body">
                 <div class="alert alert-info">
-                    {{ ui.icon('info-circle', 'bi', 16) }}
+                    {{ ui.icon('info-circle', '', 16) }}
                     <strong>使用方法：</strong>下载配置模板，填写各部门的结算类型、需提供资料、截止日期等信息后上传，系统将自动解析并更新配置。
                     <a href="{{ url_for('download_config_template') }}" class="alert-link">
-                        {{ ui.icon('download', 'bi', 16) }} 下载配置文件模板
+                        {{ ui.icon('download', '', 16) }} 下载配置文件模板
                     </a>
                 </div>
                 <form method="POST" enctype="multipart/form-data" action="{{ url_for('upload_config') }}" id="uploadConfigForm">
@@ -37,7 +37,7 @@
                         <label class="form-label">选择配置文件（Excel/CSV）</label>
                         <input type="file" class="form-control" name="file" required accept=".xlsx,.xls,.csv">
                     </div>
-                    <button type="submit" class="btn btn-primary">{{ ui.icon('upload', 'bi', 16) }} 上传并解析</button>
+                    <button type="submit" class="btn btn-primary">{{ ui.icon('upload', '', 16) }} 上传并解析</button>
                 </form>
             </div>
         </div>
@@ -45,7 +45,7 @@
     <div class="col-lg-4">
         <div class="card">
             <div class="card-header">
-                <h6 class="mb-0">{{ ui.icon('clock-history', 'bi', 16) }} 配置上传历史</h6>
+                <h6 class="mb-0">{{ ui.icon('clock-history', '', 16) }} 配置上传历史</h6>
             </div>
             <div class="card-body p-0">
                 <div class="list-group list-group-flush">
@@ -73,7 +73,7 @@
     <div class="col-12">
         <div class="card">
             <div class="card-header">
-                <h6 class="mb-0">{{ ui.icon('list-ul', 'bi', 16) }} 当前任务配置（共 {{ configs|length }} 项）</h6>
+                <h6 class="mb-0">{{ ui.icon('list-ul', '', 16) }} 当前任务配置（共 {{ configs|length }} 项）</h6>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
@@ -110,10 +110,20 @@
                                             data-department-name="{{ c['dept_name'] }}"
                                             data-current-contact="{{ c['contact_person'] or '' }}">
                                         <span class="contact-name">{{ c['contact_person'] or '未设置' }}</span>
-                                        {{ ui.icon('pencil-square', 'bi', 16) }}
+                                        {{ ui.icon('pencil-square', '', 14) }}
                                     </button>
                                 </td>
-                                <td class="small">{{ c['required_materials'] }}</td>
+                                <td>
+                                    <button type="button" class="btn btn-sm btn-outline-primary text-start w-100 materials-edit-btn"
+                                            data-bs-toggle="modal" data-bs-target="#materialsRemarksModal"
+                                            data-config-id="{{ c['id'] }}"
+                                            data-config-name="{{ c['dept_name'] }} - {{ c['st_name'] }}"
+                                            data-current-materials="{{ c['required_materials'] or '' }}"
+                                            data-current-remarks="{{ c['remarks'] or '' }}">
+                                        <span class="materials-preview">{{ c['required_materials'] }}</span>
+                                        {{ ui.icon('pencil-square', '', 14) }}
+                                    </button>
+                                </td>
                                 <td><span class="badge bg-info text-dark">{{ c['item_count'] }}</span></td>
                                 <td>
                                     <button type="button" class="btn btn-sm btn-outline-secondary deadline-edit-btn"
@@ -121,10 +131,32 @@
                                             data-config-id="{{ c['id'] }}"
                                             data-config-name="{{ c['dept_name'] }} - {{ c['st_name'] }}"
                                             data-current-day="{{ c['deadline_day'] }}">
-                                        每月 {{ c['deadline_day'] }} 日前 {{ ui.icon('pencil-square', 'bi', 16) }}
+                                        每月 {{ c['deadline_day'] }} 日前 {{ ui.icon('pencil-square', '', 14) }}
                                     </button>
                                 </td>
-                                <td class="small text-muted">{{ c['remarks'] or '-' }}</td>
+                                <td>
+                                    {% if c['remarks'] %}
+                                    <button type="button" class="btn btn-sm btn-outline-secondary text-start remarks-quick-btn"
+                                            data-bs-toggle="modal" data-bs-target="#materialsRemarksModal"
+                                            data-config-id="{{ c['id'] }}"
+                                            data-config-name="{{ c['dept_name'] }} - {{ c['st_name'] }}"
+                                            data-current-materials="{{ c['required_materials'] or '' }}"
+                                            data-current-remarks="{{ c['remarks'] or '' }}">
+                                        <span class="remarks-preview">{{ c['remarks'] }}</span>
+                                        {{ ui.icon('pencil-square', '', 14) }}
+                                    </button>
+                                    {% else %}
+                                    <button type="button" class="btn btn-sm btn-outline-secondary remarks-quick-btn"
+                                            data-bs-toggle="modal" data-bs-target="#materialsRemarksModal"
+                                            data-config-id="{{ c['id'] }}"
+                                            data-config-name="{{ c['dept_name'] }} - {{ c['st_name'] }}"
+                                            data-current-materials="{{ c['required_materials'] or '' }}"
+                                            data-current-remarks="">
+                                        <span class="text-muted">+ 添加备注</span>
+                                        {{ ui.icon('pencil-square', '', 14) }}
+                                    </button>
+                                    {% endif %}
+                                </td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -140,7 +172,7 @@
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">{{ ui.icon('calendar-event', 'bi', 16) }} 调整截止日期</h5>
+                <h5 class="modal-title">{{ ui.icon('calendar-event', '', 16) }} 调整截止日期</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
@@ -148,7 +180,7 @@
                     任务：<strong id="deadlineModalConfigName"></strong>
                 </p>
                 <p class="text-muted small mb-3">
-                    {{ ui.icon('info-circle', 'bi', 16) }} 当前截止：每月 <span id="deadlineModalCurrentDay"></span> 日前
+                    {{ ui.icon('info-circle', '', 16) }} 当前截止：每月 <span id="deadlineModalCurrentDay"></span> 日前
                 </p>
                 <label class="form-label">新的截止日期（每月几号前）</label>
                 <input type="number" class="form-control form-control-lg" id="deadlineInput"
@@ -158,7 +190,7 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
                 <button type="button" class="btn btn-primary" id="deadlineSaveBtn">
-                    {{ ui.icon('check-lg', 'bi', 16) }} 保存
+                    {{ ui.icon('check-lg', '', 16) }} 保存
                 </button>
             </div>
         </div>
@@ -170,7 +202,7 @@
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">{{ ui.icon('person-lines-fill', 'bi', 16) }} 设置部门联络人</h5>
+                <h5 class="modal-title">{{ ui.icon('person-lines-fill', '', 16) }} 设置部门联络人</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
@@ -180,7 +212,53 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                <button type="button" class="btn btn-primary" id="contactSaveBtn">{{ ui.icon('check-lg', 'bi', 16) }} 保存</button>
+                <button type="button" class="btn btn-primary" id="contactSaveBtn">{{ ui.icon('check-lg', '', 16) }} 保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 需提供资料 / 备注编辑弹窗 -->
+<div class="modal fade" id="materialsRemarksModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">{{ ui.icon('pencil-square', '', 16) }} 编辑「需提供资料」与「备注」</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small mb-3">
+                    任务：<strong id="mrModalConfigName"></strong>
+                </p>
+                <div class="mb-3">
+                    <label class="form-label">需提供资料 <span class="text-danger">*</span></label>
+                    <textarea class="form-control" id="mrMaterialsInput" rows="5"
+                              maxlength="1000" required
+                              placeholder="多个条目用「、」或换行分隔，例如：工程量清单、考勤表、罚款通知单"></textarea>
+                    <div class="form-text d-flex justify-content-between">
+                        <span>提示：使用顿号「、」或换行符分隔多个条目，保存后将自动拆分为独立条目</span>
+                        <span><span id="mrMaterialsCount">0</span> / 1000</span>
+                    </div>
+                </div>
+                <div class="mb-1">
+                    <label class="form-label">备注</label>
+                    <textarea class="form-control" id="mrRemarksInput" rows="3"
+                              maxlength="500" placeholder="可选：补充说明任务要求或用途"></textarea>
+                    <div class="form-text d-flex justify-content-between">
+                        <span>支持任意文字</span>
+                        <span><span id="mrRemarksCount">0</span> / 500</span>
+                    </div>
+                </div>
+                <div class="alert alert-warning mt-3 py-2 px-3 mb-0 small">
+                    {{ ui.icon('exclamation-triangle', '', 14) }}
+                    注意：修改「需提供资料」文本后系统会重新拆分条目，已关联模板会自动重新匹配；现有已提交记录不受影响。
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" id="mrSaveBtn">
+                    {{ ui.icon('check-lg', '', 16) }} 保存
+                </button>
             </div>
         </div>
     </div>
@@ -191,6 +269,20 @@
 {% block scripts %}
 <script>
 (function() {
+    const escapeHtml = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+    // ============================================================
+    // 简单 toast（独立放在最前以便各模块复用）
+    // ============================================================
+    function showToast(msg, type) {
+        const toast = document.createElement('div');
+        toast.textContent = msg;
+        toast.className = 'ui-toast';
+        if (type === 'error') toast.style.background = 'var(--c-danger)';
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 2800);
+    }
+
     // ============================================================
     // 联络人编辑
     // ============================================================
@@ -208,13 +300,13 @@
         contactDepartmentName.textContent = trigger.dataset.departmentName;
         contactInput.value = trigger.dataset.currentContact || '';
         contactSaveBtn.disabled = false;
-        contactSaveBtn.innerHTML = '{{ ui.icon('check-lg', 'bi', 16) }} 保存';
+        contactSaveBtn.innerHTML = '✓ 保存';
     });
 
     contactSaveBtn.addEventListener('click', function() {
         const contact = contactInput.value.trim();
         if (contact.length > 50) {
-            alert('联络人姓名不能超过50个字符');
+            showToast('联络人姓名不能超过50个字符', 'error');
             return;
         }
         contactSaveBtn.disabled = true;
@@ -235,11 +327,11 @@
             showToast('✓ 联络人已更新');
         })
         .catch(err => {
-            alert('保存失败：' + err.message);
+            showToast('保存失败：' + err.message, 'error');
         })
         .finally(() => {
             contactSaveBtn.disabled = false;
-            contactSaveBtn.innerHTML = '{{ ui.icon('check-lg', 'bi', 16) }} 保存';
+            contactSaveBtn.innerHTML = '✓ 保存';
         });
     });
 
@@ -259,19 +351,17 @@
         if (!trigger) return;
         currentConfigId = trigger.dataset.configId;
         currentBtn = trigger;
-        const configName = trigger.dataset.configName;
-        const currentDay = trigger.dataset.currentDay;
-        configNameEl.textContent = configName;
-        currentDayEl.textContent = currentDay;
-        input.value = currentDay;
+        configNameEl.textContent = trigger.dataset.configName;
+        currentDayEl.textContent = trigger.dataset.currentDay;
+        input.value = trigger.dataset.currentDay;
         saveBtn.disabled = false;
-        saveBtn.innerHTML = '{{ ui.icon('check-lg', 'bi', 16) }} 保存';
+        saveBtn.innerHTML = '✓ 保存';
     });
 
     saveBtn.addEventListener('click', function() {
         const newDay = parseInt(input.value, 10);
         if (isNaN(newDay) || newDay < 1 || newDay > 31) {
-            alert('截止日期必须在 1-31 之间');
+            showToast('截止日期必须在 1-31 之间', 'error');
             input.focus();
             return;
         }
@@ -292,32 +382,131 @@
         .then(body => {
             if (body.ok) {
                 if (currentBtn) {
-                    currentBtn.innerHTML = '每月 ' + body.deadline_day + ' 日前 {{ ui.icon('pencil-square', 'bi', 16) }}';
+                    currentBtn.innerHTML = '每月 ' + body.deadline_day + ' 日前 ✏️';
                     currentBtn.dataset.currentDay = body.deadline_day;
                 }
                 bootstrap.Modal.getInstance(modal).hide();
                 showToast('✓ 截止日期已更新为每月 ' + body.deadline_day + ' 日前');
             } else {
-                alert('保存失败：' + (body.error || '未知错误'));
+                showToast('保存失败：' + (body.error || '未知错误'), 'error');
                 saveBtn.disabled = false;
-                saveBtn.innerHTML = '{{ ui.icon('check-lg', 'bi', 16) }} 保存';
+                saveBtn.innerHTML = '✓ 保存';
             }
         })
         .catch(err => {
-            alert('网络错误：' + err);
+            showToast('网络错误：' + err, 'error');
             saveBtn.disabled = false;
-            saveBtn.innerHTML = '{{ ui.icon('check-lg', 'bi', 16) }} 保存';
+            saveBtn.innerHTML = '✓ 保存';
         });
     });
 
-    // 简单 toast
-    function showToast(msg) {
-        const toast = document.createElement('div');
-        toast.textContent = msg;
-        toast.className = 'ui-toast';
-        document.body.appendChild(toast);
-        setTimeout(() => toast.remove(), 2500);
+    // ============================================================
+    // 需提供资料 / 备注 编辑（共用一个 modal）
+    // ============================================================
+    const mrModal = document.getElementById('materialsRemarksModal');
+    const mrMaterialsInput = document.getElementById('mrMaterialsInput');
+    const mrRemarksInput = document.getElementById('mrRemarksInput');
+    const mrMaterialsCount = document.getElementById('mrMaterialsCount');
+    const mrRemarksCount = document.getElementById('mrRemarksCount');
+    const mrSaveBtn = document.getElementById('mrSaveBtn');
+    const mrConfigName = document.getElementById('mrModalConfigName');
+    let mrConfigId = null;
+    let mrTrigger = null;
+
+    function updateMrCount() {
+        mrMaterialsCount.textContent = (mrMaterialsInput.value || '').length;
+        mrRemarksCount.textContent = (mrRemarksInput.value || '').length;
     }
+    mrMaterialsInput.addEventListener('input', updateMrCount);
+    mrRemarksInput.addEventListener('input', updateMrCount);
+
+    mrModal.addEventListener('show.bs.modal', function(event) {
+        const trigger = event.relatedTarget;
+        if (!trigger) return;
+        mrConfigId = trigger.dataset.configId;
+        mrTrigger = trigger;
+        mrConfigName.textContent = trigger.dataset.configName;
+        mrMaterialsInput.value = trigger.dataset.currentMaterials || '';
+        mrRemarksInput.value = trigger.dataset.currentRemarks || '';
+        updateMrCount();
+        mrSaveBtn.disabled = false;
+        mrSaveBtn.innerHTML = '✓ 保存';
+    });
+
+    mrSaveBtn.addEventListener('click', function() {
+        const materials = (mrMaterialsInput.value || '').trim();
+        const remarks = (mrRemarksInput.value || '').trim();
+        if (!materials) {
+            showToast('「需提供资料」不能为空', 'error');
+            mrMaterialsInput.focus();
+            return;
+        }
+        if (materials.length > 1000) {
+            showToast('「需提供资料」内容过长（>1000字）', 'error');
+            return;
+        }
+        if (remarks.length > 500) {
+            showToast('「备注」不能超过 500 个字符', 'error');
+            return;
+        }
+        if (!mrConfigId) return;
+
+        mrSaveBtn.disabled = true;
+        mrSaveBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 保存中...';
+
+        const formData = new FormData();
+        formData.append('task_config_id', mrConfigId);
+        formData.append('required_materials', materials);
+        formData.append('remarks', remarks);
+
+        fetch('/api/config/update-materials-remarks', {
+            method: 'POST',
+            body: formData
+        })
+        .then(r => r.json())
+        .then(body => {
+            if (!body.ok) throw new Error(body.error || '保存失败');
+
+            // 更新原表格中"需提供资料"列按钮的预览
+            const row = mrTrigger.closest('tr');
+            if (row) {
+                // 找 materials-edit-btn（同一行的"需提供资料"列）
+                const matBtn = row.querySelector('.materials-edit-btn');
+                if (matBtn) {
+                    matBtn.dataset.currentMaterials = body.required_materials;
+                    const preview = matBtn.querySelector('.materials-preview');
+                    if (preview) preview.textContent = body.required_materials;
+                }
+                // 找/创建 remarks-quick-btn
+                let remarksBtn = row.querySelector('.remarks-quick-btn');
+                if (remarksBtn) {
+                    remarksBtn.dataset.currentRemarks = body.remarks;
+                    remarksBtn.dataset.currentMaterials = body.required_materials;
+                    const preview = remarksBtn.querySelector('.remarks-preview');
+                    if (preview) {
+                        if (body.remarks) {
+                            preview.textContent = body.remarks;
+                            preview.classList.remove('text-muted');
+                        } else {
+                            preview.outerHTML = '<span class="text-muted">+ 添加备注</span>';
+                        }
+                    } else {
+                        // 之前是占位 span
+                        remarksBtn.innerHTML = '<span class="remarks-preview">' + escapeHtml(body.remarks) + '</span> ✏️';
+                    }
+                }
+            }
+            bootstrap.Modal.getInstance(mrModal).hide();
+            showToast('✓ 已保存「需提供资料」与「备注」');
+        })
+        .catch(err => {
+            showToast('保存失败：' + err.message, 'error');
+        })
+        .finally(() => {
+            mrSaveBtn.disabled = false;
+            mrSaveBtn.innerHTML = '✓ 保存';
+        });
+    });
 })();
 </script>
 {% endblock %}

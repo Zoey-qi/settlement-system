@@ -23,26 +23,32 @@
 } %}
 {% set authed = g.current_user and g.current_user.role %}
 {% set role_label = {'leader':'项目班子','admin':'系统管理员','director':'部门主任','liaison':'部门联络人'} %}
-{# 侧边栏导航项配置：(endpoint, icon, label) — 三角色共享一个数据源，循环渲染 #}
-{% set nav_main = [
-    ('dashboard',          'speedometer2',       '仪表盘'),
-    ('settlement_page',    'cash-stack',         '结算金额'),
+{# 侧边栏导航项：(endpoint, icon, label, section)
+   - 全站所有可见导航项集中维护
+   - 下方 nav_visible_for_role 字典按角色决定可见集合
+   - 渲染时只输出当前角色有权访问的链接，未登录看不到任何导航
+#}
+{% set nav_items = [
+    ('dashboard',          'speedometer2',           '仪表盘',           '主导航'),
+    ('settlement_page',    'cash-stack',             '结算金额',         '主导航'),
+    ('submit',             'cloud-arrow-up',         '提交数据',         '业务'),
+    ('summary',            'clipboard-data',         '汇总视图',         '业务'),
+    ('templates_page',     'file-earmark-spreadsheet','模板文件',        '业务'),
+    ('history',            'clock-history',          '历史记录',         '业务'),
+    ('guide',              'book',                   '使用指引',         '业务'),
+    ('config_page',        'gear',                   '配置管理',         '系统'),
+    ('system_status',      'server',                 '系统状态',         '系统'),
 ] %}
-{% set nav_admin = [
-    ('submit',             'cloud-arrow-up',     '提交数据'),
-    ('summary',            'clipboard-data',     '汇总视图'),
-    ('templates_page',     'file-earmark-spreadsheet','模板文件'),
-    ('config_page',        'gear',               '配置管理'),
-    ('history',            'clock-history',      '历史记录'),
-    ('guide',              'book',               '使用指引'),
-    ('system_status',      'server',             '系统状态'),
-] %}
-{% set nav_staff = [
-    ('submit',             'cloud-arrow-up',     '提交数据'),
-    ('summary',            'clipboard-data',     '汇总视图'),
-    ('history',            'clock-history',      '历史记录'),
-    ('guide',              'book',               '使用指引'),
-] %}
+{# 角色 → 可见 endpoint 列表。leader 仅看主导航；admin 看全部；director 看业务 + 历史；liaison 比 director 多模板。
+   Jinja2 字典值不支持 set 字面量，这里用 tuple，渲染时 ep in _visible_eps 走值相等判断 #}
+{% set nav_visible_for_role = {
+    'leader':   ('dashboard', 'settlement_page'),
+    'admin':    ('dashboard', 'settlement_page', 'submit', 'summary', 'templates_page', 'history', 'guide', 'config_page', 'system_status'),
+    'director': ('dashboard', 'settlement_page', 'submit', 'summary', 'history', 'guide'),
+    'liaison':  ('dashboard', 'settlement_page', 'submit', 'summary', 'templates_page', 'history', 'guide'),
+} %}
+{% set _cur_role = g.current_user.role if (g.current_user and g.current_user.role) else None %}
+{% set _visible_eps = nav_visible_for_role.get(_cur_role, ()) %}
 
 {% if authed %}
 {# ====================== 已登录：侧边栏应用骨架 ====================== #}
@@ -53,21 +59,19 @@
             <div class="sidebar-brand-text"><strong>帕基尔结算</strong><span>月度管理系统</span></div>
         </div>
         <nav class="sidebar-nav">
-            <div class="nav-section">主导航</div>
-            {% for ep, ic, lbl in nav_main %}
-            <a class="side-link {% if request.endpoint == ep %}active{% endif %}" href="{{ url_for(ep) }}">{{ ui.icon(ic, '', 18) }}<span>{{ lbl }}</span></a>
+            {# 按 section 分组渲染：同一 section 内只输出当前角色有权访问的项；若该 section 全空则不显示标题 #}
+            {% for sec in ['主导航', '业务', '系统'] %}
+                {% set sec_items = [] %}
+                {% for ep, ic, lbl, s in nav_items if s == sec and ep in _visible_eps %}
+                    {% set _ = sec_items.append((ep, ic, lbl)) %}
+                {% endfor %}
+                {% if sec_items %}
+                <div class="nav-section">{{ sec }}</div>
+                {% for ep, ic, lbl in sec_items %}
+                <a class="side-link {% if request.endpoint == ep %}active{% endif %}" href="{{ url_for(ep) }}">{{ ui.icon(ic, '', 18) }}<span>{{ lbl }}</span></a>
+                {% endfor %}
+                {% endif %}
             {% endfor %}
-            {% if g.current_user.role == 'admin' %}
-            <div class="nav-section">系统</div>
-            {% for ep, ic, lbl in nav_admin %}
-            <a class="side-link {% if request.endpoint == ep %}active{% endif %}" href="{{ url_for(ep) }}">{{ ui.icon(ic, '', 18) }}<span>{{ lbl }}</span></a>
-            {% endfor %}
-            {% else %}
-            <div class="nav-section">业务</div>
-            {% for ep, ic, lbl in nav_staff %}
-            <a class="side-link {% if request.endpoint == ep %}active{% endif %}" href="{{ url_for(ep) }}">{{ ui.icon(ic, '', 18) }}<span>{{ lbl }}</span></a>
-            {% endfor %}
-            {% endif %}
         </nav>
         <div class="sidebar-user">
             <div class="user-card">

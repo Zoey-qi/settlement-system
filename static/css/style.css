@@ -694,7 +694,8 @@ a:hover { color: var(--c-primary-hover); }
 .auth-shell { min-height: 100vh; display: flex; background: transparent; position: relative; z-index: 1; }
 .auth-split { display: flex; width: 100%; min-height: 100vh; }
 .auth-aside {
-    flex: 1.1;
+    /* 左右比例 1 : 1.05：右侧略宽以容纳更大的登录卡，整体更舒展 */
+    flex: 1 1 47%;
     background: linear-gradient(150deg, var(--c-sidebar-1) 0%, var(--c-sidebar-2) 60%, #1c3d72 100%);
     color: var(--c-sidebar-text-strong);
     padding: var(--s-8);
@@ -721,13 +722,15 @@ a:hover { color: var(--c-primary-hover); }
 .auth-foot { position: relative; z-index: 1; color: var(--c-sidebar-text); font-size: 0.8rem; }
 
 .auth-main {
-    flex: 1;
+    /* 右侧主区略宽（与左侧 1 : 1.05 对应） */
+    flex: 1 1 53%;
     display: flex; align-items: center; justify-content: center;
     padding: var(--s-7);
     background: transparent;
 }
 .auth-card {
-    width: 100%; max-width: 420px;
+    /* 登录卡宽度从 420px 放宽到 500px，整体不显局促 */
+    width: 100%; max-width: 500px;
     background: var(--glass-bg-strong);
     backdrop-filter: var(--glass-blur);
     -webkit-backdrop-filter: var(--glass-blur);
@@ -737,7 +740,7 @@ a:hover { color: var(--c-primary-hover); }
     padding: var(--s-7);
 }
 .auth-card .auth-logo-mobile { display: none; }
-.auth-title { font-size: 1.4rem; font-weight: 700; color: var(--c-text); }
+.auth-title { font-size: 1.55rem; font-weight: 700; color: var(--c-text); }
 .auth-sub { color: var(--c-text-3); font-size: 0.9rem; margin-top: var(--s-2); margin-bottom: var(--s-5); }
 .auth-card hr { border: none; border-top: 1px solid var(--c-border); margin: var(--s-5) 0; }
 .auth-tip { background: var(--c-surface-2); border: 1px solid var(--c-border); border-radius: var(--r-md); padding: var(--s-3) var(--s-4); font-size: 0.82rem; color: var(--c-text-2); }
