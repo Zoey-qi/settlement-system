@@ -1,10 +1,11 @@
+{% import '_macros.html' as ui %}
 {% extends 'base.html' %}
 {% block title %}仪表盘 - {{ app_title }}{% endblock %}
 
 {% block content %}
 <div class="page-header">
     <div class="ph-title">
-        <div class="ph-icon"><i class="bi bi-speedometer2"></i></div>
+        <div class="ph-icon">{{ ui.icon('speedometer2', 'bi', 16) }}</div>
         <div>
             <h4 class="mb-0">结算仪表盘
                 {% if user_dept %}<span class="ph-sub">（{{ user_dept }}）</span>{% endif %}
@@ -16,8 +17,8 @@
             <label class="form-label mb-0 text-muted">结算月份：</label>
             <input type="month" class="form-control form-control-sm" name="month" value="{{ month }}" style="width:160px">
             {% if user_dept %}<input type="hidden" name="view" value="{{ view_mode }}">{% endif %}
-            <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-search"></i> 查询</button>
-            <a href="{{ url_for('dashboard') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-clockwise"></i> 本月</a>
+            <button type="submit" class="btn btn-sm btn-primary">{{ ui.icon('search', 'bi', 16) }} 查询</button>
+            <a href="{{ url_for('dashboard') }}" class="btn btn-sm btn-outline-secondary">{{ ui.icon('arrow-clockwise', 'bi', 16) }} 本月</a>
         </form>
     </div>
 </div>
@@ -32,21 +33,21 @@
     <div class="col-12">
         <div class="card border-primary shadow-sm">
             <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-cash-coin"></i> 结算金额总览（本月新增）</span>
+                <span>{{ ui.icon('cash-coin', 'bi', 16) }} 结算金额总览（本月新增）</span>
                 <small class="text-muted" id="summary-loading"><span class="spinner-border spinner-border-sm"></span> 加载中…</small>
             </div>
             <div class="card-body">
                 <div class="row g-3 text-center" id="summary-cards">
                     <div class="col-md-6">
                         <div class="p-3 border rounded bg-light">
-                            <small class="text-muted d-block"><i class="bi bi-arrow-up-circle-fill text-danger"></i> 对上结算（向总承包单位申报）</small>
+                            <small class="text-muted d-block">{{ ui.icon('arrow-up-circle-fill', 'bi text-danger', 16) }} 对上结算（向总承包单位申报）</small>
                             <h3 class="mb-1 text-danger mt-2" id="up-month-amt">—</h3>
                             <small class="text-muted">本月新增 <span id="up-month-cnt">0</span> 笔 · 累计 <span id="up-total-amt">—</span></small>
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="p-3 border rounded bg-light">
-                            <small class="text-muted d-block"><i class="bi bi-arrow-down-circle-fill text-info"></i> 对下结算（分包结算审核）</small>
+                            <small class="text-muted d-block">{{ ui.icon('arrow-down-circle-fill', 'bi text-info', 16) }} 对下结算（分包结算审核）</small>
                             <h3 class="mb-1 text-info mt-2" id="down-month-amt">—</h3>
                             <small class="text-muted">本月新增 <span id="down-month-cnt">0</span> 笔 · 累计 <span id="down-total-amt">—</span></small>
                         </div>
@@ -54,7 +55,7 @@
                 </div>
                 <div class="text-end mt-3">
                     <a href="{{ url_for('settlement_page') }}" class="btn btn-sm btn-outline-primary">
-                        <i class="bi bi-arrow-right"></i> 查看详细结算金额
+                        {{ ui.icon('arrow-right', 'bi', 16) }} 查看详细结算金额
                     </a>
                 </div>
             </div>
@@ -71,7 +72,7 @@
     <div class="col-12">
         <div class="card border-primary">
             <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-building-fill-check"></i> 本部门完成情况 — <strong>{{ user_dept }}</strong></span>
+                <span>{{ ui.icon('building-fill-check', 'bi', 16) }} 本部门完成情况 — <strong>{{ user_dept }}</strong></span>
                 <span class="badge bg-light text-primary fs-6">完成率 {{ my_dept_rate }}%</span>
             </div>
             <div class="card-body">
@@ -120,7 +121,7 @@
     <div class="col-12">
         <div class="card shadow-sm border-primary">
             <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-bar-chart"></i> 全部部门完成情况对比 · 排名榜</span>
+                <span>{{ ui.icon('bar-chart', 'bi', 16) }} 全部部门完成情况对比 · 排名榜</span>
                 <small class="text-white-50">实时更新 · 当前时间 <span id="ranking-now">{{ server_now }}</span></small>
             </div>
             <div class="card-body p-3">
@@ -131,7 +132,7 @@
                         <div class="rank-main">
                             <div class="rank-name">
                                 {{ s['dept_name'] }}
-                                {% if s['is_my_dept'] %}<span class="rank-tag mine"><i class="bi bi-bookmark-star-fill"></i> 本部门</span>{% endif %}
+                                {% if s['is_my_dept'] %}<span class="rank-tag mine">{{ ui.icon('bookmark-star-fill', 'bi', 16) }} 本部门</span>{% endif %}
                             </div>
                             <div class="rank-bar">
                                 <div class="progress" style="height:10px;">
@@ -152,7 +153,7 @@
                 </div>
             </div>
             <div class="card-footer bg-light text-muted small">
-                <i class="bi bi-info-circle"></i> 排名按完成率降序，完成率 = 已完成任务 ÷ 总任务数。蓝色高亮为当前用户所属部门，便于快速定位本部门的进度位置。
+                {{ ui.icon('info-circle', 'bi', 16) }} 排名按完成率降序，完成率 = 已完成任务 ÷ 总任务数。蓝色高亮为当前用户所属部门，便于快速定位本部门的进度位置。
             </div>
         </div>
     </div>
@@ -165,25 +166,25 @@
 <div class="row g-3 mb-4">
     <div class="col-6 col-md-3">
         <div class="stat-card stat-total">
-            <div class="stat-icon"><i class="bi bi-list-check"></i></div>
+            <div class="stat-icon">{{ ui.icon('list-check', 'bi', 16) }}</div>
             <div class="stat-body"><div class="stat-value">{{ total }}</div><div class="stat-label">总任务数</div></div>
         </div>
     </div>
     <div class="col-6 col-md-3">
         <div class="stat-card stat-completed">
-            <div class="stat-icon"><i class="bi bi-check-circle-fill"></i></div>
+            <div class="stat-icon">{{ ui.icon('check-circle-fill', 'bi', 16) }}</div>
             <div class="stat-body"><div class="stat-value">{{ completed }}</div><div class="stat-label">已完成</div></div>
         </div>
     </div>
     <div class="col-6 col-md-3">
         <div class="stat-card stat-pending">
-            <div class="stat-icon"><i class="bi bi-hourglass-split"></i></div>
+            <div class="stat-icon">{{ ui.icon('hourglass-split', 'bi', 16) }}</div>
             <div class="stat-body"><div class="stat-value">{{ partial + pending }}</div><div class="stat-label">未完成</div></div>
         </div>
     </div>
     <div class="col-6 col-md-3">
         <div class="stat-card stat-overdue">
-            <div class="stat-icon"><i class="bi bi-exclamation-triangle-fill"></i></div>
+            <div class="stat-icon">{{ ui.icon('exclamation-triangle-fill', 'bi', 16) }}</div>
             <div class="stat-body"><div class="stat-value">{{ overdue }}</div><div class="stat-label">已逾期</div></div>
         </div>
     </div>
@@ -214,7 +215,7 @@
     <div class="col-12">
         <div class="card">
             <div class="card-header bg-light">
-                <h5 class="mb-0"><i class="bi bi-arrow-up-circle-fill text-danger"></i> 对上结算（向总承包单位申报）</h5>
+                <h5 class="mb-0">{{ ui.icon('arrow-up-circle-fill', 'bi text-danger', 16) }} 对上结算（向总承包单位申报）</h5>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
@@ -236,11 +237,11 @@
                             <tr class="{% if t['status'] == 'completed' %}table-success{% elif t['status'] == 'partial' %}table-warning{% else %}table-warning{% endif %}">
                                 <td class="text-center">
                                     <button class="btn btn-sm btn-link p-0 text-muted" data-bs-toggle="collapse" data-bs-target="#items-{{ t['id'] }}">
-                                        <i class="bi bi-chevron-right"></i>
+                                        {{ ui.icon('chevron-right', 'bi', 16) }}
                                     </button>
                                 </td>
                                 <td>{{ loop.index }}</td>
-                                <td class="fw-bold">{{ t['dept_name'] }}{% if t['contact_person'] %}<div class="small text-muted fw-normal"><i class="bi bi-person"></i> {{ t['contact_person'] }}</div>{% endif %}</td>
+                                <td class="fw-bold">{{ t['dept_name'] }}{% if t['contact_person'] %}<div class="small text-muted fw-normal">{{ ui.icon('person', 'bi', 16) }} {{ t['contact_person'] }}</div>{% endif %}</td>
                                 <td class="small text-muted">{{ t['config_remarks'] or '-' }}</td>
                                 <td>
                                     <div class="d-flex align-items-center gap-2">
@@ -254,17 +255,17 @@
                                 <td><span class="badge bg-secondary" title="如需调整，请到「配置管理」页面">{{ t['deadline_day'] }}日前</span></td>
                                 <td>
                                     {% if t['status'] == 'completed' %}
-                                        <span class="badge bg-success"><i class="bi bi-check-circle"></i> 已完成</span>
+                                        <span class="badge bg-success">{{ ui.icon('check-circle', 'bi', 16) }} 已完成</span>
                                     {% elif t['status'] == 'partial' %}
-                                        <span class="badge bg-info text-dark"><i class="bi bi-clock"></i> 部分完成</span>
+                                        <span class="badge bg-info text-dark">{{ ui.icon('clock', 'bi', 16) }} 部分完成</span>
                                     {% else %}
-                                        <span class="badge bg-warning text-dark"><i class="bi bi-clock"></i> 待提交</span>
+                                        <span class="badge bg-warning text-dark">{{ ui.icon('clock', 'bi', 16) }} 待提交</span>
                                     {% endif %}
                                 </td>
                                 <td>
                                     {% if user_role == 'admin' %}
                                     <a href="{{ url_for('submit_task', task_id=t['id'], month=month) }}" class="btn btn-sm btn-primary">
-                                        <i class="bi bi-cloud-upload"></i> 提交
+                                        {{ ui.icon('cloud-upload', 'bi', 16) }} 提交
                                     </a>
                                     {% endif %}
                                 </td>
@@ -290,7 +291,7 @@
                                                     <td class="text-center">
                                                         {% if item['tpl_id'] %}
                                                             <a href="{{ url_for('download_template_by_id', tid=item['tpl_id']) }}" class="text-decoration-none" title="{{ item['tpl_name'] }}">
-                                                                <i class="bi bi-download text-primary"></i>
+                                                                {{ ui.icon('download', 'bi text-primary', 16) }}
                                                             </a>
                                                         {% else %}
                                                             <span class="text-muted">-</span>
@@ -329,7 +330,7 @@
     <div class="col-12">
         <div class="card">
             <div class="card-header bg-light">
-                <h5 class="mb-0"><i class="bi bi-arrow-down-circle-fill text-info"></i> 对下结算（分包结算审核）</h5>
+                <h5 class="mb-0">{{ ui.icon('arrow-down-circle-fill', 'bi text-info', 16) }} 对下结算（分包结算审核）</h5>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
@@ -351,11 +352,11 @@
                             <tr class="{% if t['status'] == 'completed' %}table-success{% elif t['status'] == 'partial' %}table-warning{% else %}table-warning{% endif %}">
                                 <td class="text-center">
                                     <button class="btn btn-sm btn-link p-0 text-muted" data-bs-toggle="collapse" data-bs-target="#items-{{ t['id'] }}">
-                                        <i class="bi bi-chevron-right"></i>
+                                        {{ ui.icon('chevron-right', 'bi', 16) }}
                                     </button>
                                 </td>
                                 <td>{{ loop.index }}</td>
-                                <td class="fw-bold">{{ t['dept_name'] }}{% if t['contact_person'] %}<div class="small text-muted fw-normal"><i class="bi bi-person"></i> {{ t['contact_person'] }}</div>{% endif %}</td>
+                                <td class="fw-bold">{{ t['dept_name'] }}{% if t['contact_person'] %}<div class="small text-muted fw-normal">{{ ui.icon('person', 'bi', 16) }} {{ t['contact_person'] }}</div>{% endif %}</td>
                                 <td class="small text-muted">{{ t['config_remarks'] or '-' }}</td>
                                 <td>
                                     <div class="d-flex align-items-center gap-2">
@@ -369,17 +370,17 @@
                                 <td><span class="badge bg-secondary" title="如需调整，请到「配置管理」页面">{{ t['deadline_day'] }}日前</span></td>
                                 <td>
                                     {% if t['status'] == 'completed' %}
-                                        <span class="badge bg-success"><i class="bi bi-check-circle"></i> 已完成</span>
+                                        <span class="badge bg-success">{{ ui.icon('check-circle', 'bi', 16) }} 已完成</span>
                                     {% elif t['status'] == 'partial' %}
-                                        <span class="badge bg-info text-dark"><i class="bi bi-clock"></i> 部分完成</span>
+                                        <span class="badge bg-info text-dark">{{ ui.icon('clock', 'bi', 16) }} 部分完成</span>
                                     {% else %}
-                                        <span class="badge bg-warning text-dark"><i class="bi bi-clock"></i> 待提交</span>
+                                        <span class="badge bg-warning text-dark">{{ ui.icon('clock', 'bi', 16) }} 待提交</span>
                                     {% endif %}
                                 </td>
                                 <td>
                                     {% if user_role == 'admin' %}
                                     <a href="{{ url_for('submit_task', task_id=t['id'], month=month) }}" class="btn btn-sm btn-primary">
-                                        <i class="bi bi-cloud-upload"></i> 提交
+                                        {{ ui.icon('cloud-upload', 'bi', 16) }} 提交
                                     </a>
                                     {% endif %}
                                 </td>
@@ -405,7 +406,7 @@
                                                     <td class="text-center">
                                                         {% if item['tpl_id'] %}
                                                             <a href="{{ url_for('download_template_by_id', tid=item['tpl_id']) }}" class="text-decoration-none" title="{{ item['tpl_name'] }}">
-                                                                <i class="bi bi-download text-primary"></i>
+                                                                {{ ui.icon('download', 'bi text-primary', 16) }}
                                                             </a>
                                                         {% else %}
                                                             <span class="text-muted">-</span>
@@ -442,32 +443,32 @@
 {% else %}
 {# --- 本部门任务（仅 director/liaison 用 view=self） --- #}
 <div class="alert alert-info">
-    <i class="bi bi-info-circle"></i>
+    {{ ui.icon('info-circle', 'bi', 16) }}
     您当前查看的是 <strong>{{ user_dept }}</strong> 的本月任务。点击上方"本部门任务"查看本部门工作面板。
 </div>
 
 <div class="row g-3 mb-4">
     <div class="col-6 col-md-3">
         <div class="stat-card stat-total">
-            <div class="stat-icon"><i class="bi bi-list-check"></i></div>
+            <div class="stat-icon">{{ ui.icon('list-check', 'bi', 16) }}</div>
             <div class="stat-body"><div class="stat-value">{{ my_dept_total }}</div><div class="stat-label">本部门任务</div></div>
         </div>
     </div>
     <div class="col-6 col-md-3">
         <div class="stat-card stat-completed">
-            <div class="stat-icon"><i class="bi bi-check-circle-fill"></i></div>
+            <div class="stat-icon">{{ ui.icon('check-circle-fill', 'bi', 16) }}</div>
             <div class="stat-body"><div class="stat-value">{{ my_dept_completed }}</div><div class="stat-label">已完成</div></div>
         </div>
     </div>
     <div class="col-6 col-md-3">
         <div class="stat-card stat-pending">
-            <div class="stat-icon"><i class="bi bi-hourglass-split"></i></div>
+            <div class="stat-icon">{{ ui.icon('hourglass-split', 'bi', 16) }}</div>
             <div class="stat-body"><div class="stat-value">{{ my_dept_pending + my_dept_partial }}</div><div class="stat-label">未完成</div></div>
         </div>
     </div>
     <div class="col-6 col-md-3">
         <div class="stat-card stat-overdue">
-            <div class="stat-icon"><i class="bi bi-exclamation-triangle-fill"></i></div>
+            <div class="stat-icon">{{ ui.icon('exclamation-triangle-fill', 'bi', 16) }}</div>
             <div class="stat-body"><div class="stat-value">{{ my_dept_overdue }}</div><div class="stat-label">已逾期</div></div>
         </div>
     </div>
@@ -478,7 +479,7 @@
     <div class="col-12">
         <div class="card">
             <div class="card-header bg-light">
-                <h5 class="mb-0"><i class="bi bi-arrow-up-circle-fill text-danger"></i> 对上结算（向总承包单位申报）</h5>
+                <h5 class="mb-0">{{ ui.icon('arrow-up-circle-fill', 'bi text-danger', 16) }} 对上结算（向总承包单位申报）</h5>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
@@ -498,7 +499,7 @@
                             <tr class="{% if t['status'] == 'completed' %}table-success{% elif t['status'] == 'partial' %}table-warning{% else %}table-warning{% endif %}">
                                 <td class="text-center">
                                     <button class="btn btn-sm btn-link p-0 text-muted" data-bs-toggle="collapse" data-bs-target="#myitems-{{ t['id'] }}">
-                                        <i class="bi bi-chevron-right"></i>
+                                        {{ ui.icon('chevron-right', 'bi', 16) }}
                                     </button>
                                 </td>
                                 <td>{{ loop.index }}</td>
@@ -519,7 +520,7 @@
                                 </td>
                                 <td>
                                     <a href="{{ url_for('submit_task', task_id=t['id'], month=month) }}" class="btn btn-sm btn-primary">
-                                        <i class="bi bi-cloud-upload"></i> 提交
+                                        {{ ui.icon('cloud-upload', 'bi', 16) }} 提交
                                     </a>
                                 </td>
                             </tr>
@@ -533,7 +534,7 @@
                                                 <tr>
                                                     <td>{{ loop.index }}</td>
                                                     <td class="small">{{ item['item_name'] }}</td>
-                                                    <td class="text-center">{% if item['tpl_id'] %}<a href="{{ url_for('download_template_by_id', tid=item['tpl_id']) }}"><i class="bi bi-download text-primary"></i></a>{% else %}<span class="text-muted">-</span>{% endif %}</td>
+                                                    <td class="text-center">{% if item['tpl_id'] %}<a href="{{ url_for('download_template_by_id', tid=item['tpl_id']) }}">{{ ui.icon('download', 'bi text-primary', 16) }}</a>{% else %}<span class="text-muted">-</span>{% endif %}</td>
                                                     <td>{% if item['sub_id'] %}<span class="badge bg-success">已完成</span>{% else %}<span class="badge bg-warning text-dark">待提交</span>{% endif %}</td>
                                                     <td class="small text-muted">{% if item['submitter'] %}{{ item['submitter'] }}<br>{{- item['submitted_at'].strftime('%Y-%m-%d %H:%M') if item['submitted_at'] and item['submitted_at'].__class__.__name__ == 'datetime' else (item['submitted_at'][:16] if item['submitted_at'] else '') -}}{% else %}-{% endif %}</td>
                                                 </tr>
@@ -558,7 +559,7 @@
     <div class="col-12">
         <div class="card">
             <div class="card-header bg-light">
-                <h5 class="mb-0"><i class="bi bi-arrow-down-circle-fill text-info"></i> 对下结算（分包结算审核）</h5>
+                <h5 class="mb-0">{{ ui.icon('arrow-down-circle-fill', 'bi text-info', 16) }} 对下结算（分包结算审核）</h5>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
@@ -578,7 +579,7 @@
                             <tr class="{% if t['status'] == 'completed' %}table-success{% elif t['status'] == 'partial' %}table-warning{% else %}table-warning{% endif %}">
                                 <td class="text-center">
                                     <button class="btn btn-sm btn-link p-0 text-muted" data-bs-toggle="collapse" data-bs-target="#myitems-{{ t['id'] }}">
-                                        <i class="bi bi-chevron-right"></i>
+                                        {{ ui.icon('chevron-right', 'bi', 16) }}
                                     </button>
                                 </td>
                                 <td>{{ loop.index }}</td>
@@ -599,7 +600,7 @@
                                 </td>
                                 <td>
                                     <a href="{{ url_for('submit_task', task_id=t['id'], month=month) }}" class="btn btn-sm btn-primary">
-                                        <i class="bi bi-cloud-upload"></i> 提交
+                                        {{ ui.icon('cloud-upload', 'bi', 16) }} 提交
                                     </a>
                                 </td>
                             </tr>
@@ -613,7 +614,7 @@
                                                 <tr>
                                                     <td>{{ loop.index }}</td>
                                                     <td class="small">{{ item['item_name'] }}</td>
-                                                    <td class="text-center">{% if item['tpl_id'] %}<a href="{{ url_for('download_template_by_id', tid=item['tpl_id']) }}"><i class="bi bi-download text-primary"></i></a>{% else %}<span class="text-muted">-</span>{% endif %}</td>
+                                                    <td class="text-center">{% if item['tpl_id'] %}<a href="{{ url_for('download_template_by_id', tid=item['tpl_id']) }}">{{ ui.icon('download', 'bi text-primary', 16) }}</a>{% else %}<span class="text-muted">-</span>{% endif %}</td>
                                                     <td>{% if item['sub_id'] %}<span class="badge bg-success">已完成</span>{% else %}<span class="badge bg-warning text-dark">待提交</span>{% endif %}</td>
                                                     <td class="small text-muted">{% if item['submitter'] %}{{ item['submitter'] }}<br>{{- item['submitted_at'].strftime('%Y-%m-%d %H:%M') if item['submitted_at'] and item['submitted_at'].__class__.__name__ == 'datetime' else (item['submitted_at'][:16] if item['submitted_at'] else '') -}}{% else %}-{% endif %}</td>
                                                 </tr>
@@ -634,7 +635,7 @@
 {% endif %}
 
 {% if not my_dept_upstream and not my_dept_downstream %}
-<div class="alert alert-warning"><i class="bi bi-info-circle"></i> 本月 {{ user_dept }} 没有分配任务。</div>
+<div class="alert alert-warning">{{ ui.icon('info-circle', 'bi', 16) }} 本月 {{ user_dept }} 没有分配任务。</div>
 {% endif %}
 {% endif %}
 {# === view_mode 'self' 结束 === #}
@@ -663,12 +664,12 @@ function fmt(n) {
       document.getElementById('down-month-amt').textContent = '₱ ' + fmt(data.downstream.month_amount);
       document.getElementById('down-month-cnt').textContent = data.downstream.month_count;
       document.getElementById('down-total-amt').textContent = '₱ ' + fmt(data.downstream.total_amount);
-      document.getElementById('summary-loading').innerHTML = '<i class="bi bi-check-circle text-success"></i> 已更新';
+      document.getElementById('summary-loading').innerHTML = '{{ ui.icon('check-circle', 'bi text-success', 16) }} 已更新';
     } else {
-      document.getElementById('summary-loading').innerHTML = '<i class="bi bi-exclamation-triangle text-warning"></i> 加载失败';
+      document.getElementById('summary-loading').innerHTML = '{{ ui.icon('exclamation-triangle', 'bi text-warning', 16) }} 加载失败';
     }
   } catch (e) {
-    document.getElementById('summary-loading').innerHTML = '<i class="bi bi-exclamation-triangle text-danger"></i> 网络错误';
+    document.getElementById('summary-loading').innerHTML = '{{ ui.icon('exclamation-triangle', 'bi text-danger', 16) }} 网络错误';
   }
 })();
 </script>

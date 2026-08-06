@@ -1,20 +1,21 @@
+{% import '_macros.html' as ui %}
 {% extends 'base.html' %}
 {% block title %}结算金额统计 - {{ app_title }}{% endblock %}
 
 {% block content %}
 <div class="page-header">
   <div class="ph-title">
-    <div class="ph-icon"><i class="bi bi-cash-stack"></i></div>
+    <div class="ph-icon">{{ ui.icon('cash-stack', 'bi', 16) }}</div>
     <div>
       <h4 class="mb-0">对上对下结算金额统计</h4>
       <div class="ph-sub">查阅与办理各方向结算单</div>
     </div>
   </div>
   <div class="ph-actions">
-    <button class="btn btn-outline-primary btn-sm" onclick="loadAll()"><i class="bi bi-arrow-clockwise"></i> 刷新</button>
+    <button class="btn btn-outline-primary btn-sm" onclick="loadAll()">{{ ui.icon('arrow-clockwise', 'bi', 16) }} 刷新</button>
     {% if g.current_user.role == 'admin' %}
     <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#recordModal" onclick="openCreate()">
-      <i class="bi bi-plus-lg"></i> 新增结算单
+      {{ ui.icon('plus-lg', 'bi', 16) }} 新增结算单
     </button>
     {% endif %}
   </div>
@@ -22,7 +23,7 @@
 
 {% if g.current_user.role == 'leader' %}
 <div class="alert alert-info py-2 small mb-4">
-  <i class="bi bi-info-circle"></i> 您当前以「项目领导班子」身份登录，可查阅/下载已办理完成的结算单。
+  {{ ui.icon('info-circle', 'bi', 16) }} 您当前以「项目领导班子」身份登录，可查阅/下载已办理完成的结算单。
 </div>
 {% endif %}
 
@@ -31,7 +32,7 @@
   <div class="col-12 col-xl-6">
     <div class="card settlement-summary settlement-up">
       <div class="card-header">
-        <span><i class="bi bi-arrow-up-circle-fill text-primary"></i> 对上结算（向总包收）</span>
+        <span>{{ ui.icon('arrow-up-circle-fill', 'bi text-primary', 16) }} 对上结算（向总包收）</span>
         <small class="text-muted" id="up-loading"><span class="spinner-border spinner-border-sm"></span></small>
       </div>
       <div class="card-body">
@@ -42,7 +43,7 @@
   <div class="col-12 col-xl-6">
     <div class="card settlement-summary settlement-down">
       <div class="card-header">
-        <span><i class="bi bi-arrow-down-circle-fill text-info"></i> 对下结算（向分包付）</span>
+        <span>{{ ui.icon('arrow-down-circle-fill', 'bi text-info', 16) }} 对下结算（向分包付）</span>
         <small class="text-muted" id="down-loading"><span class="spinner-border spinner-border-sm"></span></small>
       </div>
       <div class="card-body">
@@ -56,12 +57,12 @@
 <ul class="nav nav-tabs mb-3" id="dirTab">
   <li class="nav-item">
     <a class="nav-link active" data-bs-toggle="tab" href="#tab-up">
-      <i class="bi bi-arrow-up-circle"></i> 对上结算明细（向总包收）
+      {{ ui.icon('arrow-up-circle', 'bi', 16) }} 对上结算明细（向总包收）
     </a>
   </li>
   <li class="nav-item">
     <a class="nav-link" data-bs-toggle="tab" href="#tab-down">
-      <i class="bi bi-arrow-down-circle"></i> 对下结算明细（向分包付）
+      {{ ui.icon('arrow-down-circle', 'bi', 16) }} 对下结算明细（向分包付）
     </a>
   </li>
 </ul>
@@ -266,10 +267,10 @@ function renderTable(dir) {
       <td>${esc(r.settle_date) || '—'}</td>
       <td><span class="badge ${statusBadge(r.status)}">${statusText(r.status)}</span></td>
       <td><small class="text-muted">${esc(r.notes || '')}</small></td>
-      <td>${r.attachment_name ? `<a href="/download/settlement-attachment/${r.id}" class="btn btn-sm btn-outline-secondary" title="${esc(r.attachment_name)}"><i class="bi bi-paperclip"></i></a>` : '—'}</td>
+      <td>${r.attachment_name ? `<a href="/download/settlement-attachment/${r.id}" class="btn btn-sm btn-outline-secondary" title="${esc(r.attachment_name)}">{{ ui.icon('paperclip', 'bi', 16) }}</a>` : '—'}</td>
       <td>
-        ${CAN_EDIT ? `<button class="btn btn-sm btn-outline-primary" onclick='openEdit(${JSON.stringify(r)})'><i class="bi bi-pencil"></i></button>` : ''}
-        ${CAN_DELETE ? `<button class="btn btn-sm btn-outline-danger" onclick="del(${r.id})"><i class="bi bi-trash"></i></button>` : ''}
+        ${CAN_EDIT ? `<button class="btn btn-sm btn-outline-primary" onclick='openEdit(${JSON.stringify(r)})'>{{ ui.icon('pencil', 'bi', 16) }}</button>` : ''}
+        ${CAN_DELETE ? `<button class="btn btn-sm btn-outline-danger" onclick="del(${r.id})">{{ ui.icon('trash', 'bi', 16) }}</button>` : ''}
       </td>
     </tr>
   `).join('');

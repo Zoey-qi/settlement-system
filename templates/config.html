@@ -1,10 +1,11 @@
+{% import '_macros.html' as ui %}
 {% extends 'base.html' %}
 {% block title %}配置管理 - {{ app_title }}{% endblock %}
 
 {% block content %}
 <div class="page-header">
   <div class="ph-title">
-    <div class="ph-icon"><i class="bi bi-gear"></i></div>
+    <div class="ph-icon">{{ ui.icon('gear', 'bi', 16) }}</div>
     <div>
       <h4 class="mb-0">部门与任务配置管理</h4>
       <div class="ph-sub">上传配置文件批量设置部门结算任务及截止时间节点</div>
@@ -17,14 +18,14 @@
     <div class="col-lg-8">
         <div class="card">
             <div class="card-header">
-                <h6 class="mb-0"><i class="bi bi-cloud-arrow-up"></i> 上传配置文件</h6>
+                <h6 class="mb-0">{{ ui.icon('cloud-arrow-up', 'bi', 16) }} 上传配置文件</h6>
             </div>
             <div class="card-body">
                 <div class="alert alert-info">
-                    <i class="bi bi-info-circle"></i>
+                    {{ ui.icon('info-circle', 'bi', 16) }}
                     <strong>使用方法：</strong>下载配置模板，填写各部门的结算类型、需提供资料、截止日期等信息后上传，系统将自动解析并更新配置。
                     <a href="{{ url_for('download_config_template') }}" class="alert-link">
-                        <i class="bi bi-download"></i> 下载配置文件模板
+                        {{ ui.icon('download', 'bi', 16) }} 下载配置文件模板
                     </a>
                 </div>
                 <form method="POST" enctype="multipart/form-data" action="{{ url_for('upload_config') }}" id="uploadConfigForm">
@@ -36,7 +37,7 @@
                         <label class="form-label">选择配置文件（Excel/CSV）</label>
                         <input type="file" class="form-control" name="file" required accept=".xlsx,.xls,.csv">
                     </div>
-                    <button type="submit" class="btn btn-primary"><i class="bi bi-upload"></i> 上传并解析</button>
+                    <button type="submit" class="btn btn-primary">{{ ui.icon('upload', 'bi', 16) }} 上传并解析</button>
                 </form>
             </div>
         </div>
@@ -44,7 +45,7 @@
     <div class="col-lg-4">
         <div class="card">
             <div class="card-header">
-                <h6 class="mb-0"><i class="bi bi-clock-history"></i> 配置上传历史</h6>
+                <h6 class="mb-0">{{ ui.icon('clock-history', 'bi', 16) }} 配置上传历史</h6>
             </div>
             <div class="card-body p-0">
                 <div class="list-group list-group-flush">
@@ -72,7 +73,7 @@
     <div class="col-12">
         <div class="card">
             <div class="card-header">
-                <h6 class="mb-0"><i class="bi bi-list-ul"></i> 当前任务配置（共 {{ configs|length }} 项）</h6>
+                <h6 class="mb-0">{{ ui.icon('list-ul', 'bi', 16) }} 当前任务配置（共 {{ configs|length }} 项）</h6>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
@@ -109,7 +110,7 @@
                                             data-department-name="{{ c['dept_name'] }}"
                                             data-current-contact="{{ c['contact_person'] or '' }}">
                                         <span class="contact-name">{{ c['contact_person'] or '未设置' }}</span>
-                                        <i class="bi bi-pencil-square"></i>
+                                        {{ ui.icon('pencil-square', 'bi', 16) }}
                                     </button>
                                 </td>
                                 <td class="small">{{ c['required_materials'] }}</td>
@@ -120,7 +121,7 @@
                                             data-config-id="{{ c['id'] }}"
                                             data-config-name="{{ c['dept_name'] }} - {{ c['st_name'] }}"
                                             data-current-day="{{ c['deadline_day'] }}">
-                                        每月 {{ c['deadline_day'] }} 日前 <i class="bi bi-pencil-square"></i>
+                                        每月 {{ c['deadline_day'] }} 日前 {{ ui.icon('pencil-square', 'bi', 16) }}
                                     </button>
                                 </td>
                                 <td class="small text-muted">{{ c['remarks'] or '-' }}</td>
@@ -139,7 +140,7 @@
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title"><i class="bi bi-calendar-event"></i> 调整截止日期</h5>
+                <h5 class="modal-title">{{ ui.icon('calendar-event', 'bi', 16) }} 调整截止日期</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
@@ -147,7 +148,7 @@
                     任务：<strong id="deadlineModalConfigName"></strong>
                 </p>
                 <p class="text-muted small mb-3">
-                    <i class="bi bi-info-circle"></i> 当前截止：每月 <span id="deadlineModalCurrentDay"></span> 日前
+                    {{ ui.icon('info-circle', 'bi', 16) }} 当前截止：每月 <span id="deadlineModalCurrentDay"></span> 日前
                 </p>
                 <label class="form-label">新的截止日期（每月几号前）</label>
                 <input type="number" class="form-control form-control-lg" id="deadlineInput"
@@ -157,7 +158,7 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
                 <button type="button" class="btn btn-primary" id="deadlineSaveBtn">
-                    <i class="bi bi-check-lg"></i> 保存
+                    {{ ui.icon('check-lg', 'bi', 16) }} 保存
                 </button>
             </div>
         </div>
@@ -169,7 +170,7 @@
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title"><i class="bi bi-person-lines-fill"></i> 设置部门联络人</h5>
+                <h5 class="modal-title">{{ ui.icon('person-lines-fill', 'bi', 16) }} 设置部门联络人</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
@@ -179,7 +180,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                <button type="button" class="btn btn-primary" id="contactSaveBtn"><i class="bi bi-check-lg"></i> 保存</button>
+                <button type="button" class="btn btn-primary" id="contactSaveBtn">{{ ui.icon('check-lg', 'bi', 16) }} 保存</button>
             </div>
         </div>
     </div>
@@ -207,7 +208,7 @@
         contactDepartmentName.textContent = trigger.dataset.departmentName;
         contactInput.value = trigger.dataset.currentContact || '';
         contactSaveBtn.disabled = false;
-        contactSaveBtn.innerHTML = '<i class="bi bi-check-lg"></i> 保存';
+        contactSaveBtn.innerHTML = '{{ ui.icon('check-lg', 'bi', 16) }} 保存';
     });
 
     contactSaveBtn.addEventListener('click', function() {
@@ -238,7 +239,7 @@
         })
         .finally(() => {
             contactSaveBtn.disabled = false;
-            contactSaveBtn.innerHTML = '<i class="bi bi-check-lg"></i> 保存';
+            contactSaveBtn.innerHTML = '{{ ui.icon('check-lg', 'bi', 16) }} 保存';
         });
     });
 
@@ -264,7 +265,7 @@
         currentDayEl.textContent = currentDay;
         input.value = currentDay;
         saveBtn.disabled = false;
-        saveBtn.innerHTML = '<i class="bi bi-check-lg"></i> 保存';
+        saveBtn.innerHTML = '{{ ui.icon('check-lg', 'bi', 16) }} 保存';
     });
 
     saveBtn.addEventListener('click', function() {
@@ -291,7 +292,7 @@
         .then(body => {
             if (body.ok) {
                 if (currentBtn) {
-                    currentBtn.innerHTML = '每月 ' + body.deadline_day + ' 日前 <i class="bi bi-pencil-square"></i>';
+                    currentBtn.innerHTML = '每月 ' + body.deadline_day + ' 日前 {{ ui.icon('pencil-square', 'bi', 16) }}';
                     currentBtn.dataset.currentDay = body.deadline_day;
                 }
                 bootstrap.Modal.getInstance(modal).hide();
@@ -299,13 +300,13 @@
             } else {
                 alert('保存失败：' + (body.error || '未知错误'));
                 saveBtn.disabled = false;
-                saveBtn.innerHTML = '<i class="bi bi-check-lg"></i> 保存';
+                saveBtn.innerHTML = '{{ ui.icon('check-lg', 'bi', 16) }} 保存';
             }
         })
         .catch(err => {
             alert('网络错误：' + err);
             saveBtn.disabled = false;
-            saveBtn.innerHTML = '<i class="bi bi-check-lg"></i> 保存';
+            saveBtn.innerHTML = '{{ ui.icon('check-lg', 'bi', 16) }} 保存';
         });
     });
 

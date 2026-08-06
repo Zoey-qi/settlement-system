@@ -1,10 +1,11 @@
+{% import '_macros.html' as ui %}
 {% extends 'base.html' %}
 {% block title %}汇总视图 - {{ app_title }}{% endblock %}
 
 {% block content %}
 <div class="page-header">
     <div class="ph-title">
-        <div class="ph-icon"><i class="bi bi-clipboard-data"></i></div>
+        <div class="ph-icon">{{ ui.icon('clipboard-data', 'bi', 16) }}</div>
         <div>
             <h4>提交情况汇总视图</h4>
             <div class="ph-sub">按月份与结算类型总览各部门提交进度</div>
@@ -18,7 +19,7 @@
                 <option value="upstream" {% if st_code == 'upstream' %}selected{% endif %}>对上结算</option>
                 <option value="downstream" {% if st_code == 'downstream' %}selected{% endif %}>对下结算</option>
             </select>
-            <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-search"></i> 查询</button>
+            <button type="submit" class="btn btn-sm btn-primary">{{ ui.icon('search', 'bi', 16) }} 查询</button>
         </form>
     </div>
 </div>
@@ -26,13 +27,13 @@
 <!-- 统计卡片 -->
 <div class="row g-3 mb-3">
     <div class="col-6 col-md-4">
-        <div class="stat-card stat-total"><div class="stat-icon"><i class="bi bi-list-check"></i></div><div class="stat-body"><div class="stat-value">{{ total }}</div><div class="stat-label">总条目</div></div></div>
+        <div class="stat-card stat-total"><div class="stat-icon">{{ ui.icon('list-check', 'bi', 16) }}</div><div class="stat-body"><div class="stat-value">{{ total }}</div><div class="stat-label">总条目</div></div></div>
     </div>
     <div class="col-6 col-md-4">
-        <div class="stat-card stat-completed"><div class="stat-icon"><i class="bi bi-check-circle-fill"></i></div><div class="stat-body"><div class="stat-value">{{ completed }}</div><div class="stat-label">已提交</div></div></div>
+        <div class="stat-card stat-completed"><div class="stat-icon">{{ ui.icon('check-circle-fill', 'bi', 16) }}</div><div class="stat-body"><div class="stat-value">{{ completed }}</div><div class="stat-label">已提交</div></div></div>
     </div>
     <div class="col-6 col-md-4">
-        <div class="stat-card stat-pending"><div class="stat-icon"><i class="bi bi-hourglass-split"></i></div><div class="stat-body"><div class="stat-value">{{ pending }}</div><div class="stat-label">未提交</div></div></div>
+        <div class="stat-card stat-pending"><div class="stat-icon">{{ ui.icon('hourglass-split', 'bi', 16) }}</div><div class="stat-body"><div class="stat-value">{{ pending }}</div><div class="stat-label">未提交</div></div></div>
     </div>
 </div>
 
@@ -40,7 +41,7 @@
 <div class="row mb-3">
     <div class="col-12">
         <div class="card">
-            <div class="card-header bg-light"><h6 class="mb-0"><i class="bi bi-diagram-3"></i> 各部门提交进度</h6></div>
+            <div class="card-header bg-light"><h6 class="mb-0">{{ ui.icon('diagram-3', 'bi', 16) }} 各部门提交进度</h6></div>
             <div class="card-body">
                 {% for dept, info in dept_summary.items() %}
                 <div class="mb-2">
@@ -97,7 +98,7 @@
                                     {% if item['tpl_id'] %}
                                         <a href="{{ url_for('download_template_by_id', tid=item['tpl_id']) }}"
                                            class="btn btn-sm btn-outline-primary py-0" title="{{ item['tpl_name'] }}">
-                                            <i class="bi bi-download"></i>
+                                            {{ ui.icon('download', 'bi', 16) }}
                                         </a>
                                     {% else %}
                                         <span class="text-muted">-</span>
@@ -118,10 +119,10 @@
                                 <td class="small">
                                     {% if item['submission_type'] == 'file' %}
                                         <a href="{{ url_for('download_item_submission', sub_id=item['sub_id']) }}" class="text-decoration-none">
-                                            <i class="bi bi-file-earmark"></i> {{ item['sub_file_name'] }}
+                                            {{ ui.icon('file-earmark', 'bi', 16) }} {{ item['sub_file_name'] }}
                                         </a>
                                     {% elif item['submission_type'] == 'none' %}
-                                        <span class="text-muted"><i class="bi bi-dash-circle"></i> 无</span>
+                                        <span class="text-muted">{{ ui.icon('dash-circle', 'bi', 16) }} 无</span>
                                     {% else %}
                                         <span class="text-muted">-</span>
                                     {% endif %}
@@ -132,10 +133,10 @@
                                     {% if not item['sub_id'] %}
                                     <a href="{{ url_for('submit_task', task_id=item['task_id'], month=month) }}"
                                        class="btn btn-sm btn-outline-primary py-0" title="去提交">
-                                        <i class="bi bi-upload"></i>
+                                        {{ ui.icon('upload', 'bi', 16) }}
                                     </a>
                                     {% else %}
-                                    <span class="text-success"><i class="bi bi-check-lg"></i></span>
+                                    <span class="text-success">{{ ui.icon('check-lg', 'bi', 16) }}</span>
                                     {% endif %}
                                 </td>
                             </tr>

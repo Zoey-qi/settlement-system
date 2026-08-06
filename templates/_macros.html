@@ -1,0 +1,8 @@
+<!--
+  SVG icon 助手宏：icon(name, cls='', size=16)
+  例：ui.icon('list') / ui.icon('search', 'text-primary') / ui.icon('check', '', 14)
+  不依赖图标字体，跨网络代理稳定
+-->
+{% macro icon(name, cls='', size=16) -%}
+<svg class="icon {{ cls }}" width="{{ size }}" height="{{ size }}" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-{{ name }}"/></svg>
+{%- endmacro %}

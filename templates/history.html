@@ -1,10 +1,11 @@
+{% import '_macros.html' as ui %}
 {% extends 'base.html' %}
 {% block title %}历史记录 - {{ app_title }}{% endblock %}
 
 {% block content %}
 <div class="page-header">
     <div class="ph-title">
-        <div class="ph-icon"><i class="bi bi-clock-history"></i></div>
+        <div class="ph-icon">{{ ui.icon('clock-history', 'bi', 16) }}</div>
         <div>
             <h4>历史提交记录</h4>
             <div class="ph-sub">共 {{ total }} 条记录 · 可翻页追溯往月数据</div>
@@ -46,9 +47,9 @@
                                 <td class="small">{{ s['item_name'] }}</td>
                                 <td>
                                     {% if s['submission_type'] == 'file' %}
-                                        <span class="badge bg-primary"><i class="bi bi-file-earmark"></i> 文件</span>
+                                        <span class="badge bg-primary">{{ ui.icon('file-earmark', 'bi', 16) }} 文件</span>
                                     {% else %}
-                                        <span class="badge bg-secondary"><i class="bi bi-dash-circle"></i> 无</span>
+                                        <span class="badge bg-secondary">{{ ui.icon('dash-circle', 'bi', 16) }} 无</span>
                                     {% endif %}
                                 </td>
                                 <td class="small">
@@ -64,7 +65,7 @@
                                 <td>
                                     {% if s['submission_type'] == 'file' %}
                                     <a href="{{ url_for('download_item_submission', sub_id=s['id']) }}" class="btn btn-sm btn-outline-primary py-0">
-                                        <i class="bi bi-download"></i>
+                                        {{ ui.icon('download', 'bi', 16) }}
                                     </a>
                                     {% else %}
                                     -
@@ -89,7 +90,7 @@
         <nav>
             <ul class="pagination justify-content-center">
                 <li class="page-item {% if page <= 1 %}disabled{% endif %}">
-                    <a class="page-link" href="?page={{ page - 1 }}"><i class="bi bi-chevron-left"></i></a>
+                    <a class="page-link" href="?page={{ page - 1 }}">{{ ui.icon('chevron-left', 'bi', 16) }}</a>
                 </li>
                 {% for p in range(1, total_pages + 1) %}
                 <li class="page-item {% if p == page %}active{% endif %}">
@@ -97,7 +98,7 @@
                 </li>
                 {% endfor %}
                 <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
-                    <a class="page-link" href="?page={{ page + 1 }}"><i class="bi bi-chevron-right"></i></a>
+                    <a class="page-link" href="?page={{ page + 1 }}">{{ ui.icon('chevron-right', 'bi', 16) }}</a>
                 </li>
             </ul>
         </nav>

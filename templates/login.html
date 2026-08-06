@@ -1,12 +1,20 @@
+{% import '_macros.html' as ui %}
 {% extends 'base.html' %}
+{% block extra_css %}<link href="{{ url_for('static', filename='css/login.css') }}" rel="stylesheet">{% endblock %}
 {% block title %}登录 - {{ app_title }}{% endblock %}
 
 {% block content %}
 <div class="auth-split">
     <!-- 左侧品牌区 -->
     <aside class="auth-aside">
+        <div class="auth-aside-bg" aria-hidden="true">
+            <span class="auth-glow auth-glow-a"></span>
+            <span class="auth-glow auth-glow-b"></span>
+            <span class="auth-grid"></span>
+        </div>
+
         <div class="auth-brand">
-            <div class="sidebar-logo"><i class="bi bi-building-fill-gear"></i></div>
+            <div class="sidebar-logo">{{ ui.icon('building-fill-gear', '', 18) }}</div>
             <div>
                 <div style="font-weight:700; font-size:1.05rem;">帕基尔项目月度结算管理系统</div>
                 <div style="opacity:.75; font-size:.8rem;">菲律宾帕基尔抽蓄基础处理工程 · 合同管理部</div>
@@ -17,15 +25,16 @@
             <h1>月度结算，<br>一目了然。</h1>
             <p>对上申报与对下审核、各部门完成进度、结算金额总览——一个系统，全部掌握。</p>
             <ul>
-                <li><i class="bi bi-bar-chart"></i> 全部门完成率实时排名，进度一目了然</li>
-                <li><i class="bi bi-clock-history"></i> 截止日期与逾期状态自动提醒</li>
-                <li><i class="bi bi-shield-lock-fill"></i> 分角色权限，数据各司其职</li>
-                <li><i class="bi bi-file-earmark-spreadsheet"></i> 模板文件集中管理，一键下载</li>
+                <li>{{ ui.icon('bar-chart', '', 16) }} 全部门完成率实时排名，进度一目了然</li>
+                <li>{{ ui.icon('clock-history', '', 16) }} 截止日期与逾期状态自动提醒</li>
+                <li>{{ ui.icon('shield-lock-fill', '', 16) }} 分角色权限，数据各司其职</li>
+                <li>{{ ui.icon('file-earmark-spreadsheet', '', 16) }} 模板文件集中管理，一键下载</li>
             </ul>
             <div class="auth-stats">
                 <div class="auth-stat"><b>8</b><span>参与部门</span></div>
                 <div class="auth-stat"><b>14</b><span>任务配置</span></div>
                 <div class="auth-stat"><b>35</b><span>上报条目</span></div>
+                <div class="auth-stat"><b>100%</b><span>数据可追溯</span></div>
             </div>
         </div>
 
@@ -35,24 +44,26 @@
     <!-- 右侧登录卡片 -->
     <div class="auth-main">
         <div class="auth-card">
+            <div class="auth-card-glow" aria-hidden="true"></div>
+
             <div class="auth-logo-mobile d-flex align-items-center justify-content-center gap-2 mb-3">
-                <div class="sidebar-logo"><i class="bi bi-building-fill-gear"></i></div>
+                <div class="sidebar-logo">{{ ui.icon('building-fill-gear', '', 18) }}</div>
                 <strong>帕基尔结算系统</strong>
             </div>
 
             <div class="auth-head">
-                <div class="auth-badge"><i class="bi bi-shield-lock-fill"></i></div>
-                <h4 class="auth-title">用户登录</h4>
-                <p class="auth-sub">请输入账号与密码登录系统</p>
+                <div class="auth-badge">{{ ui.icon('shield-lock-fill', '', 18) }}</div>
+                <h4 class="auth-title">欢迎登录</h4>
+                <p class="auth-sub">请选择身份并输入密码进入工作台</p>
             </div>
 
             <div id="alert-box"></div>
 
-            <form id="login-form">
+            <form id="login-form" autocomplete="off">
                 <div class="mb-3">
                     <label class="form-label">账号</label>
                     <div class="input-icon">
-                        <i class="bi bi-person-badge lead-icon"></i>
+                        {{ ui.icon('person-badge', 'lead-icon', 16) }}
                         <select class="form-select" id="username" required>
                             <option value="">— 请选择身份 —</option>
                             <optgroup label="项目领导班子">
@@ -84,7 +95,7 @@
                 <div class="mb-3" id="department-wrap" style="display:none;">
                     <label class="form-label">所属部门</label>
                     <div class="input-icon">
-                        <i class="bi bi-building lead-icon"></i>
+                        {{ ui.icon('building', 'lead-icon', 16) }}
                         <select class="form-select" id="department">
                             <option value="">— 请选择部门 —</option>
                             {% for d in departments %}
@@ -94,25 +105,49 @@
                     </div>
                 </div>
 
-                <div class="mb-4">
+                <div class="mb-3">
                     <label class="form-label">密码</label>
                     <div class="input-icon password-wrap">
-                        <i class="bi bi-lock lead-icon"></i>
+                        {{ ui.icon('lock', 'lead-icon', 16) }}
                         <input type="password" class="form-control" id="password" placeholder="请输入密码" required>
                         <button type="button" class="password-toggle" id="toggle-pwd" aria-label="显示 / 隐藏密码" title="显示 / 隐藏密码">
-                            <i class="bi bi-eye"></i>
+                            <svg class="icon" id="pwd-eye-icon" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-eye"/></svg>
                         </button>
                     </div>
                 </div>
 
-                <button type="submit" class="btn btn-primary w-100" id="submit-btn" style="height:46px;">
-                    <i class="bi bi-box-arrow-in-right"></i> 登录
+                <button type="submit" class="btn btn-primary w-100" id="submit-btn" style="height:48px;">
+                    {{ ui.icon('box-arrow-in-right', '', 16) }} 登录
                 </button>
             </form>
 
-            <hr>
+            <!-- 业务提醒条：把"这是干什么的"显性化 -->
+            <div class="auth-quick">
+                <div class="auth-quick-item">
+                    <div class="auth-quick-ico">{{ ui.icon('calendar-event', '', 14) }}</div>
+                    <div>
+                        <div class="auth-quick-title">本月结算周期</div>
+                        <div class="auth-quick-sub">8 月 1 日 – 8 月 31 日 · 截止 8 月 25 日</div>
+                    </div>
+                </div>
+                <div class="auth-quick-item">
+                    <div class="auth-quick-ico">{{ ui.icon('hourglass-split', '', 14) }}</div>
+                    <div>
+                        <div class="auth-quick-title">未提交部门</div>
+                        <div class="auth-quick-sub">3 / 8 · 请尽快催办</div>
+                    </div>
+                </div>
+                <div class="auth-quick-item">
+                    <div class="auth-quick-ico">{{ ui.icon('shield-lock-fill', '', 14) }}</div>
+                    <div>
+                        <div class="auth-quick-title">权限分级</div>
+                        <div class="auth-quick-sub">4 类角色 · 数据各司其职</div>
+                    </div>
+                </div>
+            </div>
+
             <details class="auth-tip">
-                <summary>密码说明（参考 "部门权限密码表.xlsx"）</summary>
+                <summary>密码说明（参考"部门权限密码表.xlsx"）</summary>
                 <ul class="mt-2 mb-0">
                     <li>领导班子：<code>pakil123456</code></li>
                     <li>管理员：<code>htglb888</code></li>
@@ -159,16 +194,16 @@ document.getElementById('username').addEventListener('change', function() {
   }
 });
 
-// 密码显隐切换
+// 密码显隐切换（SVG <use> 的 href 切换）
 document.getElementById('toggle-pwd').addEventListener('click', function() {
   const pwd = document.getElementById('password');
-  const icon = this.querySelector('i');
+  const use = document.getElementById('pwd-eye-icon').firstElementChild;
   if (pwd.type === 'password') {
     pwd.type = 'text';
-    icon.className = 'bi bi-eye-slash';
+    use.setAttribute('href', '#i-eye-slash');
   } else {
     pwd.type = 'password';
-    icon.className = 'bi bi-eye';
+    use.setAttribute('href', '#i-eye');
   }
 });
 
@@ -190,9 +225,9 @@ document.getElementById('login-form').addEventListener('submit', async function(
     const data = await res.json();
 
     if (!res.ok || !data.ok) {
-      alertBox.innerHTML = `<div class="alert alert-danger"><i class="bi bi-exclamation-triangle"></i> ${data.error || '登录失败'}</div>`;
+      alertBox.innerHTML = `<div class="alert alert-danger"><svg class="icon" width="16" height="16" viewBox="0 0 16 16"><use href="#i-exclamation-triangle"/></svg> ${data.error || '登录失败'}</div>`;
       btn.disabled = false;
-      btn.innerHTML = '<i class="bi bi-box-arrow-in-right"></i> 登录';
+      btn.innerHTML = '<svg class="icon" width="16" height="16" viewBox="0 0 16 16"><use href="#i-box-arrow-in-right"/></svg> 登录';
       return;
     }
 
@@ -203,9 +238,9 @@ document.getElementById('login-form').addEventListener('submit', async function(
     const nextPath = data.next || '/';
     window.location.href = nextPath;
   } catch (err) {
-    alertBox.innerHTML = `<div class="alert alert-danger"><i class="bi bi-exclamation-triangle"></i> 网络错误：${err.message}</div>`;
+    alertBox.innerHTML = `<div class="alert alert-danger"><svg class="icon" width="16" height="16" viewBox="0 0 16 16"><use href="#i-exclamation-triangle"/></svg> 网络错误：${err.message}</div>`;
     btn.disabled = false;
-    btn.innerHTML = '<i class="bi bi-box-arrow-in-right"></i> 登录';
+    btn.innerHTML = '<svg class="icon" width="16" height="16" viewBox="0 0 16 16"><use href="#i-box-arrow-in-right"/></svg> 登录';
   }
 });
 </script>

@@ -1,0 +1,106 @@
+/* ============================================================
+   登录页专属样式
+   - 左侧品牌区：双层 glow + 细网格底纹，提升层次
+   - 右侧登录卡：顶部光环描边 + 底部"业务提醒"三栏
+   ============================================================ */
+
+/* 左侧品牌区背景层 */
+.auth-aside { position: relative; overflow: hidden; }
+.auth-aside-bg { position: absolute; inset: 0; pointer-events: none; }
+
+.auth-glow {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(70px);
+    opacity: .55;
+}
+.auth-glow-a {
+    width: 360px; height: 360px;
+    top: -120px; right: -100px;
+    background: radial-gradient(circle, rgba(91,156,255,.55), transparent 70%);
+    animation: glowDrift 18s ease-in-out infinite alternate;
+}
+.auth-glow-b {
+    width: 320px; height: 320px;
+    bottom: -120px; left: -80px;
+    background: radial-gradient(circle, rgba(139,92,246,.45), transparent 70%);
+    animation: glowDrift 22s ease-in-out infinite alternate-reverse;
+}
+@keyframes glowDrift {
+    0%   { transform: translate(0,0) scale(1); }
+    100% { transform: translate(40px,-30px) scale(1.1); }
+}
+
+/* 网格底纹——增加深度 */
+.auth-grid {
+    position: absolute; inset: 0;
+    background-image:
+        linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px);
+    background-size: 32px 32px;
+    mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+    -webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+    opacity: .6;
+}
+
+/* 右侧登录卡：顶部光环 + 边角光晕 */
+.auth-card {
+    position: relative;
+    overflow: hidden;
+}
+.auth-card-glow {
+    position: absolute;
+    top: -180px; left: 50%;
+    width: 520px; height: 280px;
+    transform: translateX(-50%);
+    background: radial-gradient(ellipse at center, rgba(91,156,255,.28), transparent 65%);
+    pointer-events: none;
+    z-index: 0;
+}
+.auth-card > * { position: relative; z-index: 1; }
+
+/* 头部徽章：再加一层内阴影，更立体 */
+.auth-badge {
+    box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.25),
+        0 8px 24px -8px rgba(91,156,255,.55);
+}
+
+/* 业务提醒三栏（form 下方） */
+.auth-quick {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--s-2);
+    margin: var(--s-5) 0 var(--s-4);
+}
+.auth-quick-item {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--s-2);
+    padding: var(--s-3);
+    background: var(--c-surface-2);
+    border: 1px solid var(--c-border);
+    border-radius: var(--r-md);
+    transition: transform var(--t-fast), border-color var(--t-fast), background var(--t-fast);
+}
+.auth-quick-item:hover {
+    transform: translateY(-1px);
+    border-color: var(--c-primary-200, rgba(91,156,255,.35));
+    background: var(--c-surface-hover, rgba(91,156,255,.04));
+}
+.auth-quick-ico {
+    width: 26px; height: 26px;
+    flex: 0 0 26px;
+    display: inline-flex;
+    align-items: center; justify-content: center;
+    border-radius: var(--r-sm);
+    background: linear-gradient(150deg, rgba(91,156,255,.15), rgba(139,92,246,.15));
+    color: var(--c-primary);
+}
+.auth-quick-title { font-size: .78rem; font-weight: 600; color: var(--c-text); line-height: 1.2; }
+.auth-quick-sub   { font-size: .7rem;  color: var(--c-text-3); margin-top: 2px; line-height: 1.3; }
+
+/* 响应式：窄屏 3 栏 → 1 栏 */
+@media (max-width: 480px) {
+    .auth-quick { grid-template-columns: 1fr; }
+}

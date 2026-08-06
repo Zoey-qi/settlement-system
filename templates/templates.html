@@ -1,10 +1,11 @@
+{% import '_macros.html' as ui %}
 {% extends 'base.html' %}
 {% block title %}模板文件 - {{ app_title }}{% endblock %}
 
 {% block content %}
 <div class="page-header">
   <div class="ph-title">
-    <div class="ph-icon"><i class="bi bi-file-earmark-spreadsheet"></i></div>
+    <div class="ph-icon">{{ ui.icon('file-earmark-spreadsheet', 'bi', 16) }}</div>
     <div>
       <h4 class="mb-0">模板文件管理</h4>
       <div class="ph-sub">按结算类型管理可下载的资料模板</div>
@@ -12,7 +13,7 @@
   </div>
   <div class="ph-actions">
     <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#uploadModal">
-      <i class="bi bi-cloud-arrow-up"></i> 上传模板
+      {{ ui.icon('cloud-arrow-up', 'bi', 16) }} 上传模板
     </button>
   </div>
 </div>
@@ -27,8 +28,8 @@
       <option value="对下结算" {% if st_filter == '对下结算' %}selected{% endif %}>对下结算</option>
       <option value="通用" {% if st_filter == '通用' %}selected{% endif %}>通用</option>
     </select>
-    <button type="submit" class="btn btn-sm btn-outline-primary"><i class="bi bi-search"></i> 搜索</button>
-    <a href="{{ url_for('templates_page') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-clockwise"></i> 重置</a>
+    <button type="submit" class="btn btn-sm btn-outline-primary">{{ ui.icon('search', 'bi', 16) }} 搜索</button>
+    <a href="{{ url_for('templates_page') }}" class="btn btn-sm btn-outline-secondary">{{ ui.icon('arrow-clockwise', 'bi', 16) }} 重置</a>
   </form>
 </div>
 
@@ -50,26 +51,26 @@
                         <span class="badge bg-light text-dark border mb-1">{{ tpl['department'] }}</span>
                         {% endif %}
                     </div>
-                    <i class="bi bi-file-earmark-spreadsheet text-muted fs-3"></i>
+                    {{ ui.icon('file-earmark-spreadsheet', 'bi text-muted fs-3', 24) }}
                 </div>
                 {% if tpl['description'] %}
                 <p class="card-text small text-muted mt-2">{{ tpl['description'] }}</p>
                 {% endif %}
                 <div class="small text-muted mt-2">
-                    <i class="bi bi-file-earmark"></i> {{ tpl['file_name'] }}<br>
-                    <i class="bi bi-hdd"></i> {{ '%.1f'|format(tpl['file_size']/1024) }} KB<br>
-                    <i class="bi bi-person"></i> {{ tpl['uploader'] or '系统导入' }} |
-                    <i class="bi bi-clock"></i> {{ tpl['uploaded_at'].strftime('%Y-%m-%d') if tpl['uploaded_at'] and tpl['uploaded_at'].__class__.__name__ == 'datetime' else (tpl['uploaded_at'][:10] if tpl['uploaded_at'] else '') }}
+                    {{ ui.icon('file-earmark', 'bi', 16) }} {{ tpl['file_name'] }}<br>
+                    {{ ui.icon('hdd', 'bi', 16) }} {{ '%.1f'|format(tpl['file_size']/1024) }} KB<br>
+                    {{ ui.icon('person', 'bi', 16) }} {{ tpl['uploader'] or '系统导入' }} |
+                    {{ ui.icon('clock', 'bi', 16) }} {{ tpl['uploaded_at'].strftime('%Y-%m-%d') if tpl['uploaded_at'] and tpl['uploaded_at'].__class__.__name__ == 'datetime' else (tpl['uploaded_at'][:10] if tpl['uploaded_at'] else '') }}
                 </div>
             </div>
             <div class="card-footer bg-transparent">
                 <a href="{{ url_for('download_template', tid=tpl['id']) }}" class="btn btn-sm btn-outline-primary">
-                    <i class="bi bi-download"></i> 下载
+                    {{ ui.icon('download', 'bi', 16) }} 下载
                 </a>
                 <form method="POST" action="{{ url_for('delete_template', tid=tpl['id']) }}" class="d-inline"
                       onsubmit="return confirm('确定删除模板「{{ tpl['name'] }}」吗？');">
                     <button type="submit" class="btn btn-sm btn-outline-danger">
-                        <i class="bi bi-trash"></i> 删除
+                        {{ ui.icon('trash', 'bi', 16) }} 删除
                     </button>
                 </form>
             </div>
@@ -79,7 +80,7 @@
     {% if not templates %}
     <div class="col-12">
         <div class="text-center py-5 text-muted">
-            <i class="bi bi-inbox" style="font-size:3rem;"></i>
+            {{ ui.icon('inbox', 'bi', 16) }}
             <p class="mt-2">暂无模板文件</p>
         </div>
     </div>
@@ -92,7 +93,7 @@
         <div class="modal-content">
             <form method="POST" enctype="multipart/form-data" action="{{ url_for('upload_template') }}">
                 <div class="modal-header">
-                    <h5 class="modal-title"><i class="bi bi-cloud-arrow-up"></i> 上传模板文件</h5>
+                    <h5 class="modal-title">{{ ui.icon('cloud-arrow-up', 'bi', 16) }} 上传模板文件</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
@@ -130,7 +131,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                    <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> 上传</button>
+                    <button type="submit" class="btn btn-primary">{{ ui.icon('check-lg', 'bi', 16) }} 上传</button>
                 </div>
             </form>
         </div>

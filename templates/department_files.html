@@ -1,13 +1,14 @@
+{% import '_macros.html' as ui %}
 {% extends 'base.html' %}
 {% block title %}部门文件 - {{ app_title }}{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
   <div class="d-flex justify-content-between align-items-center mb-3">
-    <h3 class="mb-0"><i class="bi bi-folder2-open text-primary"></i> 部门文件管理</h3>
+    <h3 class="mb-0">{{ ui.icon('folder2-open', 'bi text-primary', 16) }} 部门文件管理</h3>
     {% if can_upload %}
     <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#uploadModal">
-      <i class="bi bi-cloud-arrow-up"></i> 上传文件
+      {{ ui.icon('cloud-arrow-up', 'bi', 16) }} 上传文件
     </button>
     {% endif %}
   </div>
@@ -130,15 +131,15 @@ async function loadFiles() {
   }
   tbody.innerHTML = files.map(f => `
     <tr>
-      <td><i class="bi bi-file-earmark"></i> ${esc(f.file_name)}</td>
+      <td>{{ ui.icon('file-earmark', 'bi', 16) }} ${esc(f.file_name)}</td>
       <td><span class="badge bg-info">${esc(f.department)}</span></td>
       <td>${fmtSize(f.file_size)}</td>
       <td>${esc(f.uploader)} <small class="text-muted">${esc(f.uploader_department || '')}</small></td>
       <td><small>${esc(f.uploaded_at)}</small></td>
       <td><small class="text-muted">${esc(f.description || '')}</small></td>
       <td>
-        <a class="btn btn-sm btn-outline-primary" href="/download/department-file/${f.id}" title="下载"><i class="bi bi-download"></i></a>
-        ${canDelete(f) ? `<button class="btn btn-sm btn-outline-danger" onclick="del(${f.id})" title="删除"><i class="bi bi-trash"></i></button>` : ''}
+        <a class="btn btn-sm btn-outline-primary" href="/download/department-file/${f.id}" title="下载">{{ ui.icon('download', 'bi', 16) }}</a>
+        ${canDelete(f) ? `<button class="btn btn-sm btn-outline-danger" onclick="del(${f.id})" title="删除">{{ ui.icon('trash', 'bi', 16) }}</button>` : ''}
       </td>
     </tr>
   `).join('');

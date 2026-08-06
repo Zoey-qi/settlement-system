@@ -1,3 +1,4 @@
+{% import '_macros.html' as ui %}
 {% extends "base.html" %}
 {% block title %}使用指引 - {{ app_title }}{% endblock %}
 
@@ -9,21 +10,21 @@
     <div class="card-body py-4 px-4">
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
         <div>
-          <h2 class="mb-2"><i class="bi bi-book"></i> 系统使用指引</h2>
+          <h2 class="mb-2">{{ ui.icon('book', 'bi', 16) }} 系统使用指引</h2>
           <p class="mb-0 opacity-75">菲律宾帕基尔抽蓄基础处理工程项目 · 月度结算数据管理系统</p>
         </div>
         <div class="btn-group">
           <button class="btn btn-light btn-sm" id="editBtn" onclick="enterEditMode()">
-            <i class="bi bi-pencil-square"></i> 编辑
+            {{ ui.icon('pencil-square', 'bi', 16) }} 编辑
           </button>
           <button class="btn btn-success btn-sm d-none" id="saveBtn" onclick="saveContent()">
-            <i class="bi bi-check-lg"></i> 保存
+            {{ ui.icon('check-lg', 'bi', 16) }} 保存
           </button>
           <button class="btn btn-outline-light btn-sm d-none" id="cancelBtn" onclick="cancelEdit()">
-            <i class="bi bi-x-lg"></i> 取消
+            {{ ui.icon('x-lg', 'bi', 16) }} 取消
           </button>
           <button class="btn btn-outline-warning btn-sm d-none" id="resetBtn" onclick="resetContent()">
-            <i class="bi bi-arrow-counterclockwise"></i> 恢复默认
+            {{ ui.icon('arrow-counterclockwise', 'bi', 16) }} 恢复默认
           </button>
         </div>
       </div>
@@ -32,7 +33,7 @@
 
   <!-- 编辑提示 -->
   <div class="alert alert-warning d-none" id="editNotice">
-    <i class="bi bi-exclamation-triangle-fill"></i>
+    {{ ui.icon('exclamation-triangle-fill', 'bi', 16) }}
     <strong>编辑模式：</strong> 直接点击下方内容修改文字，改完点「保存」。支持修改任何文字、表格内容、数字等。
     <span class="text-muted">（如需恢复到系统默认内容，点「恢复默认」）</span>
   </div>
@@ -48,7 +49,7 @@
   <!-- 目录 -->
   <div class="card border-0 shadow-sm mb-4">
     <div class="card-body">
-      <h5 class="text-muted mb-3"><i class="bi bi-list-ul"></i> 目录</h5>
+      <h5 class="text-muted mb-3">{{ ui.icon('list-ul', 'bi', 16) }} 目录</h5>
       <div class="row">
         <div class="col-md-6">
           <ol class="list-unstyled">
@@ -73,7 +74,7 @@
   <!-- 一、系统概述 -->
   <div class="card border-0 shadow-sm mb-4" id="overview">
     <div class="card-header bg-light">
-      <h4 class="mb-0"><i class="bi bi-info-circle-fill text-primary"></i> 一、系统是干什么的？</h4>
+      <h4 class="mb-0">{{ ui.icon('info-circle-fill', 'bi text-primary', 16) }} 一、系统是干什么的？</h4>
     </div>
     <div class="card-body">
       <p>这个系统是用来<strong>按月收集各部门结算资料</strong>的。每个月底到次月初，各部门需要提交结算相关的数据和文件，合同管理部汇总后进行对上（总包）和对下（分包）结算。</p>
@@ -81,7 +82,7 @@
         <div class="col-md-6">
           <div class="card bg-light border-0">
             <div class="card-body">
-              <h6 class="text-primary"><i class="bi bi-arrow-up-circle"></i> 对上结算（总包）</h6>
+              <h6 class="text-primary">{{ ui.icon('arrow-up-circle', 'bi', 16) }} 对上结算（总包）</h6>
               <p class="small mb-0">向联营体/总包方报送资料，证明完成工作量、扣款依据等，获取工程款。</p>
             </div>
           </div>
@@ -89,14 +90,14 @@
         <div class="col-md-6">
           <div class="card bg-light border-0">
             <div class="card-body">
-              <h6 class="text-success"><i class="bi bi-arrow-down-circle"></i> 对下结算（分包）</h6>
+              <h6 class="text-success">{{ ui.icon('arrow-down-circle', 'bi', 16) }} 对下结算（分包）</h6>
               <p class="small mb-0">向分包商扣款/核量，包括质量扣款、安全扣款、水电住宿伙食扣款等。</p>
             </div>
           </div>
         </div>
       </div>
       <div class="alert alert-info mt-3 mb-0">
-        <i class="bi bi-lightbulb"></i> <strong>一句话理解：</strong> 每月各部把自己的数据交上来 → 合同管理部汇总 → 对上要钱、对下扣钱。
+        {{ ui.icon('lightbulb', 'bi', 16) }} <strong>一句话理解：</strong> 每月各部把自己的数据交上来 → 合同管理部汇总 → 对上要钱、对下扣钱。
       </div>
     </div>
   </div>
@@ -104,7 +105,7 @@
   <!-- 二、每月流程 -->
   <div class="card border-0 shadow-sm mb-4" id="workflow">
     <div class="card-header bg-light">
-      <h4 class="mb-0"><i class="bi bi-diagram-3-fill text-primary"></i> 二、每月结算怎么走流程？</h4>
+      <h4 class="mb-0">{{ ui.icon('diagram-3-fill', 'bi text-primary', 16) }} 二、每月结算怎么走流程？</h4>
     </div>
     <div class="card-body">
       <div class="timeline">
@@ -150,7 +151,7 @@
   <!-- 三、各页面说明 -->
   <div class="card border-0 shadow-sm mb-4" id="pages">
     <div class="card-header bg-light">
-      <h4 class="mb-0"><i class="bi bi-window-stack text-primary"></i> 三、各页面功能说明</h4>
+      <h4 class="mb-0">{{ ui.icon('window-stack', 'bi text-primary', 16) }} 三、各页面功能说明</h4>
     </div>
     <div class="card-body">
       <div class="table-responsive">
@@ -202,11 +203,11 @@
   <!-- 四、提交指引 -->
   <div class="card border-0 shadow-sm mb-4" id="submit-guide">
     <div class="card-header bg-light">
-      <h4 class="mb-0"><i class="bi bi-cloud-arrow-up-fill text-primary"></i> 四、怎么提交数据？（最常用）</h4>
+      <h4 class="mb-0">{{ ui.icon('cloud-arrow-up-fill', 'bi text-primary', 16) }} 四、怎么提交数据？（最常用）</h4>
     </div>
     <div class="card-body">
       <div class="alert alert-warning">
-        <i class="bi bi-exclamation-triangle"></i> <strong>这是最核心的操作，看完这段就会用了。</strong>
+        {{ ui.icon('exclamation-triangle', 'bi', 16) }} <strong>这是最核心的操作，看完这段就会用了。</strong>
       </div>
 
       <h6 class="mt-3">步骤1：进入提交页面</h6>
@@ -221,7 +222,7 @@
         <div class="col-md-4">
           <div class="card bg-light border-0 h-100">
             <div class="card-body">
-              <h6 class="text-success"><i class="bi bi-file-earmark-arrow-up"></i> 上传文件</h6>
+              <h6 class="text-success">{{ ui.icon('file-earmark-arrow-up', 'bi', 16) }} 上传文件</h6>
               <p class="small mb-0">选择文件上传。支持 Excel、Word、PDF、图片、压缩包等格式。填好提交人姓名后提交。</p>
             </div>
           </div>
@@ -229,7 +230,7 @@
         <div class="col-md-4">
           <div class="card bg-light border-0 h-100">
             <div class="card-body">
-              <h6 class="text-secondary"><i class="bi bi-dash-circle"></i> 标记为「无」</h6>
+              <h6 class="text-secondary">{{ ui.icon('dash-circle', 'bi', 16) }} 标记为「无」</h6>
               <p class="small mb-0">本月没有对应内容就点「标记无」。这算作<strong>已处理</strong>，不是漏交。</p>
             </div>
           </div>
@@ -237,7 +238,7 @@
         <div class="col-md-4">
           <div class="card bg-light border-0 h-100">
             <div class="card-body">
-              <h6 class="text-danger"><i class="bi bi-arrow-counterclockwise"></i> 撤销/重交</h6>
+              <h6 class="text-danger">{{ ui.icon('arrow-counterclockwise', 'bi', 16) }} 撤销/重交</h6>
               <p class="small mb-0">已提交的条目可以撤销重交，或直接上传新文件覆盖旧文件。</p>
             </div>
           </div>
@@ -248,7 +249,7 @@
       <p>提交后回到列表页，进度条会更新。全部条目都提交/标记后，状态变绿色「已完成」。</p>
 
       <div class="alert alert-info mt-3 mb-0">
-        <i class="bi bi-lightbulb"></i> <strong>批量标记：</strong> 如果整个任务本月全部没有内容，可以用「全部标记为无」按钮一键处理。
+        {{ ui.icon('lightbulb', 'bi', 16) }} <strong>批量标记：</strong> 如果整个任务本月全部没有内容，可以用「全部标记为无」按钮一键处理。
       </div>
     </div>
   </div>
@@ -256,7 +257,7 @@
   <!-- 五、扣款表填写说明 -->
   <div class="card border-0 shadow-sm mb-4" id="fee-table">
     <div class="card-header bg-light">
-      <h4 class="mb-0"><i class="bi bi-file-earmark-spreadsheet text-primary"></i> 五、水电住宿费扣款表填写说明</h4>
+      <h4 class="mb-0">{{ ui.icon('file-earmark-spreadsheet', 'bi text-primary', 16) }} 五、水电住宿费扣款表填写说明</h4>
     </div>
     <div class="card-body">
       <p>水电、住宿、伙食等扣款单由<strong>综合办公室</strong>负责填写提交。所有扣款表结构相同，按以下规则填写：</p>
@@ -322,7 +323,7 @@
       </div>
 
       <div class="alert alert-warning mt-3">
-        <i class="bi bi-calculator"></i> <strong>计算公式（按费用类型区分）：</strong>
+        {{ ui.icon('calculator', 'bi', 16) }} <strong>计算公式（按费用类型区分）：</strong>
         <ul class="mb-0 mt-1">
           <li><strong>住宿费</strong> = 房间数 x 2000 比索/间（固定按间收费，与住几人无关）</li>
           <li><strong>餐费（伙食费）</strong> = 份数 x 30 比索/份</li>
@@ -330,7 +331,7 @@
         </ul>
       </div>
       <div class="alert alert-info">
-        <i class="bi bi-info-circle"></i> <strong>举例：</strong> 3间宿舍，每间住4人 → 住宿费扣款 = 3 x 2000 = 6,000 比索<br>
+        {{ ui.icon('info-circle', 'bi', 16) }} <strong>举例：</strong> 3间宿舍，每间住4人 → 住宿费扣款 = 3 x 2000 = 6,000 比索<br>
         <strong>餐费举例：</strong> 50份餐 x 30比索 = 1,500 比索
       </div>
 
@@ -403,14 +404,14 @@
   <!-- 六、收费规格速查表 -->
   <div class="card border-0 shadow-sm mb-4" id="fee-rates">
     <div class="card-header bg-light d-flex justify-content-between align-items-center">
-      <h4 class="mb-0"><i class="bi bi-table text-primary"></i> 六、收费规格速查表</h4>
+      <h4 class="mb-0">{{ ui.icon('table', 'bi text-primary', 16) }} 六、收费规格速查表</h4>
       <button class="btn btn-outline-primary btn-sm" id="editFeeRatesBtn" onclick="toggleEditFeeRates()">
-        <i class="bi bi-pencil"></i> 编辑费率
+        {{ ui.icon('pencil', 'bi', 16) }} 编辑费率
       </button>
     </div>
     <div class="card-body">
       <div class="alert alert-info">
-        <i class="bi bi-info-circle-fill"></i>
+        {{ ui.icon('info-circle-fill', 'bi', 16) }}
         <strong>说明：</strong> 以下收费标准可在此页面直接修改。点击右上角「编辑费率」按钮，修改后点「保存」即可，所有用户都会看到最新费率。
         水电费需单独联系总包确认，确认后在表格中填入即可。
       </div>
@@ -433,10 +434,10 @@
             <tr data-fee-type="{{ rate.fee_type }}" id="row-{{ rate.fee_type }}">
               <td>{{ loop.index }}</td>
               <td>
-                {% if rate.fee_type == 'accommodation' %}<i class="bi bi-house-door text-primary"></i>
-                {% elif rate.fee_type == 'meal' %}<i class="bi bi-cup-hot text-warning"></i>
-                {% elif rate.fee_type == 'water' %}<i class="bi bi-droplet text-info"></i>
-                {% elif rate.fee_type == 'electricity' %}<i class="bi bi-lightning-charge text-warning"></i>
+                {% if rate.fee_type == 'accommodation' %}{{ ui.icon('house-door', 'bi text-primary', 16) }}
+                {% elif rate.fee_type == 'meal' %}{{ ui.icon('cup-hot', 'bi text-warning', 16) }}
+                {% elif rate.fee_type == 'water' %}{{ ui.icon('droplet', 'bi text-info', 16) }}
+                {% elif rate.fee_type == 'electricity' %}{{ ui.icon('lightning-charge', 'bi text-warning', 16) }}
                 {% endif %}
                 <strong>{{ rate.fee_name }}</strong>
               </td>
@@ -461,7 +462,7 @@
               </td>
               <td class="edit-col" style="display:none;">
                 <button class="btn btn-success btn-sm save-btn" onclick="saveFeeRate('{{ rate.fee_type }}')">
-                  <i class="bi bi-check-lg"></i> 保存
+                  {{ ui.icon('check-lg', 'bi', 16) }} 保存
                 </button>
               </td>
             </tr>
@@ -471,7 +472,7 @@
       </div>
 
       <div class="alert alert-warning mt-3">
-        <i class="bi bi-exclamation-triangle-fill"></i>
+        {{ ui.icon('exclamation-triangle-fill', 'bi', 16) }}
         <strong>填表步骤：</strong>
         <ol class="mb-0 mt-1">
           <li>下载对应扣款单模板（从系统「模板文件」页面或条目详情页下载）</li>
@@ -485,7 +486,7 @@
       </div>
 
       <div class="alert alert-info mb-0">
-        <i class="bi bi-lightbulb"></i>
+        {{ ui.icon('lightbulb', 'bi', 16) }}
         <strong>住宿费举例：</strong> 3间宿舍，每间住4人 → 本期扣款 = 3 x 2000 = 6,000 比索（不按人头算）<br>
         <strong>餐费举例：</strong> 50份餐 → 本期扣款 = 50 x 30 = 1,500 比索
       </div>
@@ -518,7 +519,7 @@
   <!-- 七、常见问题 -->
   <div class="card border-0 shadow-sm mb-4" id="tips">
     <div class="card-header bg-light">
-      <h4 class="mb-0"><i class="bi bi-question-circle-fill text-primary"></i> 七、常见问题与技巧</h4>
+      <h4 class="mb-0">{{ ui.icon('question-circle-fill', 'bi text-primary', 16) }} 七、常见问题与技巧</h4>
     </div>
     <div class="card-body">
       <div class="accordion" id="faqAccordion">
@@ -599,7 +600,7 @@
   <!-- 八、部门对接 -->
   <div class="card border-0 shadow-sm mb-4" id="roles">
     <div class="card-header bg-light">
-      <h4 class="mb-0"><i class="bi bi-people-fill text-primary"></i> 八、各部门对接说明</h4>
+      <h4 class="mb-0">{{ ui.icon('people-fill', 'bi text-primary', 16) }} 八、各部门对接说明</h4>
     </div>
     <div class="card-body">
       <div class="table-responsive">
@@ -657,7 +658,7 @@
         </table>
       </div>
       <div class="alert alert-info mt-3 mb-0">
-        <i class="bi bi-person-check"></i> <strong>特殊对接人：</strong>
+        {{ ui.icon('person-check', 'bi', 16) }} <strong>特殊对接人：</strong>
         <ul class="mb-0 mt-1">
           <li>食堂伙食费：联系综合工区 <strong>张勇</strong> 或其他联营体指定人员</li>
           <li>甲供材消耗统计：联系联营体物资采购部 <strong>张伊凡</strong></li>
@@ -669,7 +670,7 @@
 
   <!-- 底部 -->
   <div class="text-center py-4 text-muted">
-    <p class="mb-1"><i class="bi bi-shield-check"></i> 本系统数据存储在本机，不上传云端</p>
+    <p class="mb-1">{{ ui.icon('shield-check', 'bi', 16) }} 本系统数据存储在本机，不上传云端</p>
     <p class="mb-0 small">如有疑问，联系合同管理部</p>
   </div>
 
@@ -799,13 +800,13 @@ function toggleEditFeeRates() {
   const editCols = document.querySelectorAll('.edit-col');
 
   if (feeRatesEditing) {
-    btn.innerHTML = '<i class="bi bi-x-lg"></i> 取消编辑';
+    btn.innerHTML = '{{ ui.icon('x-lg', 'bi', 16) }} 取消编辑';
     btn.className = 'btn btn-outline-secondary btn-sm';
     editCols.forEach(c => c.style.display = '');
     document.querySelectorAll('.rate-display, .unit-display, .calc-display, .note-display').forEach(el => el.classList.add('d-none'));
     document.querySelectorAll('.rate-input, .unit-input, .calc-input, .note-input').forEach(el => el.classList.remove('d-none'));
   } else {
-    btn.innerHTML = '<i class="bi bi-pencil"></i> 编辑费率';
+    btn.innerHTML = '{{ ui.icon('pencil', 'bi', 16) }} 编辑费率';
     btn.className = 'btn btn-outline-primary btn-sm';
     editCols.forEach(c => c.style.display = 'none');
     document.querySelectorAll('.rate-display, .unit-display, .calc-display, .note-display').forEach(el => el.classList.remove('d-none'));
@@ -854,7 +855,7 @@ function saveFeeRate(feeType) {
 
       const saveBtn = row.querySelector('.save-btn');
       const originalHtml = saveBtn.innerHTML;
-      saveBtn.innerHTML = '<i class="bi bi-check2-all"></i> 已保存';
+      saveBtn.innerHTML = '{{ ui.icon('check2-all', 'bi', 16) }} 已保存';
       saveBtn.className = 'btn btn-light btn-sm save-btn';
       setTimeout(() => {
         saveBtn.innerHTML = originalHtml;

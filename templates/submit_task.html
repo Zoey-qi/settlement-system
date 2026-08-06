@@ -1,3 +1,4 @@
+{% import '_macros.html' as ui %}
 {% extends 'base.html' %}
 {% block title %}提交数据 - {{ app_title }}{% endblock %}
 
@@ -23,11 +24,11 @@
                             <input type="hidden" name="month" value="{{ month }}">
                             <input type="hidden" name="submitter" value="管理员">
                             <button type="submit" class="btn btn-sm btn-outline-secondary">
-                                <i class="bi bi-check2-all"></i> 全部标记为无
+                                {{ ui.icon('check2-all', 'bi', 16) }} 全部标记为无
                             </button>
                         </form>
                         <a href="{{ url_for('submit', month=month) }}" class="btn btn-sm btn-outline-primary">
-                            <i class="bi bi-arrow-left"></i> 返回列表
+                            {{ ui.icon('arrow-left', 'bi', 16) }} 返回列表
                         </a>
                     </div>
                 </div>
@@ -41,9 +42,9 @@
     <div class="col-12">
         <div class="card">
             <div class="card-header bg-light d-flex justify-content-between align-items-center">
-                <h6 class="mb-0"><i class="bi bi-list-ul"></i> 需提交资料条目（逐条独立提交）</h6>
+                <h6 class="mb-0">{{ ui.icon('list-ul', 'bi', 16) }} 需提交资料条目（逐条独立提交）</h6>
                 <button class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#addItemModal">
-                    <i class="bi bi-plus-circle"></i> 新增条目
+                    {{ ui.icon('plus-circle', 'bi', 16) }} 新增条目
                 </button>
             </div>
             <div class="card-body p-0">
@@ -80,7 +81,7 @@
                                     {% if item['tpl_id'] %}
                                         <a href="{{ url_for('download_template_by_id', tid=item['tpl_id']) }}"
                                            class="btn btn-sm btn-outline-primary py-0" title="{{ item['tpl_name'] }}">
-                                            <i class="bi bi-download"></i> 下载
+                                            {{ ui.icon('download', 'bi', 16) }} 下载
                                         </a>
                                     {% else %}
                                         <span class="text-muted small">未关联</span>
@@ -110,10 +111,10 @@
                                 <td class="small">
                                     {% if item['submission_type'] == 'file' %}
                                         <a href="{{ url_for('download_item_submission', sub_id=item['sub_id']) }}" class="text-decoration-none">
-                                            <i class="bi bi-file-earmark"></i> {{ item['sub_file_name'] }}
+                                            {{ ui.icon('file-earmark', 'bi', 16) }} {{ item['sub_file_name'] }}
                                         </a>
                                     {% elif item['submission_type'] == 'none' %}
-                                        <span class="text-muted"><i class="bi bi-dash-circle"></i> 无</span>
+                                        <span class="text-muted">{{ ui.icon('dash-circle', 'bi', 16) }} 无</span>
                                     {% else %}
                                         <span class="text-muted">-</span>
                                     {% endif %}
@@ -121,7 +122,7 @@
                                     {% if item['sub_id'] and user_role == 'admin' and user_department == '合同管理部' %}
                                     <br>
                                     <button class="btn btn-sm btn-outline-secondary py-0 mt-1" onclick="openRemarksModal({{ item['id'] }}, {{ item['sub_id'] }}, '{{ item['sub_remarks']|replace("'", "\\'") if item['sub_remarks'] else '' }}', '{{ item['item_name']|replace("'", "\\'") }}', '{{ month }}')">
-                                        <i class="bi bi-pencil-square"></i> 编辑备注
+                                        {{ ui.icon('pencil-square', 'bi', 16) }} 编辑备注
                                     </button>
                                     {% endif %}
                                 </td>
@@ -135,7 +136,7 @@
                                         {% if not item['sub_id'] %}
                                         <!-- 待提交：显示上传和无按钮 -->
                                         <button class="btn btn-sm btn-primary py-0" onclick="openUploadModal({{ item['id'] }}, '{{ item['item_name']|replace("'", "\\'") }}')">
-                                            <i class="bi bi-upload"></i> 上传
+                                            {{ ui.icon('upload', 'bi', 16) }} 上传
                                         </button>
                                         <form method="POST" action="{{ url_for('submit_item', item_id=item['id']) }}" class="d-inline"
                                               onsubmit="return confirm('确定标记为"无"吗？')">
@@ -144,17 +145,17 @@
                                             <input type="hidden" name="submitter" value="管理员">
                                             <input type="hidden" name="task_id" value="{{ task['id'] }}">
                                             <button type="submit" class="btn btn-sm btn-outline-secondary py-0">
-                                                <i class="bi bi-dash-circle"></i> 无
+                                                {{ ui.icon('dash-circle', 'bi', 16) }} 无
                                             </button>
                                         </form>
                                         {% else %}
                                         <!-- 已提交：显示撤销按钮 -->
                                         <button class="btn btn-sm btn-outline-warning py-0" onclick="unsubmitItem({{ item['id'] }}, '{{ month }}')">
-                                            <i class="bi bi-arrow-counterclockwise"></i> 撤销
+                                            {{ ui.icon('arrow-counterclockwise', 'bi', 16) }} 撤销
                                         </button>
                                         {% endif %}
                                         <button class="btn btn-sm btn-outline-danger py-0" onclick="deleteItem({{ item['id'] }})">
-                                            <i class="bi bi-trash"></i>
+                                            {{ ui.icon('trash', 'bi', 16) }}
                                         </button>
                                     </div>
                                 </td>
@@ -177,7 +178,7 @@
         <div class="modal-content">
             <form method="POST" enctype="multipart/form-data" id="uploadForm" action="">
                 <div class="modal-header">
-                    <h5 class="modal-title"><i class="bi bi-cloud-arrow-up"></i> 上传文件</h5>
+                    <h5 class="modal-title">{{ ui.icon('cloud-arrow-up', 'bi', 16) }} 上传文件</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
@@ -206,7 +207,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
-                    <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> 确认上传</button>
+                    <button type="submit" class="btn btn-primary">{{ ui.icon('check-lg', 'bi', 16) }} 确认上传</button>
                 </div>
             </form>
         </div>
@@ -218,7 +219,7 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title"><i class="bi bi-plus-circle"></i> 新增资料条目</h5>
+                <h5 class="modal-title">{{ ui.icon('plus-circle', 'bi', 16) }} 新增资料条目</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
@@ -239,7 +240,7 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
                 <button type="button" class="btn btn-success" onclick="addItem()">
-                    <i class="bi bi-check-lg"></i> 添加
+                    {{ ui.icon('check-lg', 'bi', 16) }} 添加
                 </button>
             </div>
         </div>
@@ -251,12 +252,12 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header bg-light">
-                <h5 class="modal-title"><i class="bi bi-pencil-square"></i> 修改部门提交备注</h5>
+                <h5 class="modal-title">{{ ui.icon('pencil-square', 'bi', 16) }} 修改部门提交备注</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <div class="alert alert-info py-2 small">
-                    <i class="bi bi-info-circle"></i>
+                    {{ ui.icon('info-circle', 'bi', 16) }}
                     您正在以合同管理部身份修改部门提交备注。
                     本操作仅修改备注文字，不会变更文件或"无"标记状态。
                 </div>
@@ -274,7 +275,7 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
                 <button type="button" class="btn btn-primary" onclick="saveRemarks()">
-                    <i class="bi bi-check-lg"></i> 保存修改
+                    {{ ui.icon('check-lg', 'bi', 16) }} 保存修改
                 </button>
             </div>
         </div>
