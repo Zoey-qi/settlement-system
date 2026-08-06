@@ -9,6 +9,11 @@
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
 </head>
 <body>
+<div class="bg-orbs" aria-hidden="true">
+    <span class="orb orb-1"></span>
+    <span class="orb orb-2"></span>
+    <span class="orb orb-3"></span>
+</div>
 {% set nav_labels = {
     'dashboard': '仪表盘', 'submit': '提交数据', 'summary': '汇总视图',
     'settlement_page': '结算金额', 'templates_page': '模板文件', 'config_page': '配置管理',

@@ -120,22 +120,18 @@
     <div class="col-12">
         <div class="card shadow-sm border-info">
             <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-trophy-fill"></i> 全部部门完成情况对比 · 排名榜</span>
+                <span><i class="bi bi-bar-chart"></i> 全部部门完成情况对比 · 排名榜</span>
                 <small class="text-white-50">实时更新 · 当前时间 <span id="ranking-now">{{ server_now }}</span></small>
             </div>
             <div class="card-body p-3">
                 <div class="rank-board">
                     {% for s in dept_ranking %}
-                    <div class="rank-row {% if s['rank'] == 1 and s['rate'] > 0 %}is-champion{% endif %} {% if s['is_my_dept'] %}is-mine{% endif %}">
-                        <div class="rank-medal {% if s['rank'] == 1 and s['rate'] > 0 %}r1{% elif s['rank'] == 2 %}r2{% elif s['rank'] == 3 %}r3{% else %}rn{% endif %}">
-                            {% if s['rank'] == 1 and s['rate'] > 0 %}<i class="bi bi-trophy-fill"></i>
-                            {% else %}{{ s['rank'] }}{% endif %}
-                        </div>
+                    <div class="rank-row {% if s['is_my_dept'] %}is-mine{% endif %}">
+                        <div class="rank-medal rn">{{ s['rank'] }}</div>
                         <div class="rank-main">
                             <div class="rank-name">
                                 {{ s['dept_name'] }}
                                 {% if s['is_my_dept'] %}<span class="rank-tag mine"><i class="bi bi-bookmark-star-fill"></i> 本部门</span>{% endif %}
-                                {% if s['rank'] == 1 and s['rate'] > 0 %}<span class="rank-tag champ"><i class="bi bi-trophy-fill"></i> 第一</span>{% endif %}
                             </div>
                             <div class="rank-bar">
                                 <div class="progress" style="height:10px;">
@@ -156,7 +152,7 @@
                 </div>
             </div>
             <div class="card-footer bg-light text-muted small">
-                <i class="bi bi-info-circle"></i> 排名按完成率降序，完成率 = 已完成任务 ÷ 总任务数。蓝色高亮为当前用户所属部门，金牌为本月冠军部门。
+                <i class="bi bi-info-circle"></i> 排名按完成率降序，完成率 = 已完成任务 ÷ 总任务数。蓝色高亮为当前用户所属部门，便于快速定位本部门的进度位置。
             </div>
         </div>
     </div>

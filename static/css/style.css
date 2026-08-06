@@ -83,6 +83,19 @@
     --sidebar-w-collapsed: 76px;
     --topbar-h: 62px;
     --content-max: 1600px;
+
+    /* === 玻璃拟态 (Glassmorphism) 令牌 === */
+    --glass-bg:        rgba(255, 255, 255, 0.68);
+    --glass-bg-strong: rgba(255, 255, 255, 0.82);
+    --glass-border:    rgba(255, 255, 255, 0.55);
+    --glass-blur:      blur(18px) saturate(165%);
+    --glass-shadow:    0 8px 30px rgba(16, 32, 64, 0.12), 0 2px 6px rgba(16, 32, 64, 0.06);
+
+    /* === 3D 光球 (Ambient Orbs) 渐变 === */
+    --orb-1: radial-gradient(circle at 32% 28%, #7fb0f2 0%, #2f5fb0 55%, #173a78 100%);
+    --orb-2: radial-gradient(circle at 30% 30%, #5ee0d4 0%, #14b8a6 55%, #0b6b62 100%);
+    --orb-3: radial-gradient(circle at 35% 30%, #b9a4f0 0%, #6d52c7 55%, #3c2c82 100%);
+    --bg-grad: linear-gradient(135deg, #eaf0fb 0%, #eef1f7 45%, #e6ecf7 100%);
 }
 
 /* --------------------------------------------------------------------------
@@ -92,7 +105,7 @@ html { font-size: 15px; scroll-behavior: smooth; }
 
 body {
     margin: 0;
-    background: var(--c-bg);
+    background: var(--bg-grad);
     color: var(--c-text);
     font-family: "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB",
                  "Source Han Sans SC", "Noto Sans CJK SC", system-ui,
@@ -102,6 +115,30 @@ body {
     letter-spacing: 0.005em;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+}
+
+/* --- 全站环境 3D 光球（固定、模糊、缓慢浮动，所有界面共享） --- */
+.bg-orbs {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+.orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(46px);
+    opacity: 0.55;
+    animation: orbFloat 16s ease-in-out infinite;
+}
+.orb-1 { top: -120px; right: 8%; width: 460px; height: 460px; background: var(--orb-1); }
+.orb-2 { bottom: -140px; left: -60px; width: 420px; height: 420px; background: var(--orb-2); animation-delay: -5s; opacity: 0.42; }
+.orb-3 { top: 38%; left: 46%; width: 360px; height: 360px; background: var(--orb-3); animation-delay: -9s; opacity: 0.34; }
+@keyframes orbFloat {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33%      { transform: translate(28px, -24px) scale(1.06); }
+    66%      { transform: translate(-22px, 18px) scale(0.97); }
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -125,6 +162,8 @@ a:hover { color: var(--c-primary-hover); }
 .app-shell {
     display: flex;
     min-height: 100vh;
+    position: relative;
+    z-index: 1;
 }
 
 .app-main {
@@ -216,7 +255,7 @@ a:hover { color: var(--c-primary-hover); }
 }
 .side-link i { font-size: 1.12rem; width: 22px; text-align: center; flex-shrink: 0; }
 .side-link span { transition: opacity var(--t-fast); }
-.side-link:hover { background: var(--c-sidebar-hover-bg); color: var(--c-sidebar-text-strong); }
+.side-link:hover { background: var(--c-sidebar-hover-bg); color: var(--c-sidebar-text-strong); transform: translateX(2px); }
 .side-link.active {
     background: var(--c-sidebar-active-bg);
     color: #fff;
@@ -307,10 +346,10 @@ a:hover { color: var(--c-primary-hover); }
     position: fixed;
     top: 0; left: 0; right: 0;
     height: var(--topbar-h);
-    background: rgba(255, 255, 255, 0.92);
-    backdrop-filter: saturate(140%) blur(8px);
-    -webkit-backdrop-filter: saturate(140%) blur(8px);
-    border-bottom: 1px solid var(--c-border);
+    background: rgba(255, 255, 255, 0.6);
+    backdrop-filter: saturate(165%) blur(18px);
+    -webkit-backdrop-filter: saturate(165%) blur(18px);
+    border-bottom: 1px solid var(--glass-border);
     z-index: -1;
 }
 .topbar-left, .topbar-right { display: flex; align-items: center; gap: var(--s-3); }
@@ -380,14 +419,16 @@ a:hover { color: var(--c-primary-hover); }
    5. 卡片 (Card)
    -------------------------------------------------------------------------- */
 .card {
-    background: var(--c-surface);
-    border: 1px solid var(--c-border);
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
     border-radius: var(--r-lg);
-    box-shadow: var(--sh-sm);
+    box-shadow: var(--glass-shadow);
     transition: box-shadow var(--t-base), border-color var(--t-base), transform var(--t-base);
     overflow: hidden;
 }
-.card:hover { box-shadow: var(--sh-md); }
+.card:hover { transform: translateY(-2px); box-shadow: var(--sh-lg); border-color: rgba(255, 255, 255, 0.8); }
 
 .card-header {
     background: var(--c-surface);
@@ -420,10 +461,12 @@ a:hover { color: var(--c-primary-hover); }
     align-items: center;
     gap: var(--s-4);
     padding: var(--s-5);
-    background: var(--c-surface);
-    border: 1px solid var(--c-border);
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
     border-radius: var(--r-lg);
-    box-shadow: var(--sh-sm);
+    box-shadow: var(--glass-shadow);
     transition: transform var(--t-base), box-shadow var(--t-base), border-color var(--t-base);
     position: relative;
     overflow: hidden;
@@ -504,9 +547,12 @@ a:hover { color: var(--c-primary-hover); }
 .btn:active { transform: translateY(1px); }
 .btn:focus-visible { outline: none; box-shadow: var(--sh-focus); }
 
-.btn-primary { background: var(--c-primary); border-color: var(--c-primary); color: #fff; }
-.btn-primary:hover { background: var(--c-primary-hover); border-color: var(--c-primary-hover); color: #fff; }
-.btn-primary:active { background: var(--c-primary-active); border-color: var(--c-primary-active); }
+.btn-primary { background: var(--c-primary); border-color: var(--c-primary); color: #fff; box-shadow: 0 2px 8px rgba(47, 95, 176, 0.28); }
+.btn-primary:hover { background: var(--c-primary-hover); border-color: var(--c-primary-hover); color: #fff; transform: translateY(-1px); box-shadow: 0 6px 16px rgba(47, 95, 176, 0.38); }
+.btn-primary:active { background: var(--c-primary-active); border-color: var(--c-primary-active); transform: translateY(0); }
+
+.btn-outline-primary:hover { background: var(--c-primary); border-color: var(--c-primary); color: #fff; transform: translateY(-1px); }
+.btn-outline-secondary:hover { background: var(--c-surface-3); color: var(--c-text); border-color: var(--c-border-strong); transform: translateY(-1px); }
 
 .btn-outline-primary { color: var(--c-primary); border-color: var(--c-primary); background: transparent; }
 .btn-outline-primary:hover { background: var(--c-primary); border-color: var(--c-primary); color: #fff; }
@@ -645,7 +691,7 @@ a:hover { color: var(--c-primary-hover); }
 /* --------------------------------------------------------------------------
    13. 登录 / 注册外壳（品牌化分栏）
    -------------------------------------------------------------------------- */
-.auth-shell { min-height: 100vh; display: flex; background: var(--c-bg); }
+.auth-shell { min-height: 100vh; display: flex; background: transparent; position: relative; z-index: 1; }
 .auth-split { display: flex; width: 100%; min-height: 100vh; }
 .auth-aside {
     flex: 1.1;
@@ -678,12 +724,14 @@ a:hover { color: var(--c-primary-hover); }
     flex: 1;
     display: flex; align-items: center; justify-content: center;
     padding: var(--s-7);
-    background: var(--c-bg);
+    background: transparent;
 }
 .auth-card {
     width: 100%; max-width: 420px;
-    background: var(--c-surface);
-    border: 1px solid var(--c-border);
+    background: var(--glass-bg-strong);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
     border-radius: var(--r-xl);
     box-shadow: var(--sh-lg);
     padding: var(--s-7);
@@ -749,16 +797,12 @@ a:hover { color: var(--c-primary-hover); }
     transition: background var(--t-base), box-shadow var(--t-base);
 }
 .rank-row + .rank-row { border-top: 1px solid var(--c-border); border-radius: 0; }
-.rank-row:hover { background: var(--c-surface-2); }
-.rank-row.is-champion {
-    background: linear-gradient(90deg, rgba(246,195,67,0.20), rgba(246,195,67,0.02));
-}
+.rank-row:hover { background: var(--c-surface-2); transform: translateX(3px); box-shadow: var(--sh-sm); }
 .rank-row.is-mine {
     background: var(--c-primary-soft);
     border-color: var(--c-primary);
     box-shadow: var(--sh-focus);
 }
-.rank-row.is-champion + .rank-row { border-top-color: transparent; }
 
 .rank-medal {
     flex: 0 0 40px; width: 40px; height: 40px; border-radius: 12px;
@@ -766,10 +810,9 @@ a:hover { color: var(--c-primary-hover); }
     font-weight: 800; font-size: 1.05rem;
     background: var(--c-surface-3); color: var(--c-text-2);
 }
-.rank-medal.r1 { background: linear-gradient(150deg, #f6c343, #e0a92b); color: #5a3d00; box-shadow: 0 4px 10px rgba(230,170,40,.35); }
-.rank-medal.r2 { background: linear-gradient(150deg, #cdd6e0, #aab4c2); color: #3a4250; }
-.rank-medal.r3 { background: linear-gradient(150deg, #e3a977, #c98a52); color: #4a2c12; }
-.rank-medal.rn { background: var(--c-surface-3); color: var(--c-text-2); }
+.rank-medal.r1, .rank-medal.r2, .rank-medal.r3, .rank-medal.rn {
+    background: var(--c-surface-3); color: var(--c-text-2);
+}
 
 .rank-main { flex: 1 1 auto; min-width: 0; }
 .rank-name {
@@ -788,7 +831,6 @@ a:hover { color: var(--c-primary-hover); }
     display: inline-flex; align-items: center; gap: 3px;
 }
 .rank-tag.mine { background: var(--c-primary); color: #fff; }
-.rank-tag.champ { background: #f6c343; color: #5a3d00; }
 
 .rank-stats { flex: 0 0 auto; display: flex; gap: var(--s-3); }
 .rstat { font-size: .76rem; color: var(--c-text-3); text-align: center; min-width: 40px; line-height: 1.15; }
@@ -801,6 +843,47 @@ a:hover { color: var(--c-primary-hover); }
     .rank-row { flex-wrap: wrap; }
     .rank-rate { margin-left: auto; }
     .rank-stats { flex-basis: 100%; order: 3; justify-content: flex-start; padding-left: 52px; gap: var(--s-4); }
+}
+
+/* --------------------------------------------------------------------------
+   13.6 玻璃弹窗 (Glass Modal)
+   ------------------------------------------------------------------------- */
+.modal-content {
+    background: var(--glass-bg-strong);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--r-lg);
+    box-shadow: var(--sh-lg);
+}
+.modal-header { border-bottom: 1px solid var(--glass-border); padding: var(--s-4) var(--s-5); }
+.modal-footer { border-top: 1px solid var(--glass-border); padding: var(--s-3) var(--s-5); background: transparent; }
+.modal-title { font-weight: 700; font-size: 1.1rem; }
+.modal-backdrop.show { background: rgba(10, 20, 40, 0.42); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+.modal.fade .modal-dialog { transition: transform var(--t-base), opacity var(--t-base); }
+.modal.show .modal-dialog { transform: translateY(0) scale(1); }
+
+/* 3D 光球（登录页品牌区主球，带高光与投影呈现立体感） */
+.auth-orb {
+    position: absolute;
+    top: 8%; right: 6%;
+    width: 220px; height: 220px;
+    border-radius: 50%;
+    background:
+        radial-gradient(circle at 32% 28%, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0) 38%),
+        var(--orb-1);
+    box-shadow:
+        inset -18px -22px 50px rgba(7, 22, 54, 0.55),
+        inset 14px 16px 38px rgba(160, 196, 255, 0.45),
+        0 30px 70px rgba(20, 50, 110, 0.5);
+    animation: orbSpin 18s linear infinite;
+    z-index: 0;
+    pointer-events: none;
+}
+@keyframes orbSpin {
+    0%   { transform: rotate(0deg) translateY(0); }
+    50%  { transform: rotate(180deg) translateY(-10px); }
+    100% { transform: rotate(360deg) translateY(0); }
 }
 
 /* --------------------------------------------------------------------------
