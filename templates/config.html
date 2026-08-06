@@ -2,22 +2,21 @@
 {% block title %}配置管理 - {{ app_title }}{% endblock %}
 
 {% block content %}
-<div class="row mb-3">
-    <div class="col-12">
-        <div class="d-flex justify-content-between align-items-start">
-            <div>
-                <h4><i class="bi bi-gear text-primary"></i> 部门与任务配置管理</h4>
-                <p class="text-muted small">在此上传配置文件来批量设置各部门的结算任务及截止时间节点，或查看当前配置。</p>
-            </div>
-        </div>
+<div class="page-header">
+  <div class="ph-title">
+    <div class="ph-icon"><i class="bi bi-gear"></i></div>
+    <div>
+      <h4 class="mb-0">部门与任务配置管理</h4>
+      <div class="ph-sub">上传配置文件批量设置部门结算任务及截止时间节点</div>
     </div>
+  </div>
 </div>
 
 <!-- 上传配置文件 -->
 <div class="row mb-4">
     <div class="col-lg-8">
         <div class="card">
-            <div class="card-header bg-light">
+            <div class="card-header">
                 <h6 class="mb-0"><i class="bi bi-cloud-arrow-up"></i> 上传配置文件</h6>
             </div>
             <div class="card-body">
@@ -44,7 +43,7 @@
     </div>
     <div class="col-lg-4">
         <div class="card">
-            <div class="card-header bg-light">
+            <div class="card-header">
                 <h6 class="mb-0"><i class="bi bi-clock-history"></i> 配置上传历史</h6>
             </div>
             <div class="card-body p-0">
@@ -72,7 +71,7 @@
 <div class="row">
     <div class="col-12">
         <div class="card">
-            <div class="card-header bg-light">
+            <div class="card-header">
                 <h6 class="mb-0"><i class="bi bi-list-ul"></i> 当前任务配置（共 {{ configs|length }} 项）</h6>
             </div>
             <div class="card-body p-0">
@@ -314,7 +313,7 @@
     function showToast(msg) {
         const toast = document.createElement('div');
         toast.textContent = msg;
-        toast.style.cssText = 'position:fixed;top:20px;right:20px;background:#28a745;color:white;padding:12px 20px;border-radius:6px;z-index:9999;box-shadow:0 2px 8px rgba(0,0,0,.2);font-size:14px;';
+        toast.className = 'ui-toast';
         document.body.appendChild(toast);
         setTimeout(() => toast.remove(), 2500);
     }

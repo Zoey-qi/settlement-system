@@ -82,6 +82,7 @@
     --sidebar-w: 252px;
     --sidebar-w-collapsed: 76px;
     --topbar-h: 62px;
+    --content-max: 1600px;
 }
 
 /* --------------------------------------------------------------------------
@@ -139,7 +140,7 @@ a:hover { color: var(--c-primary-hover); }
 .app-content {
     flex: 1;
     padding: var(--s-6) var(--s-7) var(--s-7);
-    max-width: 1440px;
+    max-width: var(--content-max);
     width: 100%;
     margin: 0 auto;
 }
@@ -297,10 +298,10 @@ a:hover { color: var(--c-primary-hover); }
     padding: 0 var(--s-7);
     z-index: 1030;
     flex-shrink: 0;
-    max-width: 1440px;
+    max-width: var(--content-max);
     margin: 0 auto;
 }
-/* 通栏毛玻璃背景：背景铺满全宽，内容在 1440 居中列内与下方对齐 */
+/* 通栏毛玻璃背景：背景铺满全宽，内容在居中列内与下方对齐 */
 .topbar::before {
     content: "";
     position: fixed;
@@ -801,6 +802,63 @@ a:hover { color: var(--c-primary-hover); }
     .rank-rate { margin-left: auto; }
     .rank-stats { flex-basis: 100%; order: 3; justify-content: flex-start; padding-left: 52px; gap: var(--s-4); }
 }
+
+/* --------------------------------------------------------------------------
+   13.5 操作页统一组件（与边栏主题保持一致）
+   ------------------------------------------------------------------------- */
+/* 灰色卡头统一为白色系，消除与白色 card-header 的观感断层 */
+.card-header.bg-light { background: var(--c-surface); color: var(--c-text); }
+
+/* 工具栏（筛选 / 搜索行） */
+.toolbar { display: flex; align-items: center; gap: var(--s-2); flex-wrap: wrap; }
+.toolbar .form-control, .toolbar .form-select { width: auto; }
+
+/* Tabs：企业级下划线风格，激活态用主色 */
+.nav-tabs { border-bottom: 1px solid var(--c-border); gap: 2px; }
+.nav-tabs .nav-link {
+    border: none; border-bottom: 2px solid transparent; border-radius: 0;
+    color: var(--c-text-2); font-weight: 550; padding: 10px 16px;
+    transition: color var(--t-fast), border-color var(--t-fast), background var(--t-fast);
+}
+.nav-tabs .nav-link:hover { border-color: transparent; color: var(--c-primary); background: var(--c-primary-softer); }
+.nav-tabs .nav-link.active { color: var(--c-primary); border-bottom-color: var(--c-primary); background: transparent; font-weight: 650; }
+
+/* 分页：圆角 + 主色激活 */
+.pagination { gap: 4px; }
+.page-link {
+    border: 1px solid var(--c-border); color: var(--c-text-2);
+    border-radius: var(--r-md) !important; padding: 7px 12px; font-size: 0.9rem;
+    transition: background var(--t-fast), color var(--t-fast), border-color var(--t-fast);
+}
+.page-item.active .page-link { background: var(--c-primary); border-color: var(--c-primary); color: #fff; }
+.page-item.disabled .page-link { color: var(--c-text-3); background: var(--c-surface-2); }
+.page-link:hover { color: var(--c-primary); background: var(--c-primary-soft); }
+.page-item.active .page-link:hover { color: #fff; background: var(--c-primary-hover); }
+
+/* 轻量提示 toast（替代 config 页内联样式） */
+.ui-toast {
+    position: fixed; top: 20px; right: 20px;
+    background: var(--c-success); color: #fff;
+    padding: 12px 20px; border-radius: var(--r-md); z-index: 9999;
+    box-shadow: var(--sh-md); font-size: 0.9rem; font-weight: 550;
+    animation: toastIn .25s ease;
+}
+@keyframes toastIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+
+/* 指引页：深蓝英雄区（复用边栏主色，消除与主题色差） */
+.guide-hero { background: linear-gradient(135deg, var(--c-sidebar-1) 0%, var(--c-sidebar-2) 100%); color: #fff; border: none; }
+.guide-hero h2 { color: #fff; }
+.guide-hero .opacity-75 { color: rgba(255,255,255,0.78); }
+.guide-thead-dark { background: var(--c-sidebar-1); color: #fff; }
+.guide-thead-dark th { color: #fff; border-color: rgba(255,255,255,0.18); }
+
+/* 指引页时间线 / 手风琴 / 编辑态（原内联 <style>，集中管理以便复用与精简） */
+.timeline { border-left: 3px solid var(--c-border-strong); padding-left: 0; }
+.accordion-button:not(.collapsed) { background-color: var(--c-primary-soft); color: var(--c-primary-active); }
+.accordion-button:focus { box-shadow: var(--sh-focus); }
+#guide-content[contenteditable="true"] { outline: 2px dashed var(--c-primary); outline-offset: 4px; border-radius: var(--r-md); padding: 8px; }
+#guide-content[contenteditable="true"] .card { border: 1px dashed var(--c-border-strong) !important; }
+#guide-content[contenteditable="true"]:focus { outline-color: var(--c-success); }
 
 /* --------------------------------------------------------------------------
    14. 页脚 / 滚动条 / 可访问性

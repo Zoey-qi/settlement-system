@@ -2,20 +2,24 @@
 {% block title %}汇总视图 - {{ app_title }}{% endblock %}
 
 {% block content %}
-<div class="row mb-3">
-    <div class="col-12">
-        <div class="d-flex justify-content-between align-items-center flex-wrap">
-            <h4 class="mb-0"><i class="bi bi-clipboard-data text-primary"></i> 提交情况汇总视图</h4>
-            <form class="d-flex align-items-center gap-2" method="get">
-                <input type="month" class="form-control form-control-sm" name="month" value="{{ month }}" style="width:160px">
-                <select class="form-select form-select-sm" name="type" style="width:140px">
-                    <option value="">全部类型</option>
-                    <option value="upstream" {% if st_code == 'upstream' %}selected{% endif %}>对上结算</option>
-                    <option value="downstream" {% if st_code == 'downstream' %}selected{% endif %}>对下结算</option>
-                </select>
-                <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-search"></i></button>
-            </form>
+<div class="page-header">
+    <div class="ph-title">
+        <div class="ph-icon"><i class="bi bi-clipboard-data"></i></div>
+        <div>
+            <h4>提交情况汇总视图</h4>
+            <div class="ph-sub">按月份与结算类型总览各部门提交进度</div>
         </div>
+    </div>
+    <div class="ph-actions">
+        <form class="toolbar" method="get">
+            <input type="month" class="form-control form-control-sm" name="month" value="{{ month }}">
+            <select class="form-select form-select-sm" name="type">
+                <option value="">全部类型</option>
+                <option value="upstream" {% if st_code == 'upstream' %}selected{% endif %}>对上结算</option>
+                <option value="downstream" {% if st_code == 'downstream' %}selected{% endif %}>对下结算</option>
+            </select>
+            <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-search"></i> 查询</button>
+        </form>
     </div>
 </div>
 

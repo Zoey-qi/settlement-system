@@ -2,17 +2,21 @@
 {% block title %}结算金额统计 - {{ app_title }}{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <h3 class="mb-0"><i class="bi bi-cash-stack text-primary"></i> 对上对下结算金额统计</h3>
+<div class="page-header">
+  <div class="ph-title">
+    <div class="ph-icon"><i class="bi bi-cash-stack"></i></div>
     <div>
-      <button class="btn btn-outline-primary btn-sm" onclick="loadAll()"><i class="bi bi-arrow-clockwise"></i> 刷新</button>
-      {% if g.current_user.role == 'admin' %}
-      <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#recordModal" onclick="openCreate()">
-        <i class="bi bi-plus-lg"></i> 新增结算单
-      </button>
-      {% endif %}
+      <h4 class="mb-0">对上对下结算金额统计</h4>
+      <div class="ph-sub">查阅与办理各方向结算单</div>
     </div>
+  </div>
+  <div class="ph-actions">
+    <button class="btn btn-outline-primary btn-sm" onclick="loadAll()"><i class="bi bi-arrow-clockwise"></i> 刷新</button>
+    {% if g.current_user.role == 'admin' %}
+    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#recordModal" onclick="openCreate()">
+      <i class="bi bi-plus-lg"></i> 新增结算单
+    </button>
+    {% endif %}
   </div>
 
   {% if g.current_user.role == 'leader' %}
@@ -39,7 +43,7 @@
     <div class="tab-pane fade show active" id="tab-up">
       <div id="summary-up" class="row g-3 mb-3"></div>
       <div class="card">
-        <div class="card-header bg-light">对上结算明细</div>
+        <div class="card-header">对上结算明细</div>
         <div class="table-responsive">
           <table class="table table-hover table-sm mb-0" id="table-up">
             <thead class="table-light">
@@ -57,7 +61,7 @@
     <div class="tab-pane fade" id="tab-down">
       <div id="summary-down" class="row g-3 mb-3"></div>
       <div class="card">
-        <div class="card-header bg-light">对下结算明细</div>
+        <div class="card-header">对下结算明细</div>
         <div class="table-responsive">
           <table class="table table-hover table-sm mb-0" id="table-down">
             <thead class="table-light">
@@ -72,7 +76,6 @@
       </div>
     </div>
   </div>
-</div>
 
 <!-- 新增/编辑 Modal -->
 <div class="modal fade" id="recordModal" tabindex="-1">

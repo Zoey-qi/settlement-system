@@ -2,32 +2,34 @@
 {% block title %}模板文件 - {{ app_title }}{% endblock %}
 
 {% block content %}
-<div class="row mb-3">
-    <div class="col-12">
-        <div class="d-flex justify-content-between align-items-center flex-wrap">
-            <h4 class="mb-0"><i class="bi bi-file-earmark-spreadsheet text-primary"></i> 模板文件管理</h4>
-            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#uploadModal">
-                <i class="bi bi-cloud-arrow-up"></i> 上传模板
-            </button>
-        </div>
+<div class="page-header">
+  <div class="ph-title">
+    <div class="ph-icon"><i class="bi bi-file-earmark-spreadsheet"></i></div>
+    <div>
+      <h4 class="mb-0">模板文件管理</h4>
+      <div class="ph-sub">按结算类型管理可下载的资料模板</div>
     </div>
+  </div>
+  <div class="ph-actions">
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#uploadModal">
+      <i class="bi bi-cloud-arrow-up"></i> 上传模板
+    </button>
+  </div>
 </div>
 
 <!-- 搜索 -->
-<div class="row mb-3">
-    <div class="col-12">
-        <form class="d-flex gap-2" method="get">
-            <input type="text" class="form-control form-control-sm" name="q" value="{{ search }}" placeholder="搜索模板名称..." style="max-width:300px">
-            <select class="form-select form-select-sm" name="type" style="max-width:150px">
-                <option value="">全部类型</option>
-                <option value="对上结算" {% if st_filter == '对上结算' %}selected{% endif %}>对上结算</option>
-                <option value="对下结算" {% if st_filter == '对下结算' %}selected{% endif %}>对下结算</option>
-                <option value="通用" {% if st_filter == '通用' %}selected{% endif %}>通用</option>
-            </select>
-            <button type="submit" class="btn btn-sm btn-outline-primary"><i class="bi bi-search"></i></button>
-            <a href="{{ url_for('templates_page') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-clockwise"></i></a>
-        </form>
-    </div>
+<div class="mb-3">
+  <form class="toolbar" method="get">
+    <input type="text" class="form-control form-control-sm" name="q" value="{{ search }}" placeholder="搜索模板名称...">
+    <select class="form-select form-select-sm" name="type">
+      <option value="">全部类型</option>
+      <option value="对上结算" {% if st_filter == '对上结算' %}selected{% endif %}>对上结算</option>
+      <option value="对下结算" {% if st_filter == '对下结算' %}selected{% endif %}>对下结算</option>
+      <option value="通用" {% if st_filter == '通用' %}selected{% endif %}>通用</option>
+    </select>
+    <button type="submit" class="btn btn-sm btn-outline-primary"><i class="bi bi-search"></i> 搜索</button>
+    <a href="{{ url_for('templates_page') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-clockwise"></i> 重置</a>
+  </form>
 </div>
 
 <!-- 模板列表 -->
