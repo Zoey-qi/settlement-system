@@ -863,54 +863,8 @@ a:hover { color: var(--c-primary-hover); }
 .modal.fade .modal-dialog { transition: transform var(--t-base), opacity var(--t-base); }
 .modal.show .modal-dialog { transform: translateY(0) scale(1); }
 
-/* 3D 光球（登录页品牌区主球，带高光与投影呈现立体感） */
-.auth-orb {
-    position: absolute;
-    top: 8%; right: 6%;
-    width: 220px; height: 220px;
-    border-radius: 50%;
-    background:
-        radial-gradient(circle at 32% 28%, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0) 38%),
-        var(--orb-1);
-    box-shadow:
-        inset -18px -22px 50px rgba(7, 22, 54, 0.55),
-        inset 14px 16px 38px rgba(160, 196, 255, 0.45),
-        0 30px 70px rgba(20, 50, 110, 0.5);
-    animation: orbSpin 18s linear infinite;
-    z-index: 0;
-    pointer-events: none;
-}
-/* 主球外圈光晕环，增加层次、破除单一感 */
-.auth-orb::after {
-    content: "";
-    position: absolute;
-    inset: -28px;
-    border-radius: 50%;
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    box-shadow: 0 0 0 14px rgba(255, 255, 255, 0.05);
-}
-/* 第二颗小球，反向缓慢浮动，丰富品牌区视觉 */
-.auth-orb-2 {
-    position: absolute;
-    bottom: 12%; right: 26%;
-    width: 116px; height: 116px;
-    border-radius: 50%;
-    background:
-        radial-gradient(circle at 32% 28%, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0) 40%),
-        var(--orb-2);
-    box-shadow:
-        inset -10px -12px 28px rgba(7, 22, 54, 0.5),
-        inset 8px 10px 20px rgba(160, 220, 255, 0.4),
-        0 18px 44px rgba(20, 50, 110, 0.4);
-    animation: orbSpin 24s linear infinite reverse;
-    z-index: 0;
-    pointer-events: none;
-}
-@keyframes orbSpin {
-    0%   { transform: rotate(0deg) translateY(0); }
-    50%  { transform: rotate(180deg) translateY(-10px); }
-    100% { transform: rotate(360deg) translateY(0); }
-}
+/* 登录页 3D 光球已移除：登录页改由全局 .bg-orbs 环境光球统一呈现，
+   与全站其他界面视觉一致，避免品牌区出现突兀的孤立大球。*/
 
 /* --------------------------------------------------------------------------
    13.7 结算金额页：顶部汇总卡（统一玻璃卡 + 迷你指标网格）
