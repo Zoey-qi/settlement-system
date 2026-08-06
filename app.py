@@ -1703,7 +1703,11 @@ DEPARTMENT_LIST = [
 
 # 用户会话：token -> 用户信息 + 过期时间
 USER_SESSION_TTL = 8 * 3600  # 8 小时
-user_sessions = {}  # {token: {'user': dict, 'expire': ts}}
+
+# 本地进程内缓存（避免每次请求都打 DB）
+# Vercel Serverless 容器复用周期内有效；缓存命中可省一次 DB roundtrip
+_session_cache = {}  # {token: (user_dict, expire_ts)}
+_SESSION_CACHE_TTL = 30  # 缓存 30 秒（足够覆盖一连串导航请求）
 
 
 def generate_token():
@@ -1712,18 +1716,118 @@ def generate_token():
 
 
 def parse_token(token):
-    """解析 token，返回用户信息或 None"""
+    """解析 token，返回用户信息或 None（持久化：user_sessions 表）
+
+    - Vercel Serverless 每次冷启动会清空内存，故 session 必须落库
+    - 加一层进程内缓存避免每次请求都打 DB
+    - 命中 DB 后做"滑动续期"（UPDATE expire_ts）
+    """
     if not token:
         return None
-    info = user_sessions.get(token)
-    if not info:
+
+    # 1. 进程内缓存命中
+    now = time.time()
+    cached = _session_cache.get(token)
+    if cached and cached[1] > now:
+        return cached[0]
+
+    # 2. 查 DB
+    try:
+        db = get_db()
+        row = db.execute(
+            'SELECT username, display_name, role, department, phone, expire_ts '
+            'FROM user_sessions WHERE token = ?',
+            (token,)
+        ).fetchone()
+    except Exception as e:
+        print(f'[parse_token] db error: {e}')
         return None
-    if info['expire'] < time.time():
-        user_sessions.pop(token, None)
+
+    if not row:
+        _session_cache.pop(token, None)
         return None
-    # 滑动续期
-    info['expire'] = time.time() + USER_SESSION_TTL
-    return info['user']
+
+    if float(row['expire_ts']) < now:
+        # 过期，主动清理
+        try:
+            db.execute('DELETE FROM user_sessions WHERE token = ?', (token,))
+            db.commit()
+        except Exception:
+            pass
+        _session_cache.pop(token, None)
+        return None
+
+    user = {
+        'username': row['username'],
+        'display_name': row['display_name'],
+        'role': row['role'],
+        'department': row['department'] or '',
+        'phone': row['phone'] or '',
+    }
+
+    # 3. 滑动续期（异步写不阻塞请求路径）
+    new_expire = now + USER_SESSION_TTL
+    try:
+        db.execute('UPDATE user_sessions SET expire_ts = ? WHERE token = ?',
+                   (new_expire, token))
+        db.commit()
+    except Exception as e:
+        # 续期失败不影响本次登录态判断
+        print(f'[parse_token] sliding expire failed: {e}')
+
+    _session_cache[token] = (user, new_expire)
+    return user
+
+
+def save_session(token, user_dict):
+    """把 session 写到 DB（兼容 SQLite / PostgreSQL）"""
+    db = get_db()
+    expire_ts = time.time() + USER_SESSION_TTL
+    # 用 INSERT OR IGNORE / ON CONFLICT 避免重复 token（极小概率）
+    if USE_POSTGRES:
+        db.execute(
+            'INSERT INTO user_sessions (token, username, display_name, role, department, phone, expire_ts) '
+            'VALUES (%s, %s, %s, %s, %s, %s, %s) '
+            'ON CONFLICT (token) DO UPDATE SET expire_ts = EXCLUDED.expire_ts',
+            (token, user_dict['username'], user_dict['display_name'],
+             user_dict['role'], user_dict.get('department') or '',
+             user_dict.get('phone') or '', expire_ts)
+        )
+    else:
+        db.execute(
+            'INSERT OR REPLACE INTO user_sessions (token, username, display_name, role, department, phone, expire_ts) '
+            'VALUES (?, ?, ?, ?, ?, ?, ?)',
+            (token, user_dict['username'], user_dict['display_name'],
+             user_dict['role'], user_dict.get('department') or '',
+             user_dict.get('phone') or '', expire_ts)
+        )
+    db.commit()
+    _session_cache[token] = (
+        {
+            'username': user_dict['username'],
+            'display_name': user_dict['display_name'],
+            'role': user_dict['role'],
+            'department': user_dict.get('department') or '',
+            'phone': user_dict.get('phone') or '',
+        },
+        expire_ts,
+    )
+
+
+def delete_session(token):
+    """从 DB 删 session"""
+    if not token:
+        return
+    try:
+        db = get_db()
+        if USE_POSTGRES:
+            db.execute('DELETE FROM user_sessions WHERE token = %s', (token,))
+        else:
+            db.execute('DELETE FROM user_sessions WHERE token = ?', (token,))
+        db.commit()
+    except Exception as e:
+        print(f'[delete_session] db error: {e}')
+    _session_cache.pop(token, None)
 
 
 def get_current_user():
@@ -1831,10 +1935,7 @@ def api_auth_login():
     user_dict = dict(user)
     # 生成 token
     token = generate_token()
-    user_sessions[token] = {
-        'user': user_dict,
-        'expire': time.time() + USER_SESSION_TTL
-    }
+    save_session(token, user_dict)
 
     # 角色校验：director/liaison 必须匹配 department
     if user_dict['role'] in ('director', 'liaison') and department:
@@ -1866,7 +1967,7 @@ def api_auth_logout():
              or request.form.get('auth_token')
              or request.cookies.get('auth_token'))
     if token:
-        user_sessions.pop(token, None)
+        delete_session(token)
     # 清除浏览器 cookie（让前端即使 token 失效也能登出）
     resp = jsonify({'ok': True, 'message': '已退出登录'})
     resp.set_cookie('auth_token', '', max_age=0, path='/')
@@ -1880,7 +1981,7 @@ def api_auth_logout_ui():
              or request.form.get('auth_token')
              or request.cookies.get('auth_token'))
     if token:
-        user_sessions.pop(token, None)
+        delete_session(token)
     resp = redirect(url_for('login_page'))
     # 强制清除浏览器 cookie
     resp.set_cookie('auth_token', '', max_age=0, path='/')

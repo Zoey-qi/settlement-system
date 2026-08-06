@@ -298,6 +298,18 @@ def init_schema(db):
             description TEXT,
             uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )''',
+        # 用户登录会话表（持久化，跨 Serverless 冷启动）
+        # Vercel Serverless 每次冷启动会清空内存字典，故 session 必须落库
+        f'''CREATE TABLE IF NOT EXISTS user_sessions (
+            token TEXT PRIMARY KEY,
+            username TEXT NOT NULL,
+            display_name TEXT NOT NULL,
+            role TEXT NOT NULL,
+            department TEXT,
+            phone TEXT,
+            expire_ts BIGINT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )''',
     ]
 
     for i, table_sql in enumerate(tables):
