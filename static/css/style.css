@@ -91,10 +91,10 @@
     --glass-blur:      blur(18px) saturate(165%);
     --glass-shadow:    0 8px 30px rgba(16, 32, 64, 0.12), 0 2px 6px rgba(16, 32, 64, 0.06);
 
-    /* === 3D 光球 (Ambient Orbs) 渐变 === */
+    /* === 3D 光球 (Ambient Orbs) 渐变 — 统一冷色系（蓝 / 青 / 靛），避免紫色跳脱 === */
     --orb-1: radial-gradient(circle at 32% 28%, #7fb0f2 0%, #2f5fb0 55%, #173a78 100%);
-    --orb-2: radial-gradient(circle at 30% 30%, #5ee0d4 0%, #14b8a6 55%, #0b6b62 100%);
-    --orb-3: radial-gradient(circle at 35% 30%, #b9a4f0 0%, #6d52c7 55%, #3c2c82 100%);
+    --orb-2: radial-gradient(circle at 30% 30%, #7fd6e8 0%, #2aa6c4 55%, #0e5e75 100%);
+    --orb-3: radial-gradient(circle at 35% 30%, #8fb4f0 0%, #3b5bbf 55%, #21306e 100%);
     --bg-grad: linear-gradient(135deg, #eaf0fb 0%, #eef1f7 45%, #e6ecf7 100%);
 }
 
@@ -880,10 +880,67 @@ a:hover { color: var(--c-primary-hover); }
     z-index: 0;
     pointer-events: none;
 }
+/* 主球外圈光晕环，增加层次、破除单一感 */
+.auth-orb::after {
+    content: "";
+    position: absolute;
+    inset: -28px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    box-shadow: 0 0 0 14px rgba(255, 255, 255, 0.05);
+}
+/* 第二颗小球，反向缓慢浮动，丰富品牌区视觉 */
+.auth-orb-2 {
+    position: absolute;
+    bottom: 12%; right: 26%;
+    width: 116px; height: 116px;
+    border-radius: 50%;
+    background:
+        radial-gradient(circle at 32% 28%, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0) 40%),
+        var(--orb-2);
+    box-shadow:
+        inset -10px -12px 28px rgba(7, 22, 54, 0.5),
+        inset 8px 10px 20px rgba(160, 220, 255, 0.4),
+        0 18px 44px rgba(20, 50, 110, 0.4);
+    animation: orbSpin 24s linear infinite reverse;
+    z-index: 0;
+    pointer-events: none;
+}
 @keyframes orbSpin {
     0%   { transform: rotate(0deg) translateY(0); }
     50%  { transform: rotate(180deg) translateY(-10px); }
     100% { transform: rotate(360deg) translateY(0); }
+}
+
+/* --------------------------------------------------------------------------
+   13.7 结算金额页：顶部汇总卡（统一玻璃卡 + 迷你指标网格）
+   ------------------------------------------------------------------------- */
+.settlement-summary .ss-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--s-3);
+}
+.ss-cell {
+    text-align: center;
+    padding: var(--s-3) var(--s-2);
+    border-radius: var(--r-md);
+    background: var(--c-surface-2);
+    border: 1px solid var(--c-border);
+    display: flex; flex-direction: column; gap: 2px;
+}
+.ss-cell .ss-label { font-size: 0.74rem; color: var(--c-text-3); font-weight: 500; }
+.ss-cell .ss-value {
+    font-size: 1.18rem; font-weight: 750; color: var(--c-text);
+    font-variant-numeric: tabular-nums; line-height: 1.15; letter-spacing: -0.01em;
+}
+.ss-cell .ss-sub { font-size: 0.7rem; color: var(--c-text-3); }
+.ss-cell.accent { background: var(--c-primary-soft); border-color: rgba(47,95,176,0.18); }
+.ss-cell.accent .ss-value { color: var(--c-primary); }
+.ss-cell .ss-value.text-success { color: var(--c-success); }
+.ss-cell .ss-value.text-warning { color: var(--c-warning); }
+.settlement-summary .card-header i { margin-right: 4px; }
+@media (max-width: 575px) {
+    .settlement-summary .ss-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
 /* --------------------------------------------------------------------------

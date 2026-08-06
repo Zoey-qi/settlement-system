@@ -18,64 +18,89 @@
     </button>
     {% endif %}
   </div>
+</div>
 
-  {% if g.current_user.role == 'leader' %}
-  <div class="alert alert-info py-2 small">
-    <i class="bi bi-info-circle"></i> 您当前以「项目领导班子」身份登录，可查阅/下载已办理完成的结算单。
-  </div>
-  {% endif %}
+{% if g.current_user.role == 'leader' %}
+<div class="alert alert-info py-2 small mb-4">
+  <i class="bi bi-info-circle"></i> 您当前以「项目领导班子」身份登录，可查阅/下载已办理完成的结算单。
+</div>
+{% endif %}
 
-  <!-- Tab 切换 -->
-  <ul class="nav nav-tabs mb-3" id="dirTab">
-    <li class="nav-item">
-      <a class="nav-link active" data-bs-toggle="tab" href="#tab-up">
-        <i class="bi bi-arrow-up-circle"></i> 对上结算（向总包收）
-      </a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link" data-bs-toggle="tab" href="#tab-down">
-        <i class="bi bi-arrow-down-circle"></i> 对下结算（向分包付）
-      </a>
-    </li>
-  </ul>
-
-  <div class="tab-content">
-    <div class="tab-pane fade show active" id="tab-up">
-      <div id="summary-up" class="row g-3 mb-3"></div>
-      <div class="card">
-        <div class="card-header">对上结算明细</div>
-        <div class="table-responsive">
-          <table class="table table-hover table-sm mb-0" id="table-up">
-            <thead class="table-light">
-              <tr>
-                <th>项目名称</th><th>对方单位</th><th>合同号</th><th>金额</th>
-                <th>结算日期</th><th>状态</th><th>备注</th><th>附件</th><th>操作</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </div>
+<!-- 汇总总览：对上 / 对下 常驻顶部，一眼掌握整体规模 -->
+<div class="row g-3 mb-4">
+  <div class="col-12 col-xl-6">
+    <div class="card settlement-summary settlement-up">
+      <div class="card-header">
+        <span><i class="bi bi-arrow-up-circle-fill text-primary"></i> 对上结算（向总包收）</span>
+        <small class="text-muted" id="up-loading"><span class="spinner-border spinner-border-sm"></span></small>
       </div>
-    </div>
-
-    <div class="tab-pane fade" id="tab-down">
-      <div id="summary-down" class="row g-3 mb-3"></div>
-      <div class="card">
-        <div class="card-header">对下结算明细</div>
-        <div class="table-responsive">
-          <table class="table table-hover table-sm mb-0" id="table-down">
-            <thead class="table-light">
-              <tr>
-                <th>项目名称</th><th>对方单位</th><th>合同号</th><th>金额</th>
-                <th>结算日期</th><th>状态</th><th>备注</th><th>附件</th><th>操作</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </div>
+      <div class="card-body">
+        <div class="ss-grid" id="summary-up"></div>
       </div>
     </div>
   </div>
+  <div class="col-12 col-xl-6">
+    <div class="card settlement-summary settlement-down">
+      <div class="card-header">
+        <span><i class="bi bi-arrow-down-circle-fill text-info"></i> 对下结算（向分包付）</span>
+        <small class="text-muted" id="down-loading"><span class="spinner-border spinner-border-sm"></span></small>
+      </div>
+      <div class="card-body">
+        <div class="ss-grid" id="summary-down"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Tab 切换：明细 -->
+<ul class="nav nav-tabs mb-3" id="dirTab">
+  <li class="nav-item">
+    <a class="nav-link active" data-bs-toggle="tab" href="#tab-up">
+      <i class="bi bi-arrow-up-circle"></i> 对上结算明细（向总包收）
+    </a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" data-bs-toggle="tab" href="#tab-down">
+      <i class="bi bi-arrow-down-circle"></i> 对下结算明细（向分包付）
+    </a>
+  </li>
+</ul>
+
+<div class="tab-content">
+  <div class="tab-pane fade show active" id="tab-up">
+    <div class="card">
+      <div class="card-header">对上结算明细</div>
+      <div class="table-responsive">
+        <table class="table table-hover table-sm mb-0" id="table-up">
+          <thead class="table-light">
+            <tr>
+              <th>项目名称</th><th>对方单位</th><th>合同号</th><th>金额</th>
+              <th>结算日期</th><th>状态</th><th>备注</th><th>附件</th><th>操作</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-pane fade" id="tab-down">
+    <div class="card">
+      <div class="card-header">对下结算明细</div>
+      <div class="table-responsive">
+        <table class="table table-hover table-sm mb-0" id="table-down">
+          <thead class="table-light">
+            <tr>
+              <th>项目名称</th><th>对方单位</th><th>合同号</th><th>金额</th>
+              <th>结算日期</th><th>状态</th><th>备注</th><th>附件</th><th>操作</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- 新增/编辑 Modal -->
 <div class="modal fade" id="recordModal" tabindex="-1">
@@ -200,25 +225,27 @@ async function loadSummary() {
   ['up', 'down'].forEach(dir => {
     const s = r.data[dir === 'up' ? 'upstream' : 'downstream'];
     const el = document.getElementById('summary-' + dir);
-    const color = dir === 'up' ? 'success' : 'primary';
+    const loading = document.getElementById(dir === 'up' ? 'up-loading' : 'down-loading');
+    if (loading) loading.innerHTML = '';
     el.innerHTML = `
-      <div class="col-md-3"><div class="card border-${color}"><div class="card-body">
-        <small class="text-muted">累计总金额</small>
-        <h4 class="text-${color} mb-0">${s.total_count} 笔</h4>
-        <h5 class="text-${color} mb-0">${fmt(s.total_amount)}</h5>
-      </div></div></div>
-      <div class="col-md-3"><div class="card"><div class="card-body">
-        <small class="text-muted">已完成金额</small>
-        <h5 class="mb-0">${fmt(s.completed_amount)}</h5>
-      </div></div></div>
-      <div class="col-md-3"><div class="card"><div class="card-body">
-        <small class="text-muted">办理中金额</small>
-        <h5 class="mb-0">${fmt(s.pending_amount)}</h5>
-      </div></div></div>
-      <div class="col-md-3"><div class="card"><div class="card-body">
-        <small class="text-muted">本月新增</small>
-        <h5 class="mb-0">${s.month_count} 笔 / ${fmt(s.month_amount)}</h5>
-      </div></div></div>
+      <div class="ss-cell accent">
+        <span class="ss-label">累计金额</span>
+        <span class="ss-value">${fmt(s.total_amount)}</span>
+        <span class="ss-sub">${s.total_count} 笔</span>
+      </div>
+      <div class="ss-cell">
+        <span class="ss-label">已完成</span>
+        <span class="ss-value text-success">${fmt(s.completed_amount)}</span>
+      </div>
+      <div class="ss-cell">
+        <span class="ss-label">办理中</span>
+        <span class="ss-value text-warning">${fmt(s.pending_amount)}</span>
+      </div>
+      <div class="ss-cell">
+        <span class="ss-label">本月新增</span>
+        <span class="ss-value">${fmt(s.month_amount)}</span>
+        <span class="ss-sub">${s.month_count} 笔</span>
+      </div>
     `;
   });
 }
