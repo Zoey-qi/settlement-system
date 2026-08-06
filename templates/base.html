@@ -6,169 +6,122 @@
     <title>{% block title %}{{ app_title }}{% endblock %}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-    {# === Professional 设计风格：Poppins 主字 + Noto Sans SC 中文回退 === #}
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
 </head>
 <body>
-    <!-- 顶部导航 -->
-    <nav class="navbar navbar-expand-lg navbar-dark main-nav">
-        <div class="container-fluid">
-            <a class="navbar-brand d-flex align-items-center" href="{{ url_for('dashboard') }}">
-                <i class="bi bi-building-fill-gear me-2"></i>
-                <span>{{ app_title }}</span>
-            </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMain">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navMain">
-                <ul class="navbar-nav ms-auto">
-                    {# === 项目领导班子：仪表盘 + 结算金额 === #}
-                    {% if g.current_user and g.current_user.role == 'leader' %}
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}">
-                            <i class="bi bi-speedometer2"></i> 仪表盘
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'settlement_page' %}active{% endif %}" href="{{ url_for('settlement_page') }}">
-                            <i class="bi bi-cash-stack"></i> 结算金额
-                        </a>
-                    </li>
+{% set nav_labels = {
+    'dashboard': '仪表盘', 'submit': '提交数据', 'summary': '汇总视图',
+    'settlement_page': '结算金额', 'templates_page': '模板文件', 'config_page': '配置管理',
+    'history': '历史记录', 'guide': '使用指引', 'system_status': '系统状态', 'login_page': '登录'
+} %}
+{% set authed = g.current_user and g.current_user.role %}
 
-                    {# === 管理员：全权 === #}
-                    {% elif g.current_user.role == 'admin' %}
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}">
-                            <i class="bi bi-speedometer2"></i> 仪表盘
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint in ['submit'] %}active{% endif %}" href="{{ url_for('submit') }}">
-                            <i class="bi bi-cloud-arrow-up"></i> 提交数据
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'summary' %}active{% endif %}" href="{{ url_for('summary') }}">
-                            <i class="bi bi-clipboard-data"></i> 汇总视图
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'settlement_page' %}active{% endif %}" href="{{ url_for('settlement_page') }}">
-                            <i class="bi bi-cash-stack"></i> 结算金额
-                        </a>
-                    </li>
-                    {# 注意：部门文件模块已移除（用户要求"不用再加部门文件模块"），此处不再显示 #}
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'templates_page' %}active{% endif %}" href="{{ url_for('templates_page') }}">
-                            <i class="bi bi-file-earmark-spreadsheet"></i> 模板文件
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'config_page' %}active{% endif %}" href="{{ url_for('config_page') }}">
-                            <i class="bi bi-gear"></i> 配置管理
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'history' %}active{% endif %}" href="{{ url_for('history') }}">
-                            <i class="bi bi-clock-history"></i> 历史记录
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'guide' %}active{% endif %}" href="{{ url_for('guide') }}">
-                            <i class="bi bi-book"></i> 使用指引
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'system_status' %}active{% endif %}" href="{{ url_for('system_status') }}">
-                            <i class="bi bi-server"></i> 系统状态
-                        </a>
-                    </li>
-
-                    {# === 部门主任 / 联络人：仪表盘 + 提交数据 + 模板 + 历史 + 使用指引 === #}
-                    {% else %}
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}">
-                            <i class="bi bi-speedometer2"></i> 仪表盘
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint in ['submit'] %}active{% endif %}" href="{{ url_for('submit') }}">
-                            <i class="bi bi-cloud-arrow-up"></i> 提交数据
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'summary' %}active{% endif %}" href="{{ url_for('summary') }}">
-                            <i class="bi bi-clipboard-data"></i> 汇总视图
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'history' %}active{% endif %}" href="{{ url_for('history') }}">
-                            <i class="bi bi-clock-history"></i> 历史记录
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'guide' %}active{% endif %}" href="{{ url_for('guide') }}">
-                            <i class="bi bi-book"></i> 使用指引
-                        </a>
-                    </li>
-                    {% endif %}
-                </ul>
-                {% if g.get('current_user') %}
-                <ul class="navbar-nav ms-2">
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
-                            <i class="bi bi-person-circle"></i>
-                            {{ g.current_user.display_name }}
-                            <span class="badge bg-secondary ms-1">{{ {'leader':'班子','admin':'管理员','director':'主任','liaison':'联络人'}.get(g.current_user.role, g.current_user.role) }}</span>
-                        </a>
-                        <ul class="dropdown-menu dropdown-menu-end">
-                            <li><span class="dropdown-item-text text-muted small">
-                                <i class="bi bi-building"></i> {{ g.current_user.department or '—' }}
-                            </span></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="#" onclick="event.preventDefault(); try { localStorage.removeItem('auth_token'); localStorage.removeItem('current_user'); document.cookie = 'auth_token=; path=/; max-age=0'; } catch (e) {} document.getElementById('logout-form').submit();">
-                                <i class="bi bi-box-arrow-right"></i> 退出登录
-                            </a></li>
-                        </ul>
-                    </li>
-                </ul>
-                <form id="logout-form" method="post" action="/api/auth/logout-ui" style="display:none;"></form>
-                {% endif %}
-            </div>
+{% if authed %}
+{# ====================== 已登录：侧边栏应用骨架 ====================== #}
+<div class="app-shell" id="appShell">
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <div class="sidebar-logo"><i class="bi bi-building-fill-gear"></i></div>
+            <div class="sidebar-brand-text"><strong>帕基尔结算</strong><span>月度管理系统</span></div>
         </div>
-    </nav>
+        <nav class="sidebar-nav">
+            <div class="nav-section">主导航</div>
+            {% if g.current_user.role == 'leader' %}
+            <a class="side-link {% if request.endpoint == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}"><i class="bi bi-speedometer2"></i><span>仪表盘</span></a>
+            <a class="side-link {% if request.endpoint == 'settlement_page' %}active{% endif %}" href="{{ url_for('settlement_page') }}"><i class="bi bi-cash-stack"></i><span>结算金额</span></a>
+            {% elif g.current_user.role == 'admin' %}
+            <a class="side-link {% if request.endpoint == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}"><i class="bi bi-speedometer2"></i><span>仪表盘</span></a>
+            <a class="side-link {% if request.endpoint in ['submit'] %}active{% endif %}" href="{{ url_for('submit') }}"><i class="bi bi-cloud-arrow-up"></i><span>提交数据</span></a>
+            <a class="side-link {% if request.endpoint == 'summary' %}active{% endif %}" href="{{ url_for('summary') }}"><i class="bi bi-clipboard-data"></i><span>汇总视图</span></a>
+            <a class="side-link {% if request.endpoint == 'settlement_page' %}active{% endif %}" href="{{ url_for('settlement_page') }}"><i class="bi bi-cash-stack"></i><span>结算金额</span></a>
+            <a class="side-link {% if request.endpoint == 'templates_page' %}active{% endif %}" href="{{ url_for('templates_page') }}"><i class="bi bi-file-earmark-spreadsheet"></i><span>模板文件</span></a>
+            <a class="side-link {% if request.endpoint == 'config_page' %}active{% endif %}" href="{{ url_for('config_page') }}"><i class="bi bi-gear"></i><span>配置管理</span></a>
+            <a class="side-link {% if request.endpoint == 'history' %}active{% endif %}" href="{{ url_for('history') }}"><i class="bi bi-clock-history"></i><span>历史记录</span></a>
+            <a class="side-link {% if request.endpoint == 'guide' %}active{% endif %}" href="{{ url_for('guide') }}"><i class="bi bi-book"></i><span>使用指引</span></a>
+            <a class="side-link {% if request.endpoint == 'system_status' %}active{% endif %}" href="{{ url_for('system_status') }}"><i class="bi bi-server"></i><span>系统状态</span></a>
+            {% else %}
+            <a class="side-link {% if request.endpoint == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}"><i class="bi bi-speedometer2"></i><span>仪表盘</span></a>
+            <a class="side-link {% if request.endpoint in ['submit'] %}active{% endif %}" href="{{ url_for('submit') }}"><i class="bi bi-cloud-arrow-up"></i><span>提交数据</span></a>
+            <a class="side-link {% if request.endpoint == 'summary' %}active{% endif %}" href="{{ url_for('summary') }}"><i class="bi bi-clipboard-data"></i><span>汇总视图</span></a>
+            <a class="side-link {% if request.endpoint == 'history' %}active{% endif %}" href="{{ url_for('history') }}"><i class="bi bi-clock-history"></i><span>历史记录</span></a>
+            <a class="side-link {% if request.endpoint == 'guide' %}active{% endif %}" href="{{ url_for('guide') }}"><i class="bi bi-book"></i><span>使用指引</span></a>
+            {% endif %}
+        </nav>
+        <div class="sidebar-user">
+            <div class="user-card">
+                <div class="avatar">{{ (g.current_user.display_name or '用')[0:1] }}</div>
+                <div class="user-meta">
+                    <span class="uname">{{ g.current_user.display_name }}</span>
+                    <span class="urole">{{ {'leader':'项目班子','admin':'系统管理员','director':'部门主任','liaison':'部门联络人'}.get(g.current_user.role, g.current_user.role) }}{% if g.current_user.department %} · {{ g.current_user.department }}{% endif %}</span>
+                </div>
+            </div>
+            <button class="logout-btn" onclick="doLogout()"><i class="bi bi-box-arrow-right"></i><span>退出登录</span></button>
+            <form id="logout-form" method="post" action="/api/auth/logout-ui" style="display:none;"></form>
+        </div>
+    </aside>
+    <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
 
-    <!-- Flash 消息 -->
-    <div class="container-fluid mt-3">
+    <div class="app-main">
+        <header class="topbar">
+            <div class="topbar-left">
+                <button class="icon-btn d-lg-none" type="button" onclick="toggleSidebar()" aria-label="菜单"><i class="bi bi-list"></i></button>
+                <button class="icon-btn d-none d-lg-inline-flex" type="button" onclick="toggleCollapse()" aria-label="收起侧边栏"><i class="bi bi-sidebar"></i></button>
+                <span class="topbar-crumb">首页 / <b>{{ nav_labels.get(request.endpoint, '仪表盘') }}</b></span>
+            </div>
+            <div class="topbar-right">
+                <span class="live-pill"><span class="live-dot"></span>数据实时 · <span id="live-clock">--:--:--</span></span>
+                <button class="icon-btn" type="button" onclick="location.reload()" aria-label="刷新"><i class="bi bi-arrow-clockwise"></i></button>
+            </div>
+        </header>
+
+        <main class="app-content">
+{% else %}
+{# ====================== 未登录：品牌化登录容器 ====================== #}
+<div class="auth-shell">
+    <div class="container-fluid py-3">
+{% endif %}
+
         {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
         {% for category, message in messages %}
-        <div class="alert alert-{{ 'danger' if category == 'danger' else 'success' if category == 'success' else 'info' if category == 'info' else 'warning' }} alert-dismissible fade show" role="alert">
+        <div class="alert alert-{{ 'danger' if category == 'danger' else 'success' if category == 'success' else 'info' if category == 'info' else 'warning' }}{{ ' mx-auto mb-3' if not authed else ' mb-3' }}" style="{{ 'max-width:460px;' if not authed else '' }}" role="alert">
             <i class="bi bi-{{ 'exclamation-triangle' if category == 'danger' else 'check-circle' if category == 'success' else 'info-circle' if category == 'info' else 'exclamation-circle' }}"></i>
-            {{ message }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            <span>{{ message }}</span>
         </div>
         {% endfor %}
         {% endif %}
         {% endwith %}
-    </div>
 
-    <!-- 主内容 -->
-    <div class="container-fluid main-content">
         {% block content %}{% endblock %}
+
+{% if authed %}
+        </main>
+        <footer class="app-footer">
+            菲律宾帕基尔抽蓄基础处理工程项目 · 合同管理部 · 月度结算管理系统
+        </footer>
     </div>
+</div>
+{% else %}
+    </div>
+</div>
+{% endif %}
 
-    <!-- 页脚 -->
-    <footer class="footer mt-auto py-3">
-        <div class="container-fluid text-center">
-            <span class="text-muted">菲律宾帕基尔抽蓄基础处理工程项目 &middot; 合同管理部 &middot; 月度结算管理系统</span>
-        </div>
-    </footer>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    {% block scripts %}{% endblock %}
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+function doLogout() {
+  try { localStorage.removeItem('auth_token'); localStorage.removeItem('current_user'); document.cookie = 'auth_token=; path=/; max-age=0'; } catch (e) {}
+  document.getElementById('logout-form').submit();
+}
+function toggleSidebar() { const s = document.getElementById('appShell'); if (s) s.classList.toggle('sidebar-open'); }
+function toggleCollapse() { const s = document.getElementById('appShell'); if (s) s.classList.toggle('sidebar-collapsed'); }
+(function () {
+  const el = document.getElementById('live-clock');
+  if (!el) return;
+  const pad = n => (n < 10 ? '0' + n : '' + n);
+  function tick() { const d = new Date(); el.textContent = pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()); }
+  tick(); setInterval(tick, 1000);
+})();
+</script>
+{% block scripts %}{% endblock %}
 </body>
 </html>

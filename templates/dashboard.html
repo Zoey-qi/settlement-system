@@ -2,20 +2,23 @@
 {% block title %}仪表盘 - {{ app_title }}{% endblock %}
 
 {% block content %}
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="d-flex justify-content-between align-items-center flex-wrap mb-3">
-            <h4 class="mb-0"><i class="bi bi-speedometer2 text-primary"></i> 结算仪表盘
-                {% if user_dept %}<small class="text-muted ms-2">（{{ user_dept }}）</small>{% endif %}
+<div class="page-header">
+    <div class="ph-title">
+        <div class="ph-icon"><i class="bi bi-speedometer2"></i></div>
+        <div>
+            <h4 class="mb-0">结算仪表盘
+                {% if user_dept %}<span class="ph-sub">（{{ user_dept }}）</span>{% endif %}
             </h4>
-            <form class="d-flex align-items-center gap-2" method="get">
-                <label class="form-label mb-0 text-muted">结算月份：</label>
-                <input type="month" class="form-control form-control-sm" name="month" value="{{ month }}" style="width:160px">
-                {% if user_dept %}<input type="hidden" name="view" value="{{ view_mode }}">{% endif %}
-                <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-search"></i> 查询</button>
-                <a href="{{ url_for('dashboard') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-clockwise"></i> 本月</a>
-            </form>
         </div>
+    </div>
+    <div class="ph-actions">
+        <form class="d-flex align-items-center gap-2" method="get">
+            <label class="form-label mb-0 text-muted">结算月份：</label>
+            <input type="month" class="form-control form-control-sm" name="month" value="{{ month }}" style="width:160px">
+            {% if user_dept %}<input type="hidden" name="view" value="{{ view_mode }}">{% endif %}
+            <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-search"></i> 查询</button>
+            <a href="{{ url_for('dashboard') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-clockwise"></i> 本月</a>
+        </form>
     </div>
 </div>
 

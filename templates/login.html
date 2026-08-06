@@ -2,88 +2,131 @@
 {% block title %}登录 - {{ app_title }}{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center mt-5">
-  <div class="col-md-6 col-lg-5">
-    <div class="card shadow-sm">
-      <div class="card-header bg-primary text-white text-center">
-        <h4 class="mb-0"><i class="bi bi-shield-lock-fill"></i> 用户登录</h4>
-      </div>
-      <div class="card-body p-4">
-        <p class="text-muted text-center mb-4">
-          帕基尔项目月度结算管理系统<br>
-          <small>请输入账号、密码登录</small>
-        </p>
+<div class="auth-split">
+    <!-- 左侧品牌区 -->
+    <aside class="auth-aside">
+        <div class="auth-brand">
+            <div class="sidebar-logo"><i class="bi bi-building-fill-gear"></i></div>
+            <div>
+                <div style="font-weight:700; font-size:1.05rem;">帕基尔项目月度结算管理系统</div>
+                <div style="opacity:.75; font-size:.8rem;">菲律宾帕基尔抽蓄基础处理工程 · 合同管理部</div>
+            </div>
+        </div>
 
-        <div id="alert-box"></div>
+        <div class="auth-feature">
+            <h1>月度结算，<br>一目了然。</h1>
+            <p>对上申报与对下审核、各部门完成进度、结算金额总览——一个系统，全部掌握。</p>
+            <ul>
+                <li><i class="bi bi-trophy-fill"></i> 全部门完成率实时排名，相互激励</li>
+                <li><i class="bi bi-clock-history"></i> 截止日期与逾期状态自动提醒</li>
+                <li><i class="bi bi-shield-lock-fill"></i> 分角色权限，数据各司其职</li>
+                <li><i class="bi bi-file-earmark-spreadsheet"></i> 模板文件集中管理，一键下载</li>
+            </ul>
+            <div class="auth-stats">
+                <div class="auth-stat"><b>8</b><span>参与部门</span></div>
+                <div class="auth-stat"><b>14</b><span>任务配置</span></div>
+                <div class="auth-stat"><b>35</b><span>上报条目</span></div>
+            </div>
+        </div>
 
-        <form id="login-form">
-          <div class="mb-3">
-            <label class="form-label">账号</label>
-            <select class="form-select" id="username" required>
-              <option value="">— 请选择身份 —</option>
-              <optgroup label="项目领导班子">
-                <option value="leader">项目领导班子</option>
-              </optgroup>
-              <optgroup label="系统管理员">
-                <option value="admin">系统管理员</option>
-              </optgroup>
-              <optgroup label="部门主任">
-                <option value="director_scdd">生产调度部主任</option>
-                <option value="director_gczljs">工程质量技术部主任</option>
-                <option value="director_aqhbb">安全环保部主任</option>
-                <option value="director_sbwzb">设备物资部主任</option>
-                <option value="director_rlzyb">人力资源部主任</option>
-                <option value="director_zhbgs">综合办公室主任</option>
-              </optgroup>
-              <optgroup label="部门联络人">
-                <option value="liaison_scdd">生产调度部联络人</option>
-                <option value="liaison_gczljs">工程质量技术部联络人</option>
-                <option value="liaison_aqhbb">安全环保部联络人</option>
-                <option value="liaison_sbwzb">设备物资部联络人</option>
-                <option value="liaison_rlzyb">人力资源部联络人</option>
-                <option value="liaison_zhbgs">综合办公室联络人</option>
-              </optgroup>
-            </select>
-          </div>
+        <div class="auth-foot">© 2026 合同管理部 · 内部系统 · 请勿外传账号密码</div>
+    </aside>
 
-          <div class="mb-3" id="department-wrap" style="display:none;">
-            <label class="form-label">所属部门</label>
-            <select class="form-select" id="department">
-              <option value="">— 请选择部门 —</option>
-              {% for d in departments %}
-              <option value="{{ d }}">{{ d }}</option>
-              {% endfor %}
-            </select>
-          </div>
+    <!-- 右侧登录卡片 -->
+    <div class="auth-main">
+        <div class="auth-card">
+            <div class="auth-logo-mobile d-flex align-items-center justify-content-center gap-2 mb-3">
+                <div class="sidebar-logo"><i class="bi bi-building-fill-gear"></i></div>
+                <strong>帕基尔结算系统</strong>
+            </div>
 
-          <div class="mb-3">
-            <label class="form-label">密码</label>
-            <input type="password" class="form-control" id="password" placeholder="请输入密码" required>
-          </div>
+            <div class="auth-head">
+                <div class="auth-badge"><i class="bi bi-shield-lock-fill"></i></div>
+                <h4 class="auth-title">用户登录</h4>
+                <p class="auth-sub">请输入账号与密码登录系统</p>
+            </div>
 
-          <button type="submit" class="btn btn-primary w-100" id="submit-btn">
-            <i class="bi bi-box-arrow-in-right"></i> 登录
-          </button>
-        </form>
+            <div id="alert-box"></div>
 
-        <hr>
-        <details class="text-muted small">
-          <summary>密码说明（参考 "部门权限密码表.xlsx"）</summary>
-          <ul class="mt-2 mb-0">
-            <li>领导班子：<code>pakil123456</code></li>
-            <li>管理员：<code>htglb888</code></li>
-            <li>生产调度部主任：<code>scddb111</code></li>
-            <li>工程质量技术部主任：<code>gczljsb222</code></li>
-            <li>安全环保部主任：<code>aqhbb333</code></li>
-            <li>设备物资部主任：<code>sbwzb444</code></li>
-            <li>人力资源部主任：<code>rlzyb555</code></li>
-            <li>综合办公室主任：<code>zhbgs666</code></li>
-            <li>联络人密码：另行发放，暂用占位符</li>
-          </ul>
-        </details>
-      </div>
+            <form id="login-form">
+                <div class="mb-3">
+                    <label class="form-label">账号</label>
+                    <div class="input-icon">
+                        <i class="bi bi-person-badge lead-icon"></i>
+                        <select class="form-select" id="username" required>
+                            <option value="">— 请选择身份 —</option>
+                            <optgroup label="项目领导班子">
+                                <option value="leader">项目领导班子</option>
+                            </optgroup>
+                            <optgroup label="系统管理员">
+                                <option value="admin">系统管理员</option>
+                            </optgroup>
+                            <optgroup label="部门主任">
+                                <option value="director_scdd">生产调度部主任</option>
+                                <option value="director_gczljs">工程质量技术部主任</option>
+                                <option value="director_aqhbb">安全环保部主任</option>
+                                <option value="director_sbwzb">设备物资部主任</option>
+                                <option value="director_rlzyb">人力资源部主任</option>
+                                <option value="director_zhbgs">综合办公室主任</option>
+                            </optgroup>
+                            <optgroup label="部门联络人">
+                                <option value="liaison_scdd">生产调度部联络人</option>
+                                <option value="liaison_gczljs">工程质量技术部联络人</option>
+                                <option value="liaison_aqhbb">安全环保部联络人</option>
+                                <option value="liaison_sbwzb">设备物资部联络人</option>
+                                <option value="liaison_rlzyb">人力资源部联络人</option>
+                                <option value="liaison_zhbgs">综合办公室联络人</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="mb-3" id="department-wrap" style="display:none;">
+                    <label class="form-label">所属部门</label>
+                    <div class="input-icon">
+                        <i class="bi bi-building lead-icon"></i>
+                        <select class="form-select" id="department">
+                            <option value="">— 请选择部门 —</option>
+                            {% for d in departments %}
+                            <option value="{{ d }}">{{ d }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label">密码</label>
+                    <div class="input-icon password-wrap">
+                        <i class="bi bi-lock lead-icon"></i>
+                        <input type="password" class="form-control" id="password" placeholder="请输入密码" required>
+                        <button type="button" class="password-toggle" id="toggle-pwd" aria-label="显示 / 隐藏密码" title="显示 / 隐藏密码">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100" id="submit-btn" style="height:46px;">
+                    <i class="bi bi-box-arrow-in-right"></i> 登录
+                </button>
+            </form>
+
+            <hr>
+            <details class="auth-tip">
+                <summary>密码说明（参考 "部门权限密码表.xlsx"）</summary>
+                <ul class="mt-2 mb-0">
+                    <li>领导班子：<code>pakil123456</code></li>
+                    <li>管理员：<code>htglb888</code></li>
+                    <li>生产调度部主任：<code>scddb111</code></li>
+                    <li>工程质量技术部主任：<code>gczljsb222</code></li>
+                    <li>安全环保部主任：<code>aqhbb333</code></li>
+                    <li>设备物资部主任：<code>sbwzb444</code></li>
+                    <li>人力资源部主任：<code>rlzyb555</code></li>
+                    <li>综合办公室主任：<code>zhbgs666</code></li>
+                    <li>联络人密码：另行发放，暂用占位符</li>
+                </ul>
+            </details>
+        </div>
     </div>
-  </div>
 </div>
 {% endblock %}
 
@@ -93,7 +136,6 @@
 try {
   localStorage.removeItem('auth_token');
   localStorage.removeItem('current_user');
-  // 也清掉可能的旧 cookie（防止残留）
   document.cookie = 'auth_token=; path=/; max-age=0';
 } catch (e) {}
 
@@ -114,6 +156,19 @@ document.getElementById('username').addEventListener('change', function() {
   } else {
     deptWrap.style.display = 'none';
     deptSel.value = '';
+  }
+});
+
+// 密码显隐切换
+document.getElementById('toggle-pwd').addEventListener('click', function() {
+  const pwd = document.getElementById('password');
+  const icon = this.querySelector('i');
+  if (pwd.type === 'password') {
+    pwd.type = 'text';
+    icon.className = 'bi bi-eye-slash';
+  } else {
+    pwd.type = 'password';
+    icon.className = 'bi bi-eye';
   }
 });
 
@@ -141,12 +196,10 @@ document.getElementById('login-form').addEventListener('submit', async function(
       return;
     }
 
-    // 存 token 到 localStorage（前端用），同时存 cookie（页面导航用）
     localStorage.setItem('auth_token', data.token);
     localStorage.setItem('current_user', JSON.stringify(data.user));
     document.cookie = `auth_token=${data.token}; path=/; max-age=${data.expires_in}`;
 
-    // 根据角色跳转：leader → /settlement，其它 → /
     const nextPath = data.next || '/';
     window.location.href = nextPath;
   } catch (err) {
