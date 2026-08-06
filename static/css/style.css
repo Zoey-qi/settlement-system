@@ -727,6 +727,69 @@ a:hover { color: var(--c-primary-hover); }
 .auth-stat b { display: block; color: #fff; font-size: 1.3rem; line-height: 1.15; }
 .auth-stat span { color: var(--c-sidebar-text); font-size: 0.78rem; }
 
+/* 排名榜（leaderboard · 卡片式排行） */
+.rank-board { display: flex; flex-direction: column; }
+.rank-row {
+    display: flex; align-items: center; gap: var(--s-4);
+    padding: var(--s-3) var(--s-2);
+    border: 1px solid transparent; border-radius: var(--r-md);
+    transition: background var(--t-base), box-shadow var(--t-base);
+}
+.rank-row + .rank-row { border-top: 1px solid var(--c-border); border-radius: 0; }
+.rank-row:hover { background: var(--c-surface-2); }
+.rank-row.is-champion {
+    background: linear-gradient(90deg, rgba(246,195,67,0.20), rgba(246,195,67,0.02));
+}
+.rank-row.is-mine {
+    background: var(--c-primary-soft);
+    border-color: var(--c-primary);
+    box-shadow: var(--sh-focus);
+}
+.rank-row.is-champion + .rank-row { border-top-color: transparent; }
+
+.rank-medal {
+    flex: 0 0 40px; width: 40px; height: 40px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 1.05rem;
+    background: var(--c-surface-3); color: var(--c-text-2);
+}
+.rank-medal.r1 { background: linear-gradient(150deg, #f6c343, #e0a92b); color: #5a3d00; box-shadow: 0 4px 10px rgba(230,170,40,.35); }
+.rank-medal.r2 { background: linear-gradient(150deg, #cdd6e0, #aab4c2); color: #3a4250; }
+.rank-medal.r3 { background: linear-gradient(150deg, #e3a977, #c98a52); color: #4a2c12; }
+.rank-medal.rn { background: var(--c-surface-3); color: var(--c-text-2); }
+
+.rank-main { flex: 1 1 auto; min-width: 0; }
+.rank-name {
+    font-weight: 700; font-size: .98rem; color: var(--c-text);
+    display: flex; align-items: center; gap: var(--s-2); flex-wrap: wrap;
+}
+.rank-bar { margin-top: 7px; max-width: 460px; }
+.rank-rate {
+    flex: 0 0 auto; font-weight: 800; font-size: 1.3rem; color: var(--c-text);
+    min-width: 58px; text-align: right; font-feature-settings: tnum;
+}
+.rank-rate .pct { font-size: .8rem; color: var(--c-text-3); font-weight: 600; margin-left: 1px; }
+
+.rank-tag {
+    font-size: .72rem; font-weight: 700; padding: 2px 9px; border-radius: 999px;
+    display: inline-flex; align-items: center; gap: 3px;
+}
+.rank-tag.mine { background: var(--c-primary); color: #fff; }
+.rank-tag.champ { background: #f6c343; color: #5a3d00; }
+
+.rank-stats { flex: 0 0 auto; display: flex; gap: var(--s-3); }
+.rstat { font-size: .76rem; color: var(--c-text-3); text-align: center; min-width: 40px; line-height: 1.15; }
+.rstat b { display: block; font-size: .98rem; color: var(--c-text); }
+.rstat.ok b { color: var(--c-success); }
+.rstat.warn b { color: var(--c-warning); }
+.rstat.bad b { color: var(--c-danger); }
+
+@media (max-width: 767px) {
+    .rank-row { flex-wrap: wrap; }
+    .rank-rate { margin-left: auto; }
+    .rank-stats { flex-basis: 100%; order: 3; justify-content: flex-start; padding-left: 52px; gap: var(--s-4); }
+}
+
 /* --------------------------------------------------------------------------
    14. 页脚 / 滚动条 / 可访问性
    -------------------------------------------------------------------------- */
