@@ -4,44 +4,8 @@
 {% block title %}登录 - {{ app_title }}{% endblock %}
 
 {% block content %}
-<div class="auth-split">
-    <!-- 左侧品牌区 -->
-    <aside class="auth-aside">
-        <div class="auth-aside-bg" aria-hidden="true">
-            <span class="auth-glow auth-glow-a"></span>
-            <span class="auth-glow auth-glow-b"></span>
-            <span class="auth-grid"></span>
-        </div>
-
-        <div class="auth-brand">
-            <div class="sidebar-logo">{{ ui.icon('building-fill-gear', '', 18) }}</div>
-            <div>
-                <div style="font-weight:700; font-size:1.05rem;">帕基尔项目月度结算管理系统</div>
-                <div style="opacity:.75; font-size:.8rem;">菲律宾帕基尔抽蓄基础处理工程 · 合同管理部</div>
-            </div>
-        </div>
-
-        <div class="auth-feature">
-            <h1>月度结算，<br>一目了然。</h1>
-            <p>对上申报与对下审核、各部门完成进度、结算金额总览——一个系统，全部掌握。</p>
-            <ul>
-                <li>{{ ui.icon('bar-chart', '', 16) }} 全部门完成率实时排名，进度一目了然</li>
-                <li>{{ ui.icon('clock-history', '', 16) }} 截止日期与逾期状态自动提醒</li>
-                <li>{{ ui.icon('shield-lock-fill', '', 16) }} 分角色权限，数据各司其职</li>
-                <li>{{ ui.icon('file-earmark-spreadsheet', '', 16) }} 模板文件集中管理，一键下载</li>
-            </ul>
-            <div class="auth-stats">
-                <div class="auth-stat"><b>8</b><span>参与部门</span></div>
-                <div class="auth-stat"><b>14</b><span>任务配置</span></div>
-                <div class="auth-stat"><b>35</b><span>上报条目</span></div>
-                <div class="auth-stat"><b>100%</b><span>数据可追溯</span></div>
-            </div>
-        </div>
-
-        <div class="auth-foot">© 2026 合同管理部 · 内部系统 · 请勿外传账号密码</div>
-    </aside>
-
-    <!-- 右侧登录卡片 -->
+<div class="auth-split auth-split--tech" id="authSplit">
+    <!-- 左侧：玻璃登录卡（视觉上在左） -->
     <div class="auth-main">
         <div class="auth-card">
             <div class="auth-card-glow" aria-hidden="true"></div>
@@ -54,7 +18,7 @@
             <div class="auth-head">
                 <div class="auth-badge">{{ ui.icon('shield-lock-fill', '', 18) }}</div>
                 <h4 class="auth-title">欢迎登录</h4>
-                <p class="auth-sub">请选择身份并输入密码进入工作台</p>
+                <p class="auth-sub">帕基尔项目月度结算管理系统</p>
             </div>
 
             <div id="alert-box"></div>
@@ -116,35 +80,10 @@
                     </div>
                 </div>
 
-                <button type="submit" class="btn btn-primary w-100" id="submit-btn" style="height:48px;">
+                <button type="submit" class="btn btn-primary w-100 auth-submit" id="submit-btn">
                     {{ ui.icon('box-arrow-in-right', '', 16) }} 登录
                 </button>
             </form>
-
-            <!-- 业务提醒条：把"这是干什么的"显性化 -->
-            <div class="auth-quick">
-                <div class="auth-quick-item">
-                    <div class="auth-quick-ico">{{ ui.icon('calendar-event', '', 14) }}</div>
-                    <div>
-                        <div class="auth-quick-title">本月结算周期</div>
-                        <div class="auth-quick-sub">8 月 1 日 – 8 月 31 日 · 截止 8 月 25 日</div>
-                    </div>
-                </div>
-                <div class="auth-quick-item">
-                    <div class="auth-quick-ico">{{ ui.icon('hourglass-split', '', 14) }}</div>
-                    <div>
-                        <div class="auth-quick-title">未提交部门</div>
-                        <div class="auth-quick-sub">3 / 8 · 请尽快催办</div>
-                    </div>
-                </div>
-                <div class="auth-quick-item">
-                    <div class="auth-quick-ico">{{ ui.icon('shield-lock-fill', '', 14) }}</div>
-                    <div>
-                        <div class="auth-quick-title">权限分级</div>
-                        <div class="auth-quick-sub">4 类角色 · 数据各司其职</div>
-                    </div>
-                </div>
-            </div>
 
             <details class="auth-tip">
                 <summary>密码说明（参考"部门权限密码表.xlsx"）</summary>
@@ -162,6 +101,119 @@
             </details>
         </div>
     </div>
+
+    <!-- 右侧：科技视觉 + 品牌文案（视觉上在右） -->
+    <aside class="auth-aside">
+        <div class="auth-aside-bg" aria-hidden="true">
+            <span class="auth-glow auth-glow-a"></span>
+            <span class="auth-glow auth-glow-b"></span>
+            <span class="auth-grid"></span>
+        </div>
+
+        <div class="auth-aside-body">
+        <div class="auth-visual" aria-hidden="true">
+            <svg viewBox="0 0 520 420" fill="none" xmlns="http://www.w3.org/2000/svg" class="auth-visual-svg">
+                <defs>
+                    <linearGradient id="cubeTop" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0%" stop-color="#60A5FA" stop-opacity="0.9"/>
+                        <stop offset="100%" stop-color="#1E40AF" stop-opacity="0.95"/>
+                    </linearGradient>
+                    <linearGradient id="cubeLeft" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stop-color="#1E40AF" stop-opacity="0.85"/>
+                        <stop offset="100%" stop-color="#0A1730" stop-opacity="0.95"/>
+                    </linearGradient>
+                    <linearGradient id="cubeRight" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stop-color="#3B82F6" stop-opacity="0.8"/>
+                        <stop offset="100%" stop-color="#172554" stop-opacity="0.9"/>
+                    </linearGradient>
+                    <linearGradient id="linkGrad" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stop-color="#60A5FA" stop-opacity="0"/>
+                        <stop offset="50%" stop-color="#60A5FA" stop-opacity="0.9"/>
+                        <stop offset="100%" stop-color="#60A5FA" stop-opacity="0"/>
+                    </linearGradient>
+                    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+                        <feGaussianBlur stdDeviation="6" result="blur"/>
+                        <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+                    </filter>
+                </defs>
+
+                <!-- 连接线 -->
+                <g opacity="0.35">
+                    <path d="M260 120 L360 180 L360 300 L260 360 L160 300 L160 180 Z" stroke="url(#linkGrad)" stroke-width="1.5" fill="none"/>
+                    <path d="M260 120 L260 360" stroke="url(#linkGrad)" stroke-width="1" fill="none"/>
+                    <path d="M160 180 L360 300" stroke="url(#linkGrad)" stroke-width="1" fill="none"/>
+                    <path d="M360 180 L160 300" stroke="url(#linkGrad)" stroke-width="1" fill="none"/>
+                </g>
+
+                <!-- 中心大立方体 -->
+                <g transform="translate(260,240)">
+                    <path d="M0 -60 L70 -25 L70 55 L0 90 L-70 55 L-70 -25 Z" fill="url(#cubeTop)" filter="url(#glow)"/>
+                    <path d="M-70 -25 L0 10 L0 90 L-70 55 Z" fill="url(#cubeLeft)"/>
+                    <path d="M0 10 L70 -25 L70 55 L0 90 Z" fill="url(#cubeRight)"/>
+                    <!-- 内部网格 -->
+                    <path d="M-35 -42.5 L35 -7.5" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+                    <path d="M-35 12.5 L35 47.5" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+                    <path d="M0 -25 L0 90" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
+                </g>
+
+                <!-- 左上卫星立方体 -->
+                <g transform="translate(180,130)">
+                    <path d="M0 -25 L30 -10 L30 25 L0 40 L-30 25 L-30 -10 Z" fill="url(#cubeTop)" filter="url(#glow)"/>
+                    <path d="M-30 -10 L0 5 L0 40 L-30 25 Z" fill="url(#cubeLeft)"/>
+                    <path d="M0 5 L30 -10 L30 25 L0 40 Z" fill="url(#cubeRight)"/>
+                </g>
+
+                <!-- 右上卫星立方体 -->
+                <g transform="translate(350,150)">
+                    <path d="M0 -30 L35 -15 L35 25 L0 40 L-35 25 L-35 -15 Z" fill="url(#cubeTop)" filter="url(#glow)"/>
+                    <path d="M-35 -15 L0 0 L0 40 L-35 25 Z" fill="url(#cubeLeft)"/>
+                    <path d="M0 0 L35 -15 L35 25 L0 40 Z" fill="url(#cubeRight)"/>
+                </g>
+
+                <!-- 右下卫星立方体 -->
+                <g transform="translate(380,300)">
+                    <path d="M0 -20 L25 -8 L25 22 L0 34 L-25 22 L-25 -8 Z" fill="url(#cubeTop)" filter="url(#glow)"/>
+                    <path d="M-25 -8 L0 4 L0 34 L-25 22 Z" fill="url(#cubeLeft)"/>
+                    <path d="M0 4 L25 -8 L25 22 L0 34 Z" fill="url(#cubeRight)"/>
+                </g>
+
+                <!-- 左下卫星立方体 -->
+                <g transform="translate(150,310)">
+                    <path d="M0 -22 L28 -10 L28 20 L0 32 L-28 20 L-28 -10 Z" fill="url(#cubeTop)" filter="url(#glow)"/>
+                    <path d="M-28 -10 L0 2 L0 32 L-28 20 Z" fill="url(#cubeLeft)"/>
+                    <path d="M0 2 L28 -10 L28 20 L0 32 Z" fill="url(#cubeRight)"/>
+                </g>
+
+                <!-- 发光粒子 -->
+                <circle cx="260" cy="120" r="3" fill="#60A5FA" filter="url(#glow)">
+                    <animate attributeName="opacity" values="0.4;1;0.4" dur="3s" repeatCount="indefinite"/>
+                </circle>
+                <circle cx="360" cy="180" r="2.5" fill="#60A5FA" filter="url(#glow)">
+                    <animate attributeName="opacity" values="0.3;1;0.3" dur="2.5s" repeatCount="indefinite"/>
+                </circle>
+                <circle cx="160" cy="300" r="2" fill="#93C5FD" filter="url(#glow)">
+                    <animate attributeName="opacity" values="0.5;1;0.5" dur="2.8s" repeatCount="indefinite"/>
+                </circle>
+                <circle cx="360" cy="300" r="2" fill="#93C5FD" filter="url(#glow)">
+                    <animate attributeName="opacity" values="0.4;1;0.4" dur="3.2s" repeatCount="indefinite"/>
+                </circle>
+            </svg>
+        </div>
+
+        <div class="auth-feature auth-feature--center">
+            <h1>月度结算，<br>一目了然。</h1>
+            <p>对上申报与对下审核、各部门完成进度、结算金额总览——一个系统，全部掌握。</p>
+            <div class="auth-stats auth-stats--center">
+                <div class="auth-stat"><b>8</b><span>参与部门</span></div>
+                <div class="auth-stat"><b>14</b><span>任务配置</span></div>
+                <div class="auth-stat"><b>35</b><span>上报条目</span></div>
+                <div class="auth-stat"><b>100%</b><span>数据可追溯</span></div>
+            </div>
+        </div>
+        </div>
+
+        <div class="auth-foot">© 2026 合同管理部 · 内部系统 · 请勿外传账号密码</div>
+    </aside>
 </div>
 {% endblock %}
 
