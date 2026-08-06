@@ -141,6 +141,7 @@ a:hover { color: var(--c-primary-hover); }
     padding: var(--s-6) var(--s-7) var(--s-7);
     max-width: 1440px;
     width: 100%;
+    margin: 0 auto;
 }
 
 /* --- 侧边栏 --- */
@@ -290,15 +291,26 @@ a:hover { color: var(--c-primary-hover); }
     position: sticky;
     top: 0;
     height: var(--topbar-h);
-    background: rgba(255, 255, 255, 0.92);
-    backdrop-filter: saturate(140%) blur(8px);
-    border-bottom: 1px solid var(--c-border);
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 0 var(--s-7);
     z-index: 1030;
     flex-shrink: 0;
+    max-width: 1440px;
+    margin: 0 auto;
+}
+/* 通栏毛玻璃背景：背景铺满全宽，内容在 1440 居中列内与下方对齐 */
+.topbar::before {
+    content: "";
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: var(--topbar-h);
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: saturate(140%) blur(8px);
+    -webkit-backdrop-filter: saturate(140%) blur(8px);
+    border-bottom: 1px solid var(--c-border);
+    z-index: -1;
 }
 .topbar-left, .topbar-right { display: flex; align-items: center; gap: var(--s-3); }
 .icon-btn {
