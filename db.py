@@ -27,7 +27,8 @@ class PgConnection:
     """psycopg2 包装器，提供与 sqlite3.Connection 兼容的接口"""
 
     def __init__(self, dsn):
-        self._conn = psycopg2.connect(dsn)
+        # connect_timeout：连接失败快速返回，避免冷/异常连接在握手阶段长时间挂起
+        self._conn = psycopg2.connect(dsn, connect_timeout=10)
         # 使用 autocommit 模式：避免 PgBouncer transaction pool 下 DDL/commit 跨连接不可见
         self._conn.autocommit = True
 
@@ -65,7 +66,9 @@ class PgConnection:
             pass
 
     def close(self):
-        self._conn.close()
+        # serverless 下不真正关闭：该连接由模块级缓存复用（见 _get_pg_conn），
+        # 随 lambda 实例销毁而释放。若在此关闭，teardown 会杀掉暖实例可复用的连接，反而更慢。
+        pass
 
     def _adapt_sql(self, sql):
         """将 SQLite SQL 转换为 PostgreSQL SQL"""
@@ -91,10 +94,34 @@ class PgConnection:
         return sql
 
 
+# 模块级连接缓存：Vercel 暖实例（warm start）可跨请求复用同一条连接，
+# 避免每次请求都做 TCP+TLS 握手——这是 serverless 下最稳定、占比最高的延迟来源（约 100~300ms/次）。
+_PG_CONN = None
+
+
+def _pg_is_alive(conn):
+    """轻量探活；连接断开或被 Neon 回收（空闲超时）时返回 False"""
+    try:
+        with conn._conn.cursor() as cur:
+            cur.execute('SELECT 1')
+        return True
+    except Exception:
+        return False
+
+
+def _get_pg_conn():
+    """返回可复用的 PostgreSQL 连接；失效则自动重建（自愈）"""
+    global _PG_CONN
+    if _PG_CONN is not None and _pg_is_alive(_PG_CONN):
+        return _PG_CONN
+    _PG_CONN = PgConnection(DATABASE_URL)
+    return _PG_CONN
+
+
 def connect():
     """获取数据库连接"""
     if USE_POSTGRES:
-        return PgConnection(DATABASE_URL)
+        return _get_pg_conn()
     else:
         import sqlite3
         # Vercel 文件系统只读，用 /tmp 作为回退

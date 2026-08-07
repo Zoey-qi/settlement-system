@@ -250,35 +250,44 @@ def auto_link_templates(conn):
     conn.commit()
 
 
-def ensure_tasks_for_month(month_str, only_config_id=None):
-    """确保某月的任务已生成并刷新状态。
+def ensure_tasks_exist(month_str):
+    """确保某月所有活跃任务配置对应的任务行已存在（批量，1 次查询）。
 
-    only_config_id 指定时，只处理该任务配置（提交单条数据后调用，
-    避免对全部 14 个配置逐个重算状态，减少 Neon 上的查询往返）。
+    仅做 INSERT ... ON CONFLICT DO NOTHING 建行，不重算状态：
+    - 各展示页（仪表盘/提交列表/汇总）依据条目提交情况内联计算状态；
+    - 提交/撤销/删除单条后由 ensure_tasks_for_month(only_config_id=...) 精准更新该配置状态。
+    该 SQL 在 SQLite 与 PostgreSQL 下均合法（upsert 语法两边通用）。
     """
     db = get_db()
-    query = '''
-        SELECT tc.*, d.name as dept_name, st.code as st_code, st.name as st_name
-        FROM task_configs tc
-        JOIN departments d ON tc.department_id = d.id
-        JOIN settlement_types st ON tc.settlement_type_id = st.id
-        WHERE tc.is_active = 1
-    '''
-    params = []
+    db.execute('''
+        INSERT INTO tasks (task_config_id, month, department_id, settlement_type_id, required_materials, deadline_day, status)
+        SELECT id, ?, department_id, settlement_type_id, required_materials, deadline_day, 'pending'
+        FROM task_configs
+        WHERE is_active = 1
+        ON CONFLICT (task_config_id, month) DO NOTHING
+    ''', (month_str,))
+    db.commit()
+
+
+def ensure_tasks_for_month(month_str, only_config_id=None):
+    """确保某月任务行存在，并按需刷新状态。
+
+    - only_config_id 给定：只重算该任务配置（提交/撤销/删除单条后调用，减少 Neon 查询往返）；
+    - 不给定：重算全部（仅兼容/修复场景，常规展示页请勿再调用全量）。
+    """
+    ensure_tasks_exist(month_str)
+    db = get_db()
     if only_config_id is not None:
-        query += ' AND tc.id = ?'
-        params = [only_config_id]
-    configs = db.execute(query, params).fetchall()
+        status = compute_task_status(only_config_id, month_str, db)
+        task = db.execute('SELECT id FROM tasks WHERE task_config_id=? AND month=?', (only_config_id, month_str)).fetchone()
+        if task:
+            db.execute('UPDATE tasks SET status=? WHERE id=?', (status, task['id']))
+        db.commit()
+        return
 
+    # 全量重算（兼容/修复用，不应出现在常规展示路径）
+    configs = db.execute('SELECT id FROM task_configs WHERE is_active = 1').fetchall()
     for cfg in configs:
-        db.execute('''
-            INSERT OR IGNORE INTO tasks
-            (task_config_id, month, department_id, settlement_type_id, required_materials, deadline_day, status)
-            VALUES (?,?,?,?,?,?, 'pending')
-        ''', (cfg['id'], month_str, cfg['department_id'], cfg['settlement_type_id'],
-              cfg['required_materials'], cfg['deadline_day']))
-
-        # 更新任务状态基于条目提交情况
         status = compute_task_status(cfg['id'], month_str, db)
         task = db.execute('SELECT id FROM tasks WHERE task_config_id=? AND month=?', (cfg['id'], month_str)).fetchone()
         if task:
@@ -442,7 +451,7 @@ def inject_current_user():
 @require_auth
 def dashboard():
     month = request.args.get('month', get_current_month())
-    ensure_tasks_for_month(month)
+    ensure_tasks_exist(month)
 
     db = get_db()
     user = g.current_user
@@ -587,7 +596,7 @@ def submit():
     """提交数据列表页 - 显示所有任务及其条目完成进度"""
     db = get_db()
     month = request.args.get('month', get_current_month())
-    ensure_tasks_for_month(month)
+    ensure_tasks_exist(month)
     user = g.current_user
     user_dept = user.get('department', '') if user['role'] in ('director', 'liaison') else None
 
@@ -783,7 +792,7 @@ def summary():
     """汇总视图 - 所有条目提交情况，含模板下载列"""
     month = request.args.get('month', get_current_month())
     st_code = request.args.get('type', '')
-    ensure_tasks_for_month(month)
+    ensure_tasks_exist(month)
 
     db = get_db()
     user = g.current_user
@@ -976,7 +985,11 @@ def api_unsubmit_item():
 
     db.execute('DELETE FROM item_submissions WHERE id = ?', (sub['id'],))
     db.commit()
-    ensure_tasks_for_month(month)
+    # 只重算被删条目所属任务配置的状态，避免对全部 14 个配置重算
+    if item:
+        ensure_tasks_for_month(month, only_config_id=item['task_config_id'])
+    else:
+        ensure_tasks_for_month(month)
     return jsonify({'ok': True})
 
 
