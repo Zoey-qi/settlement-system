@@ -1989,6 +1989,7 @@ def login_page():
     if get_current_user():
         return redirect(url_for('dashboard'))
     # 参与部门数 = 有启用任务配置的部门（财务资金部 is_active=0，不计入）
+    db = get_db()
     dept_count = db.execute(
         'SELECT COUNT(DISTINCT department_id) FROM task_configs WHERE is_active = 1'
     ).fetchone()[0]
