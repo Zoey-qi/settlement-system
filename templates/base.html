@@ -22,7 +22,7 @@
     'history': '历史记录', 'guide': '使用指引', 'system_status': '系统状态', 'login_page': '登录'
 } %}
 {% set authed = g.current_user and g.current_user.role %}
-{% set role_label = {'leader':'项目班子','admin':'系统管理员','director':'部门主任','liaison':'部门联络人'} %}
+{% set role_label = {'leader':'项目班子','admin':'系统管理员','director':'部门领导','liaison':'部门联络人'} %}
 {# 侧边栏导航项：(endpoint, icon, label, section)
    - 全站所有可见导航项集中维护
    - 下方 nav_visible_for_role 字典按角色决定可见集合

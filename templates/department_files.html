@@ -89,7 +89,7 @@
 <script>
 const TOKEN = localStorage.getItem('auth_token') || getCookie('auth_token');
 const USER = JSON.parse(localStorage.getItem('current_user') || '{}');
-// 权限：管理员全权；联络人只能删除自己上传的文件；部门主任只读，无任何操作按钮
+// 权限：管理员全权；联络人只能删除自己上传的文件；部门领导只读，无任何操作按钮
 const USER_DISPLAY_NAME = USER.display_name || '';
 function canDelete(f) {
   if (USER.role === 'admin') return true;
