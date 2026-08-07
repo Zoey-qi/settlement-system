@@ -21,6 +21,8 @@ from flask import (
 )
 from werkzeug.utils import secure_filename
 from db import connect, USE_POSTGRES, init_schema, seed_default_data, insert_returning_id
+import mimetypes
+mimetypes.add_type('application/manifest+json', '.webmanifest')
 
 # ===========================================================================
 # 配置
