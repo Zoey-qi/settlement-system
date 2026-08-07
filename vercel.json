@@ -16,7 +16,7 @@
       ]
     },
     {
-      "source": "/static/(.*)\\.(?:css|js|woff2?|ttf|otf|eot|svg|png|jpg|jpeg|gif|ico|webp|webmanifest)",
+      "source": "/static/(.*)",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=86400" }
       ]
