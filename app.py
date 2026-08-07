@@ -48,7 +48,7 @@ if not USE_POSTGRES:
         except OSError:
             pass  # 只读文件系统，忽略
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='public', static_url_path='/static')
 app.config['SECRET_KEY'] = 'pakil-settlement-2025'
 # Vercel Hobby 限制请求体 4.5MB；本地无限制
 # 注：单次请求 4MB 仍较小，但够用。若需要大文件可改为流式上传（Vercel 受 serverless body 限制）。
