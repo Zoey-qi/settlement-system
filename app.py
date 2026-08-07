@@ -250,16 +250,25 @@ def auto_link_templates(conn):
     conn.commit()
 
 
-def ensure_tasks_for_month(month_str):
-    """确保某月的任务已生成"""
+def ensure_tasks_for_month(month_str, only_config_id=None):
+    """确保某月的任务已生成并刷新状态。
+
+    only_config_id 指定时，只处理该任务配置（提交单条数据后调用，
+    避免对全部 14 个配置逐个重算状态，减少 Neon 上的查询往返）。
+    """
     db = get_db()
-    configs = db.execute('''
+    query = '''
         SELECT tc.*, d.name as dept_name, st.code as st_code, st.name as st_name
         FROM task_configs tc
         JOIN departments d ON tc.department_id = d.id
         JOIN settlement_types st ON tc.settlement_type_id = st.id
         WHERE tc.is_active = 1
-    ''').fetchall()
+    '''
+    params = []
+    if only_config_id is not None:
+        query += ' AND tc.id = ?'
+        params = [only_config_id]
+    configs = db.execute(query, params).fetchall()
 
     for cfg in configs:
         db.execute('''
@@ -465,7 +474,13 @@ def dashboard():
         task_dict['items'] = items
         task_dict['total_items'] = total_items
         task_dict['completed_items'] = completed_items
-        task_dict['status'] = compute_task_status(t['task_config_id'], month, db)
+        # 状态已从 get_items_with_status 的结果内联得出，避免再发一次 COUNT 查询
+        if total_items and completed_items >= total_items:
+            task_dict['status'] = 'completed'
+        elif completed_items > 0:
+            task_dict['status'] = 'partial'
+        else:
+            task_dict['status'] = 'pending'
         task_list.append(task_dict)
 
     total = len(task_list)
@@ -602,7 +617,13 @@ def submit():
         task_dict['items'] = items
         task_dict['total_items'] = total_items
         task_dict['completed_items'] = completed_items
-        task_dict['status'] = compute_task_status(t['task_config_id'], month, db)
+        # 状态已从 get_items_with_status 的结果内联得出，避免再发一次 COUNT 查询
+        if total_items and completed_items >= total_items:
+            task_dict['status'] = 'completed'
+        elif completed_items > 0:
+            task_dict['status'] = 'partial'
+        else:
+            task_dict['status'] = 'pending'
         task_list.append(task_dict)
 
     return render_template('submit_list.html', tasks=task_list, month=month,
@@ -616,7 +637,6 @@ def submit_task(task_id):
     db = get_db()
     user = g.current_user
     month = request.args.get('month', get_current_month())
-    ensure_tasks_for_month(month)
 
     task = db.execute('''
         SELECT t.*, d.name as dept_name, d.contact_person, d.sort_order,
@@ -630,6 +650,8 @@ def submit_task(task_id):
     ''', (task_id,)).fetchone()
     if not task:
         abort(404)
+    # 只刷新本任务配置的状态（详情页只展示单个任务，避免全量重算）
+    ensure_tasks_for_month(month, only_config_id=task['task_config_id'])
 
     # 部门隔离：director/liaison 只能访问本部门任务
     if user['role'] in ('director', 'liaison'):
@@ -713,8 +735,8 @@ def submit_item(item_id):
         db.commit()
         flash(f'「{item["item_name"]}」文件「{original_name}」上传成功', 'success')
 
-    # 更新任务状态
-    ensure_tasks_for_month(month)
+    # 更新任务状态（只重算该条目所属的任务配置，避免全量重算）
+    ensure_tasks_for_month(month, only_config_id=item['task_config_id'])
 
     return redirect(request.referrer or url_for('submit_task', task_id=request.form.get('task_id'), month=month))
 
@@ -750,7 +772,7 @@ def mark_all_none(task_id):
             ''', (item['id'], month, submitter))
             count += 1
     db.commit()
-    ensure_tasks_for_month(month)
+    ensure_tasks_for_month(month, only_config_id=task['task_config_id'])
     flash(f'已将 {count} 个条目标记为"无"', 'success')
     return redirect(url_for('submit_task', task_id=task_id, month=month))
 
@@ -1593,7 +1615,6 @@ def history():
 @app.route('/api/stats')
 def api_stats():
     month = request.args.get('month', get_current_month())
-    ensure_tasks_for_month(month)
     db = get_db()
 
     tasks = db.execute('''
@@ -1608,8 +1629,8 @@ def api_stats():
     completed = 0
     overdue = 0
     for t in tasks:
-        status = compute_task_status(t['task_config_id'], month, db)
-        if status == 'completed':
+        # 直接读 tasks.status（由提交动作维护好的），不再发 COUNT 查询重算
+        if t['status'] == 'completed':
             completed += 1
         if is_overdue(t):
             overdue += 1
