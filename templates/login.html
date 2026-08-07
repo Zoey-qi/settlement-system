@@ -69,7 +69,9 @@
             </div>
 
             <div class="auth-head">
-                <div class="auth-badge">{{ ui.icon('shield-fill', '', 18) }}</div>
+                <div class="auth-badge">
+                    <img src="{{ url_for('static', filename='favicon.svg') }}" alt="" class="auth-badge-icon" width="64" height="64">
+                </div>
                 <h4 class="auth-title">欢迎登录</h4>
                 <p class="auth-sub">帕基尔项目月度结算管理系统</p>
             </div>
