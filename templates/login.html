@@ -62,7 +62,6 @@
                 <span class="orb auth-orb-1"></span>
                 <span class="orb auth-orb-2"></span>
             </div>
-            <div id="speedline-canvas" class="speedline-canvas" aria-hidden="true"></div>
             <div class="auth-card">
             <div class="auth-logo-mobile d-flex align-items-center justify-content-center gap-2 mb-3">
                 <div class="sidebar-logo">{{ ui.icon('building-fill-gear', '', 18) }}</div>
@@ -159,8 +158,6 @@
 {% endblock %}
 
 {% block scripts %}
-<script defer src="{{ url_for('static', filename='vendor/p5.min.js') }}"></script>
-<script defer src="{{ url_for('static', filename='js/login-speedline.js') }}"></script>
 <script>
 // 进入登录页时清掉旧的登录态（保证"每次都是登录界面"）
 try {
