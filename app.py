@@ -1988,7 +1988,11 @@ def login_page():
     """登录页"""
     if get_current_user():
         return redirect(url_for('dashboard'))
-    return render_template('login.html', departments=DEPARTMENT_LIST)
+    # 参与部门数 = 有启用任务配置的部门（财务资金部 is_active=0，不计入）
+    dept_count = db.execute(
+        'SELECT COUNT(DISTINCT department_id) FROM task_configs WHERE is_active = 1'
+    ).fetchone()[0]
+    return render_template('login.html', departments=DEPARTMENT_LIST, dept_count=dept_count)
 
 
 def _post_login_redirect(role, requested_next):
