@@ -67,6 +67,9 @@ svg_open = '<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0" style="
 svg_close = '</defs>\n</svg>\n'
 out = header + svg_open + "\n".join(chosen) + "\n" + svg_close
 open(CURRENT, "w", encoding="utf-8").write(out)
+# 同时输出可外部缓存的精灵文件（被 _macros.html 的 ui.icon 宏以 /static/icons.svg#id 引用）
+STATIC_ICONS = os.path.join(PROJ, "static", "icons.svg")
+open(STATIC_ICONS, "w", encoding="utf-8").write(out)
 
 print("TOTAL_NAMES:", len(names))
 print("WRITTEN:", len(chosen))
