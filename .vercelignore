@@ -49,3 +49,7 @@ venv/
 
 # Vercel
 .vercel/
+
+# 已废弃的 public/ 静态目录（Flask 改为 static/ 内联，public 仅作 Vercel 静态根会被排除在 Lambda 外导致 /static/* 404）
+public/
+public/*
