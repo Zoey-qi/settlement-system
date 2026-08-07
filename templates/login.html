@@ -56,8 +56,12 @@
         <div class="auth-foot">© 2026 合同管理部 · 内部系统 · 请勿外传账号密码</div>
     </aside>
 
-    <!-- 右侧：白底登录区 -->
+    <!-- 右侧：与仪表盘一致的渲染背景（渐变 + 环境光球） -->
     <div class="auth-main">
+        <div class="auth-bg-orbs" aria-hidden="true">
+            <span class="orb auth-orb-1"></span>
+            <span class="orb auth-orb-2"></span>
+        </div>
         <div class="auth-card">
             <div class="auth-logo-mobile d-flex align-items-center justify-content-center gap-2 mb-3">
                 <div class="sidebar-logo">{{ ui.icon('building-fill-gear', '', 18) }}</div>

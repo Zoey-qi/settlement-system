@@ -761,13 +761,36 @@ a:hover { color: var(--c-primary-hover); }
 .auth-split--light .auth-stat span { color: var(--c-sidebar-text); font-size: .75rem; }
 .auth-split--light .auth-foot { position: relative; z-index: 1; color: var(--c-sidebar-text); font-size: .8rem; margin-top: var(--s-5); }
 
-/* 右侧：白底登录区 */
+/* 右侧：与全站（仪表盘等）一致的渲染背景——浅蓝灰渐变 + 环境光球 */
 .auth-split--light .auth-main {
     flex: 1 1 54%;
     display: flex; align-items: center; justify-content: center;
     padding: var(--s-7);
-    background: #fff;
+    position: relative;
+    overflow: hidden;
+    background: var(--bg-grad);
 }
+/* 登录页右侧环境光球层：复用全站 .bg-orbs 视觉，仅作用于右侧，
+   让登录页右侧与仪表盘背景一致（白色登录卡浮于渐变 + 光球之上）。 */
+.auth-bg-orbs {
+    position: absolute; inset: 0;
+    overflow: hidden; pointer-events: none; z-index: 0;
+}
+.auth-bg-orbs .orb {
+    position: absolute; border-radius: 50%;
+    filter: blur(46px); opacity: 0.40;
+    animation: orbFloat 16s ease-in-out infinite;
+}
+.auth-bg-orbs .auth-orb-1 {
+    top: -140px; right: 2%; width: 440px; height: 440px;
+    background: var(--orb-1);
+}
+.auth-bg-orbs .auth-orb-2 {
+    bottom: -160px; left: -40px; width: 400px; height: 400px;
+    background: var(--orb-2); opacity: 0.28; animation-delay: -5s;
+}
+/* 登录卡浮于光球层之上 */
+.auth-split--light .auth-card { position: relative; z-index: 1; }
 .auth-card {
     width: 100%; max-width: 480px;
     background: #fff;
