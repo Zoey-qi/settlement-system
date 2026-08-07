@@ -75,8 +75,8 @@
         <table class="table table-hover table-sm mb-0" id="table-up">
           <thead class="table-light">
             <tr>
-              <th>项目名称</th><th>对方单位</th><th>合同号</th><th>金额</th>
-              <th>结算日期</th><th>状态</th><th>备注</th><th>附件</th><th>操作</th>
+              <th>项目名称</th><th>对方单位</th><th>合同号</th><th class="amount-col">金额</th>
+              <th class="date-col">结算日期</th><th>状态</th><th>备注</th><th>附件</th><th>操作</th>
             </tr>
           </thead>
           <tbody></tbody>
@@ -92,8 +92,8 @@
         <table class="table table-hover table-sm mb-0" id="table-down">
           <thead class="table-light">
             <tr>
-              <th>项目名称</th><th>对方单位</th><th>合同号</th><th>金额</th>
-              <th>结算日期</th><th>状态</th><th>备注</th><th>附件</th><th>操作</th>
+              <th>项目名称</th><th>对方单位</th><th>合同号</th><th class="amount-col">金额</th>
+              <th class="date-col">结算日期</th><th>状态</th><th>备注</th><th>附件</th><th>操作</th>
             </tr>
           </thead>
           <tbody></tbody>
@@ -202,13 +202,28 @@ function api(path, opts = {}) {
 }
 function esc(s) { return (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function fmt(n) { return Number(n || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function fmtDate(d) {
+  if (!d) return '—';
+  const s = String(d);
+  // 兼容 ISO/HTTP/空格等多种格式，统一返回 YYYY-MM-DD
+  const m = s.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+  if (m) return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
+  // RFC 2822 / toUTCString 格式: "Sat, 08 Aug 2026 00:00:00 GMT"
+  const rfc = s.match(/\d{1,2}\s+([A-Za-z]{3})\s+(\d{4})/);
+  if (rfc) {
+    const mon = {Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'}[rfc[1]];
+    const day = rfc[0].split(/\s+/)[0].padStart(2,'0');
+    return `${rfc[2]}-${mon}-${day}`;
+  }
+  return s;
+}
 function statusBadge(s) {
   return { pending:'bg-warning text-dark', processing:'bg-info text-dark', completed:'bg-success', unpaid:'bg-danger', rejected:'bg-secondary' }[s] || 'bg-secondary';
 }
 function statusText(s) { return { pending:'办理中', processing:'审核中', completed:'已完成', unpaid:'未付款', rejected:'已驳回' }[s] || s; }
 function renderAmountsCell(amounts) {
   if (!amounts || !amounts.length) return '—';
-  return amounts.map(a => `<div>${fmt(a.amount)} ${esc(a.currency)}</div>`).join('');
+  return amounts.map(a => `<div class="amount-row"><span class="amount-num">${fmt(a.amount)}</span><span class="amount-cur">${esc(a.currency)}</span></div>`).join('');
 }
 
 const CURRENCY_OPTIONS = ['PHP','USD','CNY'].map(c => `<option value="${c}">${c}</option>`).join('');
@@ -325,8 +340,8 @@ function renderTable(dir) {
       <td>${esc(r.project_name)}</td>
       <td>${esc(r.counterparty)}</td>
       <td><code>${esc(r.contract_no)}</code></td>
-      <td class="text-end fw-bold">${renderAmountsCell(r.amounts)}</td>
-      <td>${esc(r.settle_date) || '—'}</td>
+      <td class="text-end fw-bold amount-cell">${renderAmountsCell(r.amounts)}</td>
+      <td class="settle-date">${fmtDate(r.settle_date)}</td>
       <td><span class="badge ${statusBadge(r.status)}">${statusText(r.status)}</span></td>
       <td><small class="text-muted">${esc(r.notes || '')}</small></td>
       <td>${r.attachment_name ? `<a href="/download/settlement-attachment/${r.id}" class="btn btn-sm btn-outline-secondary" title="${esc(r.attachment_name)}">{{ ui.icon('paperclip', 'bi', 16) }}</a>` : '—'}</td>
