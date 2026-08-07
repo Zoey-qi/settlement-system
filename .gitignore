@@ -53,3 +53,18 @@ push_to_github.py
 vercel_deploy.ps1
 smoke_test.py
 Vercel诊断步骤.md
+
+# 会话临时文件 / 诊断脚本 / 本地草稿（不入版本）
+node_modules/
+_diag_*.py
+_verify*.py
+verify_*.py
+poll_vercel.py
+live_check.css
+live_login_check.html
+login_resp.json
+new_login_css.txt
+*部署文档.md
+vercel_*.ps1
+*部署Vercel*.ps1
+*部署.ps1
