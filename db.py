@@ -313,6 +313,14 @@ def init_schema(db):
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )''',
+        f'''CREATE TABLE IF NOT EXISTS settlement_amounts (
+            id {ai},
+            settlement_record_id INTEGER NOT NULL,
+            currency TEXT NOT NULL DEFAULT 'PHP',
+            amount NUMERIC DEFAULT 0,
+            sort_order INTEGER DEFAULT 0,
+            FOREIGN KEY (settlement_record_id) REFERENCES settlement_records(id) ON DELETE CASCADE
+        )''',
         f'''CREATE TABLE IF NOT EXISTS department_files (
             id {ai},
             department TEXT NOT NULL,
@@ -351,6 +359,30 @@ def init_schema(db):
         db.execute('ALTER TABLE departments ADD COLUMN contact_person TEXT')
     except Exception:
         pass
+
+    # 兼容已有数据库：结算单多币种金额拆分子表
+    try:
+        db.execute(f'''CREATE TABLE IF NOT EXISTS settlement_amounts (
+            id {ai},
+            settlement_record_id INTEGER NOT NULL,
+            currency TEXT NOT NULL DEFAULT 'PHP',
+            amount NUMERIC DEFAULT 0,
+            sort_order INTEGER DEFAULT 0,
+            FOREIGN KEY (settlement_record_id) REFERENCES settlement_records(id) ON DELETE CASCADE
+        )''')
+        # 迁移旧数据：把尚未拆分的 settlement_records.amount/currency 写入子表
+        migrated = db.execute('''
+            INSERT INTO settlement_amounts (settlement_record_id, currency, amount, sort_order)
+            SELECT sr.id, COALESCE(sr.currency, 'PHP'), COALESCE(sr.amount, 0), 0
+            FROM settlement_records sr
+            WHERE NOT EXISTS (
+                SELECT 1 FROM settlement_amounts sa WHERE sa.settlement_record_id = sr.id
+            )
+        ''')
+        print(f'[init_schema] migrated {migrated.rowcount} settlement_records to settlement_amounts')
+    except Exception as e:
+        print(f'[init_schema] settlement_amounts migration skipped: {e}')
+
     db.commit()
 
 

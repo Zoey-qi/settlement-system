@@ -2134,31 +2134,69 @@ def api_list_settlement_records():
     project = request.args.get('project', '').strip()
     department_filter = request.args.get('department', '').strip()
 
-    query = 'SELECT id, direction, project_name, counterparty, contract_no, amount, currency, settle_date, status, notes, attachment_name, attachment_size, created_by, created_at, updated_at FROM settlement_records WHERE 1=1'
+    query = '''
+        SELECT sr.id, sr.direction, sr.project_name, sr.counterparty, sr.contract_no,
+               sr.amount, sr.currency, sr.settle_date, sr.status, sr.notes,
+               sr.attachment_name, sr.attachment_size, sr.created_by, sr.created_at, sr.updated_at,
+               sa.currency as amt_currency, sa.amount as amt_amount, sa.sort_order
+        FROM settlement_records sr
+        LEFT JOIN settlement_amounts sa ON sr.id = sa.settlement_record_id
+        WHERE 1=1
+    '''
     params = []
     if direction in ('up', 'down'):
-        query += ' AND direction = ?'
+        query += ' AND sr.direction = ?'
         params.append(direction)
     if status:
-        query += ' AND status = ?'
+        query += ' AND sr.status = ?'
         params.append(status)
     if project:
-        query += ' AND project_name LIKE ?'
+        query += ' AND sr.project_name LIKE ?'
         params.append(f'%{project}%')
     if department_filter:
-        query += ' AND (created_by LIKE ? OR notes LIKE ?)'
+        query += ' AND (sr.created_by LIKE ? OR sr.notes LIKE ?)'
         params.extend([f'%{department_filter}%', f'%{department_filter}%'])
 
     # 访问角色：仅 leader + admin（按 @require_role 拦截）
     # 此处不再追加 director/liaison 部门过滤
 
-    query += ' ORDER BY settle_date DESC, id DESC'
+    query += ' ORDER BY sr.settle_date DESC, sr.id DESC, sa.sort_order'
     rows = db.execute(query, params).fetchall()
 
-    records = []
+    records_map = {}
     for r in rows:
-        d = dict(r)
-        d['amount'] = float(d['amount']) if d['amount'] is not None else 0.0
+        rid = r['id']
+        if rid not in records_map:
+            d = {
+                'id': rid,
+                'direction': r['direction'],
+                'project_name': r['project_name'],
+                'counterparty': r['counterparty'],
+                'contract_no': r['contract_no'],
+                'amount': float(r['amount']) if r['amount'] is not None else 0.0,
+                'currency': r['currency'] or 'PHP',
+                'settle_date': r['settle_date'],
+                'status': r['status'],
+                'notes': r['notes'],
+                'attachment_name': r['attachment_name'],
+                'attachment_size': r['attachment_size'],
+                'created_by': r['created_by'],
+                'created_at': r['created_at'],
+                'updated_at': r['updated_at'],
+                'amounts': [],
+            }
+            records_map[rid] = d
+        if r['amt_currency'] is not None:
+            records_map[rid]['amounts'].append({
+                'currency': r['amt_currency'],
+                'amount': float(r['amt_amount']) if r['amt_amount'] is not None else 0.0,
+            })
+
+    # 兼容无子表金额的旧数据：退回到主表 amount/currency
+    records = []
+    for d in records_map.values():
+        if not d['amounts']:
+            d['amounts'] = [{'currency': d['currency'], 'amount': d['amount']}]
         records.append(d)
     return jsonify({'ok': True, 'records': records})
 
@@ -2185,50 +2223,104 @@ def api_settlement_summary():
 
     def query_total(direction):
         return sum_by_currency(
-            "SELECT COALESCE(currency, 'PHP') as currency, COALESCE(SUM(amount), 0) as total, COUNT(*) as cnt "
-            "FROM settlement_records WHERE direction = ? "
-            "GROUP BY COALESCE(currency, 'PHP')",
+            "SELECT COALESCE(sa.currency, 'PHP') as currency, COALESCE(SUM(sa.amount), 0) as total, "
+            "COUNT(DISTINCT sr.id) as cnt "
+            "FROM settlement_records sr "
+            "LEFT JOIN settlement_amounts sa ON sr.id = sa.settlement_record_id "
+            "WHERE sr.direction = ? "
+            "GROUP BY COALESCE(sa.currency, 'PHP')",
             [direction]
         )
 
     def query_status(direction, *statuses):
         placeholders = ','.join('?' * len(statuses))
         return sum_by_currency(
-            "SELECT COALESCE(currency, 'PHP') as currency, COALESCE(SUM(amount), 0) as total, COUNT(*) as cnt "
-            f"FROM settlement_records WHERE direction = ? AND status IN ({placeholders}) "
-            "GROUP BY COALESCE(currency, 'PHP')",
+            "SELECT COALESCE(sa.currency, 'PHP') as currency, COALESCE(SUM(sa.amount), 0) as total, "
+            "COUNT(DISTINCT sr.id) as cnt "
+            "FROM settlement_records sr "
+            "LEFT JOIN settlement_amounts sa ON sr.id = sa.settlement_record_id "
+            f"WHERE sr.direction = ? AND sr.status IN ({placeholders}) "
+            "GROUP BY COALESCE(sa.currency, 'PHP')",
             [direction] + list(statuses)
         )
 
     def query_month(direction):
         return sum_by_currency(
-            "SELECT COALESCE(currency, 'PHP') as currency, COALESCE(SUM(amount), 0) as total, COUNT(*) as cnt "
-            "FROM settlement_records WHERE direction = ? AND settle_date LIKE ? "
-            "GROUP BY COALESCE(currency, 'PHP')",
+            "SELECT COALESCE(sa.currency, 'PHP') as currency, COALESCE(SUM(sa.amount), 0) as total, "
+            "COUNT(DISTINCT sr.id) as cnt "
+            "FROM settlement_records sr "
+            "LEFT JOIN settlement_amounts sa ON sr.id = sa.settlement_record_id "
+            "WHERE sr.direction = ? AND sr.settle_date LIKE ? "
+            "GROUP BY COALESCE(sa.currency, 'PHP')",
             [direction, f'{month_prefix}%']
         )
+
+    # 未付款(unpaid) 也视为办理中口径
+    pending_statuses = ('pending', 'processing', 'unpaid')
 
     return jsonify({
         'ok': True,
         'upstream': {
             'total': query_total('up'),
             'completed': query_status('up', 'completed'),
-            'pending': query_status('up', 'pending', 'processing'),
+            'pending': query_status('up', *pending_statuses),
             'month': query_month('up'),
         },
         'downstream': {
             'total': query_total('down'),
             'completed': query_status('down', 'completed'),
-            'pending': query_status('down', 'pending', 'processing'),
+            'pending': query_status('down', *pending_statuses),
             'month': query_month('down'),
         },
     })
 
 
+_AMOUNT_RE = re.compile(r'^amounts\[(\d+)\]\[(currency|amount)\]$')
+
+
+def parse_amounts_from_form(form):
+    """从 FormData 解析多币种金额，例如 amounts[0][currency]=PHP&amounts[0][amount]=100。"""
+    raw = {}
+    for key, value in form.items():
+        m = _AMOUNT_RE.match(key)
+        if not m:
+            continue
+        idx = int(m.group(1))
+        field = m.group(2)
+        raw.setdefault(idx, {})[field] = (value or '').strip()
+
+    result = []
+    for idx in sorted(raw.keys()):
+        item = raw[idx]
+        if 'amount' not in item:
+            continue
+        try:
+            amt = float(item['amount'])
+        except (ValueError, TypeError):
+            continue
+        if amt < 0:
+            continue
+        result.append({
+            'currency': (item.get('currency') or 'PHP').strip(),
+            'amount': amt,
+        })
+    return result
+
+
+def save_settlement_amounts(db, record_id, amounts):
+    """保存结算单的多币种金额：先清后插。"""
+    db.execute('DELETE FROM settlement_amounts WHERE settlement_record_id = ?', (record_id,))
+    for i, a in enumerate(amounts):
+        db.execute(
+            'INSERT INTO settlement_amounts (settlement_record_id, currency, amount, sort_order) VALUES (?, ?, ?, ?)',
+            (record_id, a['currency'], a['amount'], i)
+        )
+
+
 @app.route('/api/settlement-records', methods=['POST'])
 @require_role('admin')
 def api_create_settlement_record():
-    """新建结算金额记录（仅管理员）"""
+    """新建结算金额记录（仅管理员），支持一条记录多币种金额。"""
     db = get_db()
     user = g.current_user
 
@@ -2236,8 +2328,6 @@ def api_create_settlement_record():
     project_name = (request.form.get('project_name') or '').strip()
     counterparty = (request.form.get('counterparty') or '').strip()
     contract_no = (request.form.get('contract_no') or '').strip()
-    amount_raw = (request.form.get('amount') or '0').strip()
-    currency = (request.form.get('currency') or 'PHP').strip()
     settle_date = (request.form.get('settle_date') or '').strip()
     status = (request.form.get('status') or 'pending').strip()
     notes = (request.form.get('notes') or '').strip()
@@ -2249,13 +2339,24 @@ def api_create_settlement_record():
         return jsonify({'error': '请填写项目名称'}), 400
     if not counterparty:
         return jsonify({'error': '请填写对方单位'}), 400
-    try:
-        amount = float(amount_raw)
-    except ValueError:
-        return jsonify({'error': '金额必须是数字'}), 400
-    if amount < 0:
-        return jsonify({'error': '金额不能为负数'}), 400
 
+    amounts = parse_amounts_from_form(request.form)
+    # 兼容旧客户端：未传 amounts[] 时使用单币种字段
+    if not amounts:
+        amount_raw = (request.form.get('amount') or '0').strip()
+        currency = (request.form.get('currency') or 'PHP').strip()
+        try:
+            amount = float(amount_raw)
+        except ValueError:
+            return jsonify({'error': '金额必须是数字'}), 400
+        if amount < 0:
+            return jsonify({'error': '金额不能为负数'}), 400
+        amounts = [{'currency': currency, 'amount': amount}]
+
+    if not amounts:
+        return jsonify({'error': '请至少填写一笔金额'}), 400
+
+    primary = amounts[0]
     attachment_name = ''
     attachment_stored = ''
     attachment_data = None
@@ -2282,7 +2383,7 @@ def api_create_settlement_record():
             (direction, project_name, counterparty, contract_no, amount, currency, settle_date, status, notes,
              attachment_name, attachment_stored, attachment_data, attachment_size, created_by)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (direction, project_name, counterparty, contract_no, amount, currency,
+        ''', (direction, project_name, counterparty, contract_no, primary['amount'], primary['currency'],
               settle_date or None, status, notes,
               attachment_name, attachment_stored, attachment_data, attachment_size, created_by))
     else:
@@ -2291,10 +2392,12 @@ def api_create_settlement_record():
             (direction, project_name, counterparty, contract_no, amount, currency, settle_date, status, notes,
              attachment_name, attachment_stored, attachment_size, created_by)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (direction, project_name, counterparty, contract_no, amount, currency,
+        ''', (direction, project_name, counterparty, contract_no, primary['amount'], primary['currency'],
               settle_date or None, status, notes,
               attachment_name, attachment_stored, attachment_size, created_by))
         new_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
+
+    save_settlement_amounts(db, new_id, amounts)
     db.commit()
     return jsonify({'ok': True, 'id': new_id})
 
@@ -2314,17 +2417,27 @@ def api_update_settlement_record(rid):
     project_name = (request.form.get('project_name') or row['project_name']).strip()
     counterparty = (request.form.get('counterparty') or row['counterparty']).strip()
     contract_no = (request.form.get('contract_no') or row['contract_no'] or '').strip()
-    amount_raw = request.form.get('amount', str(row['amount'] or 0))
-    currency = (request.form.get('currency') or row['currency'] or 'PHP').strip()
     settle_date = (request.form.get('settle_date') or row['settle_date'] or '').strip()
     status = (request.form.get('status') or row['status'] or 'pending').strip()
     notes = (request.form.get('notes') or row['notes'] or '').strip()
 
-    try:
-        amount = float(amount_raw)
-    except ValueError:
-        return jsonify({'error': '金额必须是数字'}), 400
+    amounts = parse_amounts_from_form(request.form)
+    # 兼容旧客户端：未传 amounts[] 时使用单币种字段
+    if not amounts:
+        amount_raw = request.form.get('amount', str(row['amount'] or 0))
+        currency = (request.form.get('currency') or row['currency'] or 'PHP').strip()
+        try:
+            amount = float(amount_raw)
+        except ValueError:
+            return jsonify({'error': '金额必须是数字'}), 400
+        if amount < 0:
+            return jsonify({'error': '金额不能为负数'}), 400
+        amounts = [{'currency': currency, 'amount': amount}]
 
+    if not amounts:
+        return jsonify({'error': '请至少填写一笔金额'}), 400
+
+    primary = amounts[0]
     file = request.files.get('attachment')
     attachment_name = row['attachment_name']
     attachment_stored = row['attachment_stored']
@@ -2346,7 +2459,7 @@ def api_update_settlement_record(rid):
                 status=?, notes=?, attachment_name=?, attachment_stored=?, attachment_data=?, attachment_size=?,
                 updated_at=CURRENT_TIMESTAMP
             WHERE id=?
-        ''', (direction, project_name, counterparty, contract_no, amount, currency,
+        ''', (direction, project_name, counterparty, contract_no, primary['amount'], primary['currency'],
               settle_date or None, status, notes,
               attachment_name, attachment_stored, attachment_data, attachment_size, rid))
     else:
@@ -2356,9 +2469,11 @@ def api_update_settlement_record(rid):
                 status=?, notes=?, attachment_name=?, attachment_stored=?, attachment_size=?,
                 updated_at=CURRENT_TIMESTAMP
             WHERE id=?
-        ''', (direction, project_name, counterparty, contract_no, amount, currency,
+        ''', (direction, project_name, counterparty, contract_no, primary['amount'], primary['currency'],
               settle_date or None, status, notes,
               attachment_name, attachment_stored, attachment_size, rid))
+
+    save_settlement_amounts(db, rid, amounts)
     db.commit()
     return jsonify({'ok': True})
 
