@@ -76,7 +76,7 @@
           <thead class="table-light">
             <tr>
               <th>项目名称</th><th>对方单位</th><th>合同号</th><th class="amount-col">金额</th>
-              <th class="date-col">结算日期</th><th>状态</th><th>备注</th><th>附件</th><th>操作</th>
+              <th class="date-col">结算日期</th><th>状态</th><th>附件</th><th>操作</th>
             </tr>
           </thead>
           <tbody></tbody>
@@ -93,7 +93,7 @@
           <thead class="table-light">
             <tr>
               <th>项目名称</th><th>对方单位</th><th>合同号</th><th class="amount-col">金额</th>
-              <th class="date-col">结算日期</th><th>状态</th><th>备注</th><th>附件</th><th>操作</th>
+              <th class="date-col">结算日期</th><th>状态</th><th>附件</th><th>操作</th>
             </tr>
           </thead>
           <tbody></tbody>
@@ -157,10 +157,6 @@
               </select>
             </div>
             <div class="col-12">
-              <label class="form-label">备注</label>
-              <textarea class="form-control" id="notes" rows="2"></textarea>
-            </div>
-            <div class="col-12">
               <label class="form-label">附件（可选，支持 PDF / Excel / Word / 图片 / 压缩包，单文件不超过 50MB）</label>
               <input type="file" class="form-control" id="attachment"
                      accept=".pdf,.xlsx,.xls,.doc,.docx,.jpg,.jpeg,.png,.zip,.rar,.ppt,.pptx,.txt">
@@ -192,13 +188,26 @@ function getCookie(name) {
 }
 function api(path, opts = {}) {
   opts.headers = Object.assign({ 'X-Auth-Token': TOKEN }, opts.headers || {});
+  // 超时控制：避免 serverless 冷启动偶发卡在 pending 造成"无反应"
+  const controller = new AbortController();
+  const timeoutMs = opts.timeout || 30000;
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   if (opts.body instanceof FormData) {
     // 浏览器自动设 multipart boundary，不要手动设 Content-Type
   } else if (opts.body && typeof opts.body === 'object') {
     opts.body = JSON.stringify(opts.body);
     opts.headers['Content-Type'] = 'application/json';
   }
-  return fetch(path, opts).then(r => r.json().then(j => ({ ok: r.ok, status: r.status, data: j })));
+  opts.signal = controller.signal;
+  return fetch(path, opts).then(async r => {
+    let j = {};
+    try { j = await r.json(); } catch (e) { j = { error: '服务器返回异常 (' + r.status + ')' }; }
+    clearTimeout(timer);
+    return { ok: r.ok, status: r.status, data: j };
+  }).catch(err => {
+    clearTimeout(timer);
+    return { ok: false, status: 0, data: { error: '网络异常或请求超时，请稍后重试' } };
+  });
 }
 function esc(s) { return (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function fmt(n) { return Number(n || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
@@ -297,30 +306,24 @@ async function loadSummary() {
     const el = document.getElementById('summary-' + dir);
     const loading = document.getElementById(dir === 'up' ? 'up-loading' : 'down-loading');
     if (loading) loading.innerHTML = '';
-    const totalRows = Object.keys(s.total || {}).sort().map(c => {
-      const data = s.total[c] || { amount: 0, count: 0 };
-      return `<div class="ss-currency-row" title="${fmt(data.amount)} ${c}">
-        <span class="ss-currency-badge">${c}</span>
-        <span class="ss-total-value">${fmtCompact(data.amount)}</span>
-        <span class="ss-total-sub">${data.count || 0} 笔</span>
-      </div>`;
-    }).join('');
+    const totalCount = Object.values(s.total || {}).reduce((a, b) => a + ((b && b.count) || 0), 0);
     el.innerHTML = `
-      <div class="ss-total">
-        <div class="ss-total-label">累计金额</div>
-        <div class="ss-currency-list">${totalRows}</div>
-      </div>
-      <div class="ss-grid">
+      <div class="ss-grid ss-grid-4">
+        <div class="ss-cell accent">
+          <span class="ss-label">累计金额</span>
+          ${renderCurrencyRows(s.total, '')}
+          <span class="ss-sub">${totalCount} 笔</span>
+        </div>
         <div class="ss-cell">
-          <span class="ss-label">已完成</span>
+          <span class="ss-label">已完成金额</span>
           ${renderCurrencyRows(s.completed, 'text-success')}
         </div>
         <div class="ss-cell">
-          <span class="ss-label">办理中</span>
+          <span class="ss-label">付款中金额</span>
           ${renderCurrencyRows(s.pending, 'text-warning')}
         </div>
         <div class="ss-cell">
-          <span class="ss-label">本月新增</span>
+          <span class="ss-label">本月新增金额</span>
           ${renderCurrencyRows(s.month, '')}
         </div>
       </div>
@@ -332,7 +335,7 @@ function renderTable(dir) {
   const tbody = document.querySelector('#table-' + dir + ' tbody');
   const list = records[dir];
   if (!list.length) {
-    tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">暂无数据</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">暂无数据</td></tr>';
     return;
   }
   tbody.innerHTML = list.map(r => `
@@ -343,7 +346,6 @@ function renderTable(dir) {
       <td class="text-end fw-bold amount-cell">${renderAmountsCell(r.amounts)}</td>
       <td class="settle-date">${fmtDate(r.settle_date)}</td>
       <td><span class="badge ${statusBadge(r.status)}">${statusText(r.status)}</span></td>
-      <td><small class="text-muted">${esc(r.notes || '')}</small></td>
       <td>${r.attachment_name ? `<a href="/download/settlement-attachment/${r.id}" class="btn btn-sm btn-outline-secondary" title="${esc(r.attachment_name)}">{{ ui.icon('paperclip', 'bi', 16) }}</a>` : '—'}</td>
       <td>
         ${CAN_EDIT ? `<button class="btn btn-sm btn-outline-primary" onclick='openEdit(${JSON.stringify(r)})'>{{ ui.icon('pencil', 'bi', 16) }}</button>` : ''}
@@ -369,7 +371,6 @@ function openEdit(r) {
   document.getElementById('contract_no').value = r.contract_no || '';
   document.getElementById('settle_date').value = r.settle_date || '';
   document.getElementById('status').value = r.status || 'pending';
-  document.getElementById('notes').value = r.notes || '';
   document.getElementById('amount-rows').innerHTML = '';
   const amounts = (r.amounts && r.amounts.length) ? r.amounts : [{ currency: r.currency || 'PHP', amount: r.amount || 0 }];
   amounts.forEach((a, i) => addAmountRow(amounts));
@@ -378,6 +379,8 @@ function openEdit(r) {
 
 document.getElementById('record-form').addEventListener('submit', async function(e) {
   e.preventDefault();
+  const btn = this.querySelector('button[type="submit"]');
+  if (btn.disabled) return;  // 防重复提交
   const amounts = collectAmounts();
   if (!amounts.length) { alert('请至少填写一笔金额'); return; }
   const id = document.getElementById('record-id').value;
@@ -392,17 +395,36 @@ document.getElementById('record-form').addEventListener('submit', async function
   });
   fd.append('settle_date', document.getElementById('settle_date').value);
   fd.append('status', document.getElementById('status').value);
-  fd.append('notes', document.getElementById('notes').value);
   const file = document.getElementById('attachment').files[0];
   if (file) fd.append('attachment', file);
 
-  const r = id
-    ? await api('/api/settlement-records/' + id, { method: 'PUT', body: fd })
-    : await api('/api/settlement-records', { method: 'POST', body: fd });
+  const originalHtml = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 保存中…';
+  try {
+    const r = id
+      ? await api('/api/settlement-records/' + id, { method: 'PUT', body: fd })
+      : await api('/api/settlement-records', { method: 'POST', body: fd });
 
-  if (!r.ok) { alert(r.data.error || '保存失败'); return; }
-  bootstrap.Modal.getInstance(document.getElementById('recordModal')).hide();
-  loadAll();
+    if (!r.ok) {
+      alert((r.data && r.data.error) ? r.data.error : '保存失败，请重试');
+      btn.disabled = false;
+      btn.innerHTML = originalHtml;
+      return;
+    }
+    bootstrap.Modal.getInstance(document.getElementById('recordModal')).hide();
+    loadAll();
+  } catch (err) {
+    alert('网络异常或服务器响应超时，请稍后重试');
+    btn.disabled = false;
+    btn.innerHTML = originalHtml;
+  }
+});
+
+// 关闭弹窗时复位保存按钮（防止在提交中关闭后再次打开仍是禁用态）
+document.getElementById('recordModal').addEventListener('hidden.bs.modal', function() {
+  const btn = this.querySelector('button[type="submit"]');
+  if (btn) { btn.disabled = false; btn.innerHTML = '保存'; }
 });
 
 async function del(id) {
