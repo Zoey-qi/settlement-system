@@ -220,6 +220,24 @@ async function loadAll() {
   renderTable('up'); renderTable('down'); loadSummary();
 }
 
+function fmtCompact(n) {
+  const num = Number(n || 0);
+  const abs = Math.abs(num);
+  if (abs >= 1e9) return (num / 1e9).toFixed(2) + 'B';
+  if (abs >= 1e6) return (num / 1e6).toFixed(2) + 'M';
+  if (abs >= 1e3) return (num / 1e3).toFixed(2) + 'K';
+  return num.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+const SUMMARY_CURRENCIES = ['PHP', 'USD', 'CNY'];
+function renderCurrencyRows(group, valueClass) {
+  return SUMMARY_CURRENCIES.map(c => {
+    const data = (group && group[c]) || { amount: 0, count: 0 };
+    return `<div class="ss-currency-row" title="${fmt(data.amount)} ${c}">
+      <span class="ss-currency-badge">${c}</span>
+      <span class="ss-value ${valueClass || ''}">${fmtCompact(data.amount)}</span>
+    </div>`;
+  }).join('');
+}
 async function loadSummary() {
   const r = await api('/api/settlement-records/summary');
   if (!r.ok) return;
@@ -228,24 +246,32 @@ async function loadSummary() {
     const el = document.getElementById('summary-' + dir);
     const loading = document.getElementById(dir === 'up' ? 'up-loading' : 'down-loading');
     if (loading) loading.innerHTML = '';
+    const totalRows = Object.keys(s.total || {}).sort().map(c => {
+      const data = s.total[c] || { amount: 0, count: 0 };
+      return `<div class="ss-currency-row" title="${fmt(data.amount)} ${c}">
+        <span class="ss-currency-badge">${c}</span>
+        <span class="ss-total-value">${fmtCompact(data.amount)}</span>
+        <span class="ss-total-sub">${data.count || 0} 笔</span>
+      </div>`;
+    }).join('');
     el.innerHTML = `
-      <div class="ss-cell accent">
-        <span class="ss-label">累计金额</span>
-        <span class="ss-value">${fmt(s.total_amount)}</span>
-        <span class="ss-sub">${s.total_count} 笔</span>
+      <div class="ss-total">
+        <div class="ss-total-label">累计金额</div>
+        <div class="ss-currency-list">${totalRows}</div>
       </div>
-      <div class="ss-cell">
-        <span class="ss-label">已完成</span>
-        <span class="ss-value text-success">${fmt(s.completed_amount)}</span>
-      </div>
-      <div class="ss-cell">
-        <span class="ss-label">办理中</span>
-        <span class="ss-value text-warning">${fmt(s.pending_amount)}</span>
-      </div>
-      <div class="ss-cell">
-        <span class="ss-label">本月新增</span>
-        <span class="ss-value">${fmt(s.month_amount)}</span>
-        <span class="ss-sub">${s.month_count} 笔</span>
+      <div class="ss-grid">
+        <div class="ss-cell">
+          <span class="ss-label">已完成</span>
+          ${renderCurrencyRows(s.completed, 'text-success')}
+        </div>
+        <div class="ss-cell">
+          <span class="ss-label">办理中</span>
+          ${renderCurrencyRows(s.pending, 'text-warning')}
+        </div>
+        <div class="ss-cell">
+          <span class="ss-label">本月新增</span>
+          ${renderCurrencyRows(s.month, '')}
+        </div>
       </div>
     `;
   });

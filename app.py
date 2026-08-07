@@ -2166,65 +2166,61 @@ def api_list_settlement_records():
 @app.route('/api/settlement-records/summary')
 @require_role('leader', 'admin')
 def api_settlement_summary():
-    """汇总统计卡（对上/对下 总金额、已完成、办理中、本月新增）
+    """汇总统计卡（对上/对下 按币种分组：累计金额、已完成、办理中、本月新增）
     访问角色：仅 leader + admin（按 @require_role 拦截），不再追加部门过滤。
     """
     db = get_db()
+    month_prefix = datetime.now().strftime('%Y-%m')
 
-    def safe_query(sql, params):
+    def sum_by_currency(sql, params):
         try:
-            return db.execute(sql, params).fetchone()
+            rows = db.execute(sql, params).fetchall()
         except Exception:
-            return None
+            rows = []
+        out = {}
+        for r in rows:
+            cur = (r['currency'] or 'PHP')
+            out[cur] = {'amount': float(r['total']), 'count': r['cnt']}
+        return out
 
-    def get_one(direction):
-        rows = safe_query(
-            "SELECT COALESCE(SUM(amount), 0) as total, COUNT(*) as cnt FROM settlement_records WHERE direction = ?",
+    def query_total(direction):
+        return sum_by_currency(
+            "SELECT COALESCE(currency, 'PHP') as currency, COALESCE(SUM(amount), 0) as total, COUNT(*) as cnt "
+            "FROM settlement_records WHERE direction = ? "
+            "GROUP BY COALESCE(currency, 'PHP')",
             [direction]
         )
-        return float(rows['total']) if rows else 0.0, (rows['cnt'] if rows else 0)
 
-    def get_status_sum(direction, status):
-        rows = safe_query(
-            "SELECT COALESCE(SUM(amount), 0) as total FROM settlement_records WHERE direction = ? AND status = ?",
-            [direction, status]
+    def query_status(direction, *statuses):
+        placeholders = ','.join('?' * len(statuses))
+        return sum_by_currency(
+            "SELECT COALESCE(currency, 'PHP') as currency, COALESCE(SUM(amount), 0) as total, COUNT(*) as cnt "
+            f"FROM settlement_records WHERE direction = ? AND status IN ({placeholders}) "
+            "GROUP BY COALESCE(currency, 'PHP')",
+            [direction] + list(statuses)
         )
-        return float(rows['total']) if rows else 0.0
 
-    def get_month_new(direction):
-        month_prefix = datetime.now().strftime('%Y-%m')
-        rows = safe_query(
-            "SELECT COALESCE(SUM(amount), 0) as total, COUNT(*) as cnt FROM settlement_records WHERE direction = ? AND settle_date LIKE ?",
+    def query_month(direction):
+        return sum_by_currency(
+            "SELECT COALESCE(currency, 'PHP') as currency, COALESCE(SUM(amount), 0) as total, COUNT(*) as cnt "
+            "FROM settlement_records WHERE direction = ? AND settle_date LIKE ? "
+            "GROUP BY COALESCE(currency, 'PHP')",
             [direction, f'{month_prefix}%']
         )
-        return float(rows['total']) if rows else 0.0, (rows['cnt'] if rows else 0)
-
-    up_total, up_cnt = get_one('up')
-    down_total, down_cnt = get_one('down')
-    up_completed = get_status_sum('up', 'completed')
-    down_completed = get_status_sum('down', 'completed')
-    up_pending = get_status_sum('up', 'pending') + get_status_sum('up', 'processing')
-    down_pending = get_status_sum('down', 'pending') + get_status_sum('down', 'processing')
-    up_month_amt, up_month_cnt = get_month_new('up')
-    down_month_amt, down_month_cnt = get_month_new('down')
 
     return jsonify({
         'ok': True,
         'upstream': {
-            'total_amount': up_total,
-            'total_count': up_cnt,
-            'completed_amount': up_completed,
-            'pending_amount': up_pending,
-            'month_amount': up_month_amt,
-            'month_count': up_month_cnt,
+            'total': query_total('up'),
+            'completed': query_status('up', 'completed'),
+            'pending': query_status('up', 'pending', 'processing'),
+            'month': query_month('up'),
         },
         'downstream': {
-            'total_amount': down_total,
-            'total_count': down_cnt,
-            'completed_amount': down_completed,
-            'pending_amount': down_pending,
-            'month_amount': down_month_amt,
-            'month_count': down_month_cnt,
+            'total': query_total('down'),
+            'completed': query_status('down', 'completed'),
+            'pending': query_status('down', 'pending', 'processing'),
+            'month': query_month('down'),
         },
     })
 
