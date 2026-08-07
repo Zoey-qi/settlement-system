@@ -1988,10 +1988,11 @@ def login_page():
     """登录页"""
     if get_current_user():
         return redirect(url_for('dashboard'))
-    # 参与部门数 = 有启用任务配置的部门（财务资金部 is_active=0，不计入）
+    # 参与部门数 = 部门表中除"财务资金部"外的部门数
+    # （财务资金部仅做收款台账/发票，不参与月度上报，故不计入参与部门）
     db = get_db()
     dept_count = db.execute(
-        'SELECT COUNT(DISTINCT department_id) FROM task_configs WHERE is_active = 1'
+        "SELECT COUNT(*) FROM departments WHERE name != '财务资金部'"
     ).fetchone()[0]
     return render_template('login.html', departments=DEPARTMENT_LIST, dept_count=dept_count)
 
