@@ -57,6 +57,8 @@ if USE_POSTGRES:
 else:
     app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB (local)
 app.config['JSON_AS_ASCII'] = False
+# 静态资源文件名稳定，允许浏览器/CDN 缓存 1 天，提升加载速度（仅影响 /static/*，不影响 HTML/API）
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 86400
 if not USE_POSTGRES:
     app.config['TEMPLATES_AUTO_RELOAD'] = True
     app.jinja_env.auto_reload = True
