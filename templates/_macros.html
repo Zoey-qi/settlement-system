@@ -4,5 +4,5 @@
   不依赖图标字体，跨网络代理稳定
 -->
 {% macro icon(name, cls='', size=16) -%}
-<svg class="icon {{ cls }}" width="{{ size }}" height="{{ size }}" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-{{ name }}"/></svg>
+<svg class="icon {{ cls }}{% if 'text-' not in cls and 'lead-icon' not in cls %} icon-neutral{% endif %}" width="{{ size }}" height="{{ size }}" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-{{ name }}"/></svg>
 {%- endmacro %}

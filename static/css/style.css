@@ -57,6 +57,9 @@
     --c-text-3:    #8A96AB;
     --c-text-on-dark: #F2F6FC;
 
+    /* === 图标中性色：内容区功能性图标的统一默认色（协调亮蓝，避免继承近黑文字色） === */
+    --c-icon: #3B5BA9;
+
     /* === 圆角（更"工程化"的克制圆角） === */
     --r-sm: 6px;
     --r-md: 10px;
@@ -1092,3 +1095,19 @@ a:hover { color: var(--c-primary-hover); }
     .app-content { padding: var(--s-4) var(--s-3) var(--s-6); }
     .auth-card { padding: var(--s-5); }
 }
+
+/* --------------------------------------------------------------------------
+   10. 图标统一着色（解决"图标太深、与系统不统一"）
+   - 中性功能图标（无 text-* 语义色）统一跟随 --c-icon（协调亮蓝）；
+   - 已设色容器（stat / 页头 / 侧栏 / 登录徽章 / 特性列表 / 顶栏按钮）内的图标
+     直接继承各自容器色，不被中性规则覆盖。
+   -------------------------------------------------------------------------- */
+svg.icon { fill: currentColor; }
+.icon-neutral { color: var(--c-icon); }
+.stat-icon svg,
+.ph-icon svg,
+.auth-badge svg,
+.auth-split--light .auth-feature li .fi svg,
+.side-link svg,
+.icon-btn svg,
+.logout-btn svg { color: inherit; }
