@@ -83,3 +83,7 @@
 @media (max-width: 480px) {
     .auth-quick { grid-template-columns: 1fr; }
 }
+
+/* 登录页 Speed Line 集中线背景层（暗金，聚焦登录卡片） */
+.speedline-canvas { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+.speedline-canvas canvas { display: block; }

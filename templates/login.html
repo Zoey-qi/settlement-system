@@ -15,7 +15,7 @@
 
         <div class="auth-aside-body">
             <div class="auth-brand">
-                <div class="sidebar-logo">{{ ui.icon('shield-fill', '', 20) }}</div>
+                <div class="sidebar-logo">{{ ui.icon('building-fill-gear', '', 20) }}</div>
                 <div class="auth-brand-text">
                     <strong>帕基尔结算</strong>
                     <span>月度管理系统</span>
@@ -58,13 +58,14 @@
 
     <!-- 右侧：与仪表盘一致的渲染背景（渐变 + 环境光球） -->
     <div class="auth-main">
-        <div class="auth-bg-orbs" aria-hidden="true">
-            <span class="orb auth-orb-1"></span>
-            <span class="orb auth-orb-2"></span>
-        </div>
-        <div class="auth-card">
+            <div class="auth-bg-orbs" aria-hidden="true">
+                <span class="orb auth-orb-1"></span>
+                <span class="orb auth-orb-2"></span>
+            </div>
+            <div id="speedline-canvas" class="speedline-canvas" aria-hidden="true"></div>
+            <div class="auth-card">
             <div class="auth-logo-mobile d-flex align-items-center justify-content-center gap-2 mb-3">
-                <div class="sidebar-logo">{{ ui.icon('shield-fill', '', 18) }}</div>
+                <div class="sidebar-logo">{{ ui.icon('building-fill-gear', '', 18) }}</div>
                 <strong>帕基尔结算系统</strong>
             </div>
 
@@ -158,6 +159,8 @@
 {% endblock %}
 
 {% block scripts %}
+<script defer src="{{ url_for('static', filename='vendor/p5.min.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/login-speedline.js') }}"></script>
 <script>
 // 进入登录页时清掉旧的登录态（保证"每次都是登录界面"）
 try {
