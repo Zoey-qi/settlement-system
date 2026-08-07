@@ -735,31 +735,34 @@ a:hover { color: var(--c-primary-hover); }
     background-size: 44px 44px;
     opacity: .5;
 }
+/* 左侧内容区整体放大：从约 1/6 提升到约 1/3 可视占比 */
 .auth-split--light .auth-aside-body {
     position: relative; z-index: 1; flex: 1 1 auto;
     display: flex; flex-direction: column; justify-content: center;
+    gap: var(--s-7);
 }
-.auth-split--light .auth-brand { display: flex; align-items: center; gap: var(--s-3); margin-bottom: var(--s-6); }
+.auth-split--light .auth-brand { display: flex; align-items: center; gap: var(--s-4); }
+.auth-split--light .auth-brand .sidebar-logo { width: 48px; height: 48px; font-size: 1.5rem; }
 .auth-split--light .auth-brand-text { display: flex; flex-direction: column; line-height: 1.15; }
-.auth-split--light .auth-brand-text strong { color: #fff; font-size: 1.15rem; font-weight: 700; letter-spacing: .3px; }
-.auth-split--light .auth-brand-text span { color: var(--c-sidebar-text); font-size: .8rem; }
-.auth-split--light .auth-feature h1 { color: #fff; font-size: 2rem; line-height: 1.25; max-width: 440px; }
-.auth-split--light .auth-feature p { color: var(--c-sidebar-text); font-size: 1rem; max-width: 440px; margin-top: var(--s-3); }
-.auth-split--light .auth-feature ul { list-style: none; padding: 0; margin: var(--s-5) 0 0; display: flex; flex-direction: column; gap: var(--s-3); }
-.auth-split--light .auth-feature li { display: flex; align-items: center; gap: var(--s-3); color: var(--c-sidebar-text-strong); font-size: .95rem; }
+.auth-split--light .auth-brand-text strong { color: #fff; font-size: 1.4rem; font-weight: 700; letter-spacing: .3px; }
+.auth-split--light .auth-brand-text span { color: var(--c-sidebar-text); font-size: 1rem; }
+.auth-split--light .auth-feature h1 { color: #fff; font-size: 2.75rem; line-height: 1.18; max-width: 540px; }
+.auth-split--light .auth-feature p { color: var(--c-sidebar-text); font-size: 1.15rem; line-height: 1.7; max-width: 540px; margin-top: var(--s-4); }
+.auth-split--light .auth-feature ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--s-4); }
+.auth-split--light .auth-feature li { display: flex; align-items: center; gap: var(--s-4); color: var(--c-sidebar-text-strong); font-size: 1.1rem; }
 .auth-split--light .auth-feature li .fi {
-    width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0;
+    width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;
     background: rgba(255,255,255,.10); color: #93C5FD;
-    display: inline-flex; align-items: center; justify-content: center; font-size: 1rem;
+    display: inline-flex; align-items: center; justify-content: center; font-size: 1.25rem;
 }
-.auth-split--light .auth-stats { display: flex; gap: var(--s-3); margin-top: var(--s-6); flex-wrap: wrap; }
+.auth-split--light .auth-stats { display: flex; gap: var(--s-4); flex-wrap: wrap; }
 .auth-split--light .auth-stat {
     background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.14);
-    border-radius: var(--r-md); padding: var(--s-2) var(--s-3); min-width: 78px;
+    border-radius: var(--r-lg); padding: var(--s-3) var(--s-4); min-width: 100px;
 }
-.auth-split--light .auth-stat b { display: block; color: #fff; font-size: 1.2rem; line-height: 1.15; }
-.auth-split--light .auth-stat span { color: var(--c-sidebar-text); font-size: .75rem; }
-.auth-split--light .auth-foot { position: relative; z-index: 1; color: var(--c-sidebar-text); font-size: .8rem; margin-top: var(--s-5); }
+.auth-split--light .auth-stat b { display: block; color: #fff; font-size: 1.6rem; line-height: 1.15; }
+.auth-split--light .auth-stat span { color: var(--c-sidebar-text); font-size: .9rem; }
+.auth-split--light .auth-foot { position: relative; z-index: 1; color: var(--c-sidebar-text); font-size: .95rem; }
 
 /* 右侧：与全站（仪表盘等）一致的渲染背景——浅蓝灰渐变 + 环境光球 */
 .auth-split--light .auth-main {
