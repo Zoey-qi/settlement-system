@@ -169,7 +169,11 @@ a:hover { color: var(--c-primary-hover); }
     display: flex;
     min-height: 100vh;
     position: relative;
-    z-index: 1;
+    /* 注意：不要给 .app-shell 设 z-index。否则会创建层叠上下文，
+       把内部 position:fixed 的 Bootstrap 弹窗困在本层（z-index:1），
+       而 .modal-backdrop 挂在 <body> 下（z-index:1050）会盖在弹窗之上，
+       导致弹窗能显示却点不动。靠 DOM 顺序（.app-shell 在 .bg-orbs 之后）
+       即可自然盖在光球层之上，无需 z-index。 */
 }
 
 .app-main {
@@ -217,10 +221,10 @@ a:hover { color: var(--c-primary-hover); }
 .sidebar-logo {
     width: 38px; height: 38px;
     border-radius: 10px;
-    background: linear-gradient(135deg, #E8B84B, #B45309);
+    background: linear-gradient(135deg, var(--c-primary), var(--c-primary-active));
     display: flex; align-items: center; justify-content: center;
     color: #fff; font-size: 1.25rem;
-    box-shadow: 0 4px 12px rgba(180, 83, 9, 0.45);
+    box-shadow: 0 4px 12px rgba(30, 64, 175, 0.45);
     flex-shrink: 0;
 }
 .sidebar-brand-text { display: flex; flex-direction: column; line-height: 1.15; overflow: hidden; white-space: nowrap; }
@@ -274,7 +278,7 @@ a:hover { color: var(--c-primary-hover); }
     top: 50%; transform: translateY(-50%);
     width: 4px; height: 22px;
     border-radius: 0 4px 4px 0;
-    background: var(--c-gold-bright);
+    background: #7DD3FC;
 }
 .app-shell.sidebar-collapsed .side-link span { opacity: 0; width: 0; overflow: hidden; }
 .app-shell.sidebar-collapsed .side-link { justify-content: center; padding: 10px 0; }
@@ -698,75 +702,81 @@ a:hover { color: var(--c-primary-hover); }
 /* --------------------------------------------------------------------------
    13. 登录 / 注册外壳（品牌化分栏）
    -------------------------------------------------------------------------- */
-.auth-shell { min-height: 100vh; display: flex; background: transparent; position: relative; z-index: 1; }
+.auth-shell { min-height: 100vh; display: flex; background: #fff; position: relative; }
 .auth-split { display: flex; width: 100%; min-height: 100vh; }
 
-/* 深色科技风登录页（参考图：深蓝背景 + 玻璃卡左 + 3D 立方体右） */
-.auth-split--tech {
-    flex-direction: row-reverse;
-    background:
-        radial-gradient(circle at 20% 30%, rgba(30,64,175,0.22) 0%, transparent 45%),
-        radial-gradient(circle at 85% 75%, rgba(6,182,212,0.10) 0%, transparent 40%),
-        linear-gradient(135deg, #0A1730 0%, #0c1d3a 50%, #0A1730 100%);
-}
-.auth-split--tech .auth-aside {
-    /* 左右严格 1 : 1 平铺，减少两侧留白让内容更舒展 */
-    flex: 1 1 50%;
-    background: linear-gradient(150deg, var(--c-sidebar-1) 0%, var(--c-sidebar-2) 60%, #1c3d72 100%);
+/* 登录页：左深蓝品牌区 + 右白底登录区（呼应全站“深蓝侧栏 + 浅色内容”的逻辑） */
+.auth-split--light { flex-direction: row; background: #fff; }
+
+/* 左侧：深蓝品牌区（呼应侧边栏） */
+.auth-split--light .auth-aside {
+    flex: 1 1 46%;
+    background: linear-gradient(160deg, var(--c-sidebar-1) 0%, var(--c-sidebar-2) 68%, #14336b 100%);
     color: var(--c-sidebar-text-strong);
-    padding: var(--s-6);
+    padding: var(--s-7);
     display: flex; flex-direction: column; justify-content: space-between;
     position: relative; overflow: hidden;
 }
-.auth-aside::before {
-    content: ""; position: absolute; right: -120px; top: -120px;
-    width: 360px; height: 360px; border-radius: 50%;
-    background: radial-gradient(circle, rgba(110,160,238,0.35), transparent 70%);
+.auth-split--light .auth-aside-bg { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
+.auth-split--light .auth-glow { position: absolute; border-radius: 50%; filter: blur(70px); opacity: .5; }
+.auth-split--light .auth-glow-a {
+    width: 340px; height: 340px; top: -110px; right: -90px;
+    background: radial-gradient(circle, rgba(59,130,246,.5), transparent 70%);
 }
-.auth-aside::after {
-    content: ""; position: absolute; left: -80px; bottom: -100px;
-    width: 300px; height: 300px; border-radius: 50%;
-    background: radial-gradient(circle, rgba(47,95,176,0.4), transparent 70%);
+.auth-split--light .auth-glow-b {
+    width: 300px; height: 300px; bottom: -110px; left: -80px;
+    background: radial-gradient(circle, rgba(6,182,212,.32), transparent 70%);
 }
-.auth-brand { display: flex; align-items: center; gap: var(--s-3); position: relative; z-index: 1; }
-.auth-feature { position: relative; z-index: 1; }
-.auth-feature h1 { color: #fff; font-size: 1.8rem; line-height: 1.3; max-width: 460px; }
-.auth-feature p { color: var(--c-sidebar-text); font-size: 1rem; max-width: 460px; margin-top: var(--s-3); }
-.auth-feature ul { list-style: none; padding: 0; margin: var(--s-5) 0 0; display: flex; flex-direction: column; gap: var(--s-3); }
-.auth-feature li { display: flex; align-items: center; gap: var(--s-3); color: var(--c-sidebar-text-strong); font-size: 0.92rem; }
-.auth-feature li i { width: 30px; height: 30px; border-radius: 8px; background: rgba(255,255,255,0.10); color: #8fb8f0; display: inline-flex; align-items: center; justify-content: center; font-size: 0.95rem; }
-.auth-foot { position: relative; z-index: 1; color: var(--c-sidebar-text); font-size: 0.8rem; }
+.auth-split--light .auth-aside-body {
+    position: relative; z-index: 1; flex: 1 1 auto;
+    display: flex; flex-direction: column; justify-content: center;
+}
+.auth-split--light .auth-brand { display: flex; align-items: center; gap: var(--s-3); margin-bottom: var(--s-6); }
+.auth-split--light .auth-brand-text { display: flex; flex-direction: column; line-height: 1.15; }
+.auth-split--light .auth-brand-text strong { color: #fff; font-size: 1.15rem; font-weight: 700; letter-spacing: .3px; }
+.auth-split--light .auth-brand-text span { color: var(--c-sidebar-text); font-size: .8rem; }
+.auth-split--light .auth-feature h1 { color: #fff; font-size: 2rem; line-height: 1.25; max-width: 440px; }
+.auth-split--light .auth-feature p { color: var(--c-sidebar-text); font-size: 1rem; max-width: 440px; margin-top: var(--s-3); }
+.auth-split--light .auth-feature ul { list-style: none; padding: 0; margin: var(--s-5) 0 0; display: flex; flex-direction: column; gap: var(--s-3); }
+.auth-split--light .auth-feature li { display: flex; align-items: center; gap: var(--s-3); color: var(--c-sidebar-text-strong); font-size: .95rem; }
+.auth-split--light .auth-feature li .fi {
+    width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0;
+    background: rgba(255,255,255,.10); color: #93C5FD;
+    display: inline-flex; align-items: center; justify-content: center; font-size: 1rem;
+}
+.auth-split--light .auth-stats { display: flex; gap: var(--s-3); margin-top: var(--s-6); flex-wrap: wrap; }
+.auth-split--light .auth-stat {
+    background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.14);
+    border-radius: var(--r-md); padding: var(--s-2) var(--s-3); min-width: 78px;
+}
+.auth-split--light .auth-stat b { display: block; color: #fff; font-size: 1.2rem; line-height: 1.15; }
+.auth-split--light .auth-stat span { color: var(--c-sidebar-text); font-size: .75rem; }
+.auth-split--light .auth-foot { position: relative; z-index: 1; color: var(--c-sidebar-text); font-size: .8rem; margin-top: var(--s-5); }
 
-.auth-main {
-    /* 严格 1 : 1 平铺，与左侧对齐 */
-    flex: 1 1 50%;
+/* 右侧：白底登录区 */
+.auth-split--light .auth-main {
+    flex: 1 1 54%;
     display: flex; align-items: center; justify-content: center;
-    padding: var(--s-6);
-    background: transparent;
+    padding: var(--s-7);
+    background: #fff;
 }
 .auth-card {
-    /* 卡片宽度放宽到 500px，避免登录表单显得过窄 */
-    width: 100%; max-width: 500px;
-    background: var(--glass-bg-strong);
-    backdrop-filter: var(--glass-blur);
-    -webkit-backdrop-filter: var(--glass-blur);
-    border: 1px solid var(--glass-border);
+    width: 100%; max-width: 420px;
+    background: #fff;
+    border: 1px solid var(--c-border);
     border-radius: var(--r-xl);
     box-shadow: var(--sh-lg);
     padding: var(--s-6);
+    animation: authUp .5s cubic-bezier(.2,.7,.2,1) both;
 }
+@keyframes authUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
 .auth-card .auth-logo-mobile { display: none; }
 .auth-title { font-size: 1.4rem; font-weight: 700; color: var(--c-text); }
 .auth-sub { color: var(--c-text-3); font-size: 0.9rem; margin-top: var(--s-2); margin-bottom: var(--s-5); }
-.auth-card hr { border: none; border-top: 1px solid var(--c-border); margin: var(--s-5) 0; }
 .auth-tip { background: var(--c-surface-2); border: 1px solid var(--c-border); border-radius: var(--r-md); padding: var(--s-3) var(--s-4); font-size: 0.82rem; color: var(--c-text-2); }
 .auth-tip summary { cursor: pointer; font-weight: 600; color: var(--c-text); }
 .auth-tip ul { margin: var(--s-2) 0 0; padding-left: 1.2rem; }
 .auth-tip code { background: var(--c-surface-3); padding: 1px 5px; border-radius: 4px; color: var(--c-primary-active); }
-
-/* 登录卡片焦点徽标 + 带图标输入框 + 密码显隐 + 入场动画 + 品牌数据卡 */
-.auth-card { animation: authUp .5s cubic-bezier(.2,.7,.2,1) both; }
-@keyframes authUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
 
 .auth-head { text-align: center; margin-bottom: var(--s-5); }
 .auth-badge {
@@ -799,79 +809,43 @@ a:hover { color: var(--c-primary-hover); }
 .password-toggle:hover { color: var(--c-primary); background: var(--c-surface-2); }
 .password-wrap .form-control { padding-right: 42px; }
 
-.auth-stats { display: flex; gap: var(--s-3); margin-top: var(--s-6); position: relative; z-index: 1; flex-wrap: wrap; }
-.auth-stat {
-    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.14);
-    border-radius: var(--r-md); padding: var(--s-2) var(--s-3); min-width: 78px;
-}
-.auth-stat b { display: block; color: #fff; font-size: 1.15rem; line-height: 1.15; }
-.auth-stat span { color: var(--c-sidebar-text); font-size: 0.75rem; }
-
-/* 深色科技风登录页覆盖 */
-.auth-split--tech .auth-aside {
-    background: transparent;
-    justify-content: space-between; align-items: center; text-align: center;
-}
-.auth-split--tech .auth-aside-body {
-    flex: 1 1 auto;
-    width: 100%;
-    display: flex; flex-direction: column; justify-content: center; align-items: center;
-    position: relative; z-index: 1;
-}
-.auth-split--tech .auth-aside::before,
-.auth-split--tech .auth-aside::after { display: none; }
-.auth-split--tech .auth-main { background: transparent; }
-.auth-split--tech .auth-card {
-    background: rgba(11, 24, 48, 0.72);
-    border: 1px solid rgba(96, 165, 250, 0.18);
-    box-shadow: 0 24px 60px -16px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08);
-}
-.auth-split--tech .auth-card-glow {
-    background: radial-gradient(ellipse at center, rgba(30,64,175,0.35), transparent 65%);
-}
-.auth-split--tech .auth-title { color: #fff; }
-.auth-split--tech .auth-sub { color: rgba(255,255,255,0.65); }
-.auth-split--tech .form-label { color: rgba(255,255,255,0.8); font-size: 0.85rem; margin-bottom: var(--s-2); }
-.auth-split--tech .form-control,
-.auth-split--tech .form-select {
-    background: rgba(255,255,255,0.06);
-    border-color: rgba(255,255,255,0.12);
-    color: #fff;
-}
-.auth-split--tech .form-select {
-    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%2393C5FD' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+/* 白底表单控件外观 */
+.auth-split--light .form-label { color: var(--c-text-2); font-size: .85rem; margin-bottom: var(--s-2); }
+.auth-split--light .form-control,
+.auth-split--light .form-select { background: #fff; border-color: var(--c-border-strong); color: var(--c-text); }
+.auth-split--light .form-control::placeholder { color: var(--c-text-3); }
+.auth-split--light .form-control:focus,
+.auth-split--light .form-select:focus { border-color: var(--c-primary); box-shadow: 0 0 0 4px var(--c-primary-soft); color: var(--c-text); }
+.auth-split--light .form-select {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%231E40AF' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
     background-repeat: no-repeat;
     background-position: right 14px center;
     background-size: 16px 12px;
     padding-right: 42px;
 }
-.auth-split--tech .form-control::placeholder { color: rgba(255,255,255,0.4); }
-.auth-split--tech .form-control:focus,
-.auth-split--tech .form-select:focus {
-    background: rgba(255,255,255,0.09);
-    border-color: rgba(96,165,250,0.55);
-    box-shadow: 0 0 0 4px rgba(30,64,175,0.22);
-    color: #fff;
+.auth-split--light .input-icon > .lead-icon { color: var(--c-text-3); }
+.auth-split--light .password-toggle { color: var(--c-text-3); }
+.auth-split--light .password-toggle:hover { color: var(--c-primary); background: var(--c-surface-2); }
+.auth-split--light .auth-tip { background: var(--c-surface-2); border-color: var(--c-border); color: var(--c-text-2); }
+.auth-split--light .auth-tip summary { color: var(--c-text); }
+.auth-split--light .auth-tip code { background: var(--c-surface-3); color: var(--c-primary-active); }
+
+/* 登录按钮 */
+.auth-submit {
+    height: 48px; font-weight: 600; letter-spacing: .02em;
+    box-shadow: 0 8px 24px -8px rgba(30,64,175,.45);
+    transition: transform var(--t-fast), box-shadow var(--t-fast);
 }
-.auth-split--tech .input-icon > .lead-icon { color: rgba(255,255,255,0.5); }
-.auth-split--tech .input-icon .form-control:focus ~ .lead-icon,
-.auth-split--tech .input-icon .form-select:focus ~ .lead-icon { color: #60A5FA; }
-.auth-split--tech .password-toggle { color: rgba(255,255,255,0.5); }
-.auth-split--tech .password-toggle:hover { color: #60A5FA; background: rgba(255,255,255,0.08); }
-.auth-split--tech .auth-tip {
-    background: rgba(255,255,255,0.06);
-    border-color: rgba(255,255,255,0.1);
-    color: rgba(255,255,255,0.65);
+.auth-submit:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 12px 28px -8px rgba(30,64,175,.55); }
+
+/* 响应式：窄屏隐藏左品牌区，仅留白底登录卡 */
+@media (max-width: 860px) {
+    .auth-split--light { flex-direction: column; }
+    .auth-split--light .auth-aside { display: none; }
+    .auth-split--light .auth-main { padding: var(--s-5); }
+    .auth-split--light .auth-card { max-width: 460px; }
+    .auth-split--light .auth-card .auth-logo-mobile { display: flex; }
 }
-.auth-split--tech .auth-tip summary { color: rgba(255,255,255,0.9); }
-.auth-split--tech .auth-tip code { background: rgba(255,255,255,0.1); color: #93C5FD; }
-.auth-split--tech .auth-feature h1 { margin: 0 auto; }
-.auth-split--tech .auth-feature p { margin: var(--s-3) auto 0; }
-.auth-split--tech .auth-feature--center { display: flex; flex-direction: column; align-items: center; }
-.auth-split--tech .auth-stats--center { justify-content: center; }
-.auth-split--tech .auth-foot { color: rgba(255,255,255,0.45); margin-top: var(--s-5); }
-.auth-visual { width: 100%; max-width: 680px; position: relative; z-index: 1; margin-bottom: var(--s-5); overflow: visible; }
-.auth-visual-svg { width: 100%; height: auto; filter: drop-shadow(0 20px 40px rgba(30,64,175,0.25)); transform: scale(1.15); }
 
 /* 排名榜（leaderboard · 卡片式排行） */
 .rank-board { display: flex; flex-direction: column; }

@@ -1,0 +1,144 @@
+.auth-shell { min-height: 100vh; display: flex; background: #fff; position: relative; }
+.auth-split { display: flex; width: 100%; min-height: 100vh; }
+
+/* 登录页：左深蓝品牌区 + 右白底登录区（呼应全站“深蓝侧栏 + 浅色内容”的逻辑） */
+.auth-split--light { flex-direction: row; background: #fff; }
+
+/* 左侧：深蓝品牌区（呼应侧边栏） */
+.auth-split--light .auth-aside {
+    flex: 1 1 46%;
+    background: linear-gradient(160deg, var(--c-sidebar-1) 0%, var(--c-sidebar-2) 68%, #14336b 100%);
+    color: var(--c-sidebar-text-strong);
+    padding: var(--s-7);
+    display: flex; flex-direction: column; justify-content: space-between;
+    position: relative; overflow: hidden;
+}
+.auth-split--light .auth-aside-bg { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
+.auth-split--light .auth-glow { position: absolute; border-radius: 50%; filter: blur(70px); opacity: .5; }
+.auth-split--light .auth-glow-a {
+    width: 340px; height: 340px; top: -110px; right: -90px;
+    background: radial-gradient(circle, rgba(59,130,246,.5), transparent 70%);
+}
+.auth-split--light .auth-glow-b {
+    width: 300px; height: 300px; bottom: -110px; left: -80px;
+    background: radial-gradient(circle, rgba(6,182,212,.32), transparent 70%);
+}
+.auth-split--light .auth-aside-body {
+    position: relative; z-index: 1; flex: 1 1 auto;
+    display: flex; flex-direction: column; justify-content: center;
+}
+.auth-split--light .auth-brand { display: flex; align-items: center; gap: var(--s-3); margin-bottom: var(--s-6); }
+.auth-split--light .auth-brand-text { display: flex; flex-direction: column; line-height: 1.15; }
+.auth-split--light .auth-brand-text strong { color: #fff; font-size: 1.15rem; font-weight: 700; letter-spacing: .3px; }
+.auth-split--light .auth-brand-text span { color: var(--c-sidebar-text); font-size: .8rem; }
+.auth-split--light .auth-feature h1 { color: #fff; font-size: 2rem; line-height: 1.25; max-width: 440px; }
+.auth-split--light .auth-feature p { color: var(--c-sidebar-text); font-size: 1rem; max-width: 440px; margin-top: var(--s-3); }
+.auth-split--light .auth-feature ul { list-style: none; padding: 0; margin: var(--s-5) 0 0; display: flex; flex-direction: column; gap: var(--s-3); }
+.auth-split--light .auth-feature li { display: flex; align-items: center; gap: var(--s-3); color: var(--c-sidebar-text-strong); font-size: .95rem; }
+.auth-split--light .auth-feature li .fi {
+    width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0;
+    background: rgba(255,255,255,.10); color: #93C5FD;
+    display: inline-flex; align-items: center; justify-content: center; font-size: 1rem;
+}
+.auth-split--light .auth-stats { display: flex; gap: var(--s-3); margin-top: var(--s-6); flex-wrap: wrap; }
+.auth-split--light .auth-stat {
+    background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.14);
+    border-radius: var(--r-md); padding: var(--s-2) var(--s-3); min-width: 78px;
+}
+.auth-split--light .auth-stat b { display: block; color: #fff; font-size: 1.2rem; line-height: 1.15; }
+.auth-split--light .auth-stat span { color: var(--c-sidebar-text); font-size: .75rem; }
+.auth-split--light .auth-foot { position: relative; z-index: 1; color: var(--c-sidebar-text); font-size: .8rem; margin-top: var(--s-5); }
+
+/* 右侧：白底登录区 */
+.auth-split--light .auth-main {
+    flex: 1 1 54%;
+    display: flex; align-items: center; justify-content: center;
+    padding: var(--s-7);
+    background: #fff;
+}
+.auth-card {
+    width: 100%; max-width: 420px;
+    background: #fff;
+    border: 1px solid var(--c-border);
+    border-radius: var(--r-xl);
+    box-shadow: var(--sh-lg);
+    padding: var(--s-6);
+    animation: authUp .5s cubic-bezier(.2,.7,.2,1) both;
+}
+@keyframes authUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+.auth-card .auth-logo-mobile { display: none; }
+.auth-title { font-size: 1.4rem; font-weight: 700; color: var(--c-text); }
+.auth-sub { color: var(--c-text-3); font-size: 0.9rem; margin-top: var(--s-2); margin-bottom: var(--s-5); }
+.auth-tip { background: var(--c-surface-2); border: 1px solid var(--c-border); border-radius: var(--r-md); padding: var(--s-3) var(--s-4); font-size: 0.82rem; color: var(--c-text-2); }
+.auth-tip summary { cursor: pointer; font-weight: 600; color: var(--c-text); }
+.auth-tip ul { margin: var(--s-2) 0 0; padding-left: 1.2rem; }
+.auth-tip code { background: var(--c-surface-3); padding: 1px 5px; border-radius: 4px; color: var(--c-primary-active); }
+
+.auth-head { text-align: center; margin-bottom: var(--s-5); }
+.auth-badge {
+    width: 64px; height: 64px; border-radius: 18px; margin: 0 auto var(--s-4);
+    background: linear-gradient(150deg, var(--c-primary), var(--c-primary-active));
+    color: #fff; font-size: 1.7rem;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: var(--sh-focus);
+}
+.auth-head .auth-title { margin-bottom: var(--s-1); }
+.auth-head .auth-sub { margin-bottom: 0; }
+
+.input-icon { position: relative; }
+.input-icon > .lead-icon {
+    position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+    color: var(--c-text-3); font-size: 1.05rem; pointer-events: none; z-index: 2;
+}
+.input-icon .form-control, .input-icon .form-select { padding-left: 42px; height: 46px; }
+.input-icon .form-control:focus ~ .lead-icon,
+.input-icon .form-select:focus ~ .lead-icon { color: var(--c-primary); }
+
+.password-wrap { position: relative; }
+.password-toggle {
+    position: absolute; right: 7px; top: 50%; transform: translateY(-50%);
+    width: 34px; height: 34px; border: none; background: transparent; cursor: pointer;
+    color: var(--c-text-3); border-radius: 9px; z-index: 3;
+    display: inline-flex; align-items: center; justify-content: center; font-size: 1.05rem;
+    transition: color var(--t-base), background var(--t-base);
+}
+.password-toggle:hover { color: var(--c-primary); background: var(--c-surface-2); }
+.password-wrap .form-control { padding-right: 42px; }
+
+/* 白底表单控件外观 */
+.auth-split--light .form-label { color: var(--c-text-2); font-size: .85rem; margin-bottom: var(--s-2); }
+.auth-split--light .form-control,
+.auth-split--light .form-select { background: #fff; border-color: var(--c-border-strong); color: var(--c-text); }
+.auth-split--light .form-control::placeholder { color: var(--c-text-3); }
+.auth-split--light .form-control:focus,
+.auth-split--light .form-select:focus { border-color: var(--c-primary); box-shadow: 0 0 0 4px var(--c-primary-soft); color: var(--c-text); }
+.auth-split--light .form-select {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%231E40AF' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    background-size: 16px 12px;
+    padding-right: 42px;
+}
+.auth-split--light .input-icon > .lead-icon { color: var(--c-text-3); }
+.auth-split--light .password-toggle { color: var(--c-text-3); }
+.auth-split--light .password-toggle:hover { color: var(--c-primary); background: var(--c-surface-2); }
+.auth-split--light .auth-tip { background: var(--c-surface-2); border-color: var(--c-border); color: var(--c-text-2); }
+.auth-split--light .auth-tip summary { color: var(--c-text); }
+.auth-split--light .auth-tip code { background: var(--c-surface-3); color: var(--c-primary-active); }
+
+/* 登录按钮 */
+.auth-submit {
+    height: 48px; font-weight: 600; letter-spacing: .02em;
+    box-shadow: 0 8px 24px -8px rgba(30,64,175,.45);
+    transition: transform var(--t-fast), box-shadow var(--t-fast);
+}
+.auth-submit:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 12px 28px -8px rgba(30,64,175,.55); }
+
+/* 响应式：窄屏隐藏左品牌区，仅留白底登录卡 */
+@media (max-width: 860px) {
+    .auth-split--light { flex-direction: column; }
+    .auth-split--light .auth-aside { display: none; }
+    .auth-split--light .auth-main { padding: var(--s-5); }
+    .auth-split--light .auth-card { max-width: 460px; }
+    .auth-split--light .auth-card .auth-logo-mobile { display: flex; }
+}

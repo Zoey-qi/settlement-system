@@ -1,0 +1,414 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录 - 帕基尔项目月度结算管理系统</title>
+    <link href="/static/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/static/css/style.css" rel="stylesheet">
+    <link href="/static/css/login.css" rel="stylesheet">
+    <!--
+  全站 SVG icon sprite（Bootstrap Icons 1.11.3 复刻 · 24×24 viewBox）
+  使用方法：通过 _macros.html 里的 icon(name) 宏渲染
+  优点：完全脱离图标字体，跨网络/代理稳定；CSS 用 .icon / [data-i-color] 控制颜色与尺寸
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0" style="position:absolute" aria-hidden="true">
+<defs>
+<symbol id="i-list" viewBox="0 0 16 16"><path fill="currentColor" d="M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5"/></symbol>
+<symbol id="i-sidebar" viewBox="0 0 16 16"><path fill="currentColor" d="M3 2h10a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1m6 1v10h4V3z"/></symbol>
+<symbol id="i-arrow-clockwise" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" d="M8 3a5 5 0 1 1-4.546 2.914M8 1v3h3"/></symbol>
+<symbol id="i-speedometer2" viewBox="0 0 16 16"><path fill="currentColor" d="M8 2a6 6 0 1 0 0 12A6 6 0 0 0 8 2M4.5 8a.5.5 0 0 1 .5-.5h2.793l1.854-1.854a.5.5 0 1 1 .707.708L8.5 8.708V11.5a.5.5 0 0 1-1 0V9H4.5a.5.5 0 0 1-.5-.5z"/></symbol>
+<symbol id="i-cloud-arrow-up" viewBox="0 0 16 16"><path fill="currentColor" fill-rule="evenodd" d="M4.5 13a3.5 3.5 0 1 1 .848-6.884A4 4 0 0 1 13 5.5a3.5 3.5 0 0 1 3.5 3.5h.5a2 2 0 0 1 0 4h-2.5V11h-1v2H8.5v-1H7v1H4.5a.5.5 0 0 1 0-1zm5.5-3a.5.5 0 0 0-.5-.5h-2a.5.5 0 0 0-.354.854l1.5 1.5a.5.5 0 0 0 .708 0l1.5-1.5A.5.5 0 0 0 10 10"/></symbol>
+<symbol id="i-clipboard-data" viewBox="0 0 16 16"><path fill="currentColor" d="M5 1.5A1.5 1.5 0 0 1 6.5 0h3A1.5 1.5 0 0 1 11 1.5V2h1.5A1.5 1.5 0 0 1 14 3.5v11A1.5 1.5 0 0 1 12.5 16h-9A1.5 1.5 0 0 1 2 14.5v-11A1.5 1.5 0 0 1 3.5 2H5zM6.5 1a.5.5 0 0 0-.5.5v1h4v-1a.5.5 0 0 0-.5-.5zM5 5.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5m2 3a.5.5 0 0 0-1 0v3a.5.5 0 0 0 1 0zm3 0a.5.5 0 0 0-1 0v3a.5.5 0 0 0 1 0z"/></symbol>
+<symbol id="i-cash-stack" viewBox="0 0 16 16"><path fill="currentColor" d="M2 3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v2H2zm12 4v6a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7zM3 4v1h10V4zm5 4a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3M4 8.5a1.5 1.5 0 1 0 3 0 1.5 1.5 0 0 0-3 0m5 0a1.5 1.5 0 1 0 3 0 1.5 1.5 0 0 0-3 0"/></symbol>
+<symbol id="i-file-earmark-spreadsheet" viewBox="0 0 16 16"><path fill="currentColor" d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5zM9.5 3A1.5 1.5 0 0 0 8 1.5V3h1.5zM3 12V4h10v8zm-1-9.5a.5.5 0 0 1 .5-.5h1V3H2.5a.5.5 0 0 1 0-1zm12 .5a.5.5 0 0 0-.5-.5H13V4h.5a.5.5 0 0 1 0 1zM4 6h8v1H4zm0 2h8v1H4zm0 2h5v1H4z"/></symbol>
+<symbol id="i-gear" viewBox="0 0 16 16"><path fill="currentColor" d="M9.405 1.05c-.413-1.253-2.397-1.253-2.81 0l-.1.31a1.7 1.7 0 0 1-2.573 1.066l-.276-.182a1.7 1.7 0 0 0-2.297.825l-.158.323a1.7 1.7 0 0 0 .86 2.286l.298.158a1.7 1.7 0 0 1 0 3.022l-.298.158a1.7 1.7 0 0 0-.86 2.286l.158.323a1.7 1.7 0 0 0 2.297.825l.276-.182a1.7 1.7 0 0 1 2.573 1.066l.1.31c.413 1.253 2.397 1.253 2.81 0l.1-.31a1.7 1.7 0 0 1 2.573-1.066l.276.182a1.7 1.7 0 0 0 2.297-.825l.158-.323a1.7 1.7 0 0 0-.86-2.286l-.298-.158a1.7 1.7 0 0 1 0-3.022l.298-.158a1.7 1.7 0 0 0 .86-2.286l-.158-.323a1.7 1.7 0 0 0-2.297-.825l-.276.182a1.7 1.7 0 0 1-2.573-1.066zM8 10.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5"/></symbol>
+<symbol id="i-clock-history" viewBox="0 0 16 16"><path fill="currentColor" d="M3.5 1.5a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5H11v.5A1.5 1.5 0 0 1 9.5 5h-3A1.5 1.5 0 0 1 5 3.5V3H4a.5.5 0 0 1-.5-.5zM6 3v.5a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5V3zM1 8a7 7 0 1 0 14 0A7 7 0 0 0 1 8m1.5 0a5.5 5.5 0 1 1 11 0 5.5 5.5 0 0 1-11 0M8 5.5a.5.5 0 0 1 .5.5v2.793l1.146 1.147a.5.5 0 0 1-.708.708L8 9.207V6a.5.5 0 0 1 .5-.5"/></symbol>
+<symbol id="i-book" viewBox="0 0 16 16"><path fill="currentColor" d="M1 2.828A2.828 2.828 0 0 1 3.828 0H8a.5.5 0 0 1 .5.5v13a.5.5 0 0 1-.5.5H3.828A2.828 2.828 0 0 1 1 11.172zm13 0a2.828 2.828 0 0 0-2.828-2.828H8a.5.5 0 0 0-.5.5v13a.5.5 0 0 0 .5.5h3.172A2.828 2.828 0 0 0 14 11.172z"/></symbol>
+<symbol id="i-server" viewBox="0 0 16 16"><path fill="currentColor" d="M1 4a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2zm2 1.5a.5.5 0 1 0 0 1 .5.5 0 0 0 0-1M1 11a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2zm2-1.5a.5.5 0 1 0 0 1 .5.5 0 0 0 0-1"/></symbol>
+<symbol id="i-box-arrow-right" viewBox="0 0 16 16"><path fill="currentColor" fill-rule="evenodd" d="M10 12.5a.5.5 0 0 1-.5.5h-5a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 .5.5h.5a.5.5 0 0 1 0 1H10v7h.5a.5.5 0 0 1 0 1zm2.5-5L15.5 9l-3 3V10.5h-5v-1h5z"/></symbol>
+<symbol id="i-box-arrow-in-right" viewBox="0 0 16 16"><path fill="currentColor" fill-rule="evenodd" d="M6 3.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 .5.5v9a.5.5 0 0 1-.5.5h-5a.5.5 0 0 1-.5-.5h-.5a.5.5 0 0 1 0-1H6V4H5.5a.5.5 0 0 1 0-1zm6.5 5L15.5 9l-2.5 2.5v-1h-5v-1h5z"/></symbol>
+<symbol id="i-building-fill-gear" viewBox="0 0 16 16"><path fill="currentColor" d="M2 1a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1v2h2.5A1.5 1.5 0 0 1 15 4.5V13a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2zm2 2v12h2V3zm3 0v3h1V3zm0 4v3h1V7zm0 4v4h1v-4zm3-7v11h1V4zM3 14h11v.5a.5.5 0 0 1-.5.5H3z"/></symbol>
+<symbol id="i-shield-lock-fill" viewBox="0 0 16 16"><path fill="currentColor" d="M5.072.56C6.157.265 7.31 0 8 0s1.843.265 2.928.56c1.11.3 2.229.655 2.887.87a1.54 1.54 0 0 1 1.044 1.262c.596 4.477-.787 7.795-2.465 9.99a12 12 0 0 1-2.846 2.717 1 1 0 0 1-1.094 0 12 12 0 0 1-2.846-2.717C4.787 10.487 3.404 7.17 4 2.692A1.54 1.54 0 0 1 5.044 1.43c.658-.215 1.777-.57 2.887-.87zm.86 5.823a1.5 1.5 0 1 0 0 2.234v.776h1.5v-.776a1.5 1.5 0 1 0 0-2.234h-1.5zM8 11a.5.5 0 0 0 .5-.5v-1.293a2 2 0 1 0-1 0V10.5A.5.5 0 0 0 8 11"/></symbol>
+<symbol id="i-bar-chart" viewBox="0 0 16 16"><path fill="currentColor" d="M4 11H2v3h2zm1.5-7H4v10h1.5zm1.5 4H5.5v6H7zm1.5-2H7v8h1.5zm1.5-2H8.5v10H10zm1.5 7h-1.5v3H12z"/></symbol>
+<symbol id="i-list-check" viewBox="0 0 16 16"><path fill="currentColor" fill-rule="evenodd" d="M5 11.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5m-3.854-1.146a.5.5 0 0 1 0 .708l-1.5 1.5a.5.5 0 0 1-.708 0l-.5-.5a.5.5 0 1 1 .708-.708L.146 5.293l1.146-1.147a.5.5 0 0 1 .708 0M2 11.5a.5.5 0 0 1 .5-.5h.5a.5.5 0 0 1 0 1H2a.5.5 0 0 1-.5-.5m.5-4a.5.5 0 0 0 0 1h.5a.5.5 0 0 0 0-1zm0-3.5a.5.5 0 0 0 0 1h.5a.5.5 0 0 0 0-1z"/></symbol>
+<symbol id="i-check-circle-fill" viewBox="0 0 16 16"><path fill="currentColor" d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0m-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-.01-1.05z"/></symbol>
+<symbol id="i-check-circle" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="1.5" d="M2.5 8a5.5 5.5 0 1 0 11 0 5.5 5.5 0 0 0-11 0Z"/><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" d="m5.5 8.5 1.8 1.8L10.5 6.5"/></symbol>
+<symbol id="i-hourglass-split" viewBox="0 0 16 16"><path fill="currentColor" d="M2.5 15a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5zm.215-3.521A.5.5 0 0 1 2 11h12a.5.5 0 0 1-.394.79L11 9.5v.5h-1v-.5l-1.5-1-.5 1H7v-.5L5.5 8l-2 1.5V11h-.5L2 10.789a.5.5 0 0 1 0-.789zM3 3h10v1H3zm3 2.5a1.5 1.5 0 0 1-1.5 1.5H4V6h.5A.5.5 0 0 0 5 5.5V5h1z"/><path fill="currentColor" d="M8 5.5v2L9.5 8 8 10v1l3-1.5V7z"/></symbol>
+<symbol id="i-exclamation-triangle-fill" viewBox="0 0 16 16"><path fill="currentColor" d="M8.5 1.182a.5.5 0 0 0-.954 0L5.066 9.215a.5.5 0 0 0 .454.785h5.96a.5.5 0 0 0 .454-.785zM8 11a1 1 0 1 0 0 2 1 1 0 0 0 0-2"/></symbol>
+<symbol id="i-exclamation-triangle" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" d="M7.134 2.092a1 1 0 0 1 1.732 0l5.616 9.726a1 1 0 0 1-.866 1.5H2.384a1 1 0 0 1-.866-1.5z"/><path fill="currentColor" d="M7.25 6v3a.75.75 0 0 0 1.5 0V6zm.75 5.5a.875.875 0 1 0 0 1.75.875.875 0 0 0 0-1.75"/></symbol>
+<symbol id="i-info-circle" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="1.5" d="M2.5 8a5.5 5.5 0 1 0 11 0 5.5 5.5 0 0 0-11 0Z"/><path fill="currentColor" d="M8.5 7v.5h-1V7zM8 11V8.5h-1V11zm0-6a1 1 0 1 0 0 2 1 1 0 0 0 0-2"/></symbol>
+<symbol id="i-info-circle-fill" viewBox="0 0 16 16"><path fill="currentColor" d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16m.93-9.412-1 4.705c-.07.34.029.533.32.58.14.023.297-.005.474-.084l.17-.078.42.215a.44.44 0 0 0 .553-.193.43.43 0 0 0-.07-.575l-.243-.207.286-.667c.063-.151.04-.319-.058-.437a.42.42 0 0 0-.426-.151l-.236.062zM8 4.5a1 1 0 1 1 0 2 1 1 0 0 1 0-2"/></symbol>
+<symbol id="i-arrow-up-circle-fill" viewBox="0 0 16 16"><path fill="currentColor" d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0M7.646 4.354a.5.5 0 1 0-.708.708l2.5 2.5a.5.5 0 0 0 .708 0l2.5-2.5a.5.5 0 0 0-.708-.708L8.5 6.793zM8 11.5a.5.5 0 0 0 .5-.5V7.707l1.646 1.647a.5.5 0 0 0 .708-.708l-2.5-2.5a.5.5 0 0 0-.708 0l-2.5 2.5a.5.5 0 0 0 .708.708L7.5 7.707V11a.5.5 0 0 0 .5.5"/></symbol>
+<symbol id="i-arrow-down-circle-fill" viewBox="0 0 16 16"><path fill="currentColor" d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0M7.646 11.646a.5.5 0 0 0 .708 0l2.5-2.5a.5.5 0 0 0-.708-.708L8.5 10.793 8 11.293l-.5-.5L7.5 10.293l-2.146-2.147a.5.5 0 0 0-.708.708zM8 4.5a.5.5 0 0 0-.5.5v3.293l-1.646-1.647a.5.5 0 1 0-.708.708l2.5 2.5a.5.5 0 0 0 .708 0l2.5-2.5a.5.5 0 0 0-.708-.708L9.5 8.293V5a.5.5 0 0 0-.5-.5"/></symbol>
+<symbol id="i-arrow-up-circle" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="1.5" d="M2.5 8a5.5 5.5 0 1 0 11 0 5.5 5.5 0 0 0-11 0Z"/><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" d="M8 11V5m0 0L5.5 7.5M8 5l2.5 2.5"/></symbol>
+<symbol id="i-arrow-down-circle" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="1.5" d="M2.5 8a5.5 5.5 0 1 0 11 0 5.5 5.5 0 0 0-11 0Z"/><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" d="M8 5v6m0 0 2.5-2.5M8 11 5.5 8.5"/></symbol>
+<symbol id="i-chevron-right" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="m6 4 4 4-4 4"/></symbol>
+<symbol id="i-chevron-left" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="m10 4-4 4 4 4"/></symbol>
+<symbol id="i-person" viewBox="0 0 16 16"><path fill="currentColor" d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6m2.5 1h-5A2.5 2.5 0 0 0 3 11.5V13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-1.5A2.5 2.5 0 0 0 10.5 9"/></symbol>
+<symbol id="i-clock" viewBox="0 0 16 16"><path fill="currentColor" d="M8 3.5a.5.5 0 0 0-1 0V9a.5.5 0 0 0 .252.434l3.5 2a.5.5 0 0 0 .496-.868L8 8.71z"/><path fill="currentColor" d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16m7-8a7 7 0 1 1-14 0 7 7 0 0 1 14 0"/></symbol>
+<symbol id="i-cloud-upload" viewBox="0 0 16 16"><path fill="currentColor" d="M4.406 3.342A5.53 5.53 0 0 1 8 2c2.69 0 4.923 2 5.166 4.579C14.758 6.804 16 8.137 16 9.773 16 11.569 14.502 13 12.687 13H3.781C1.708 13 0 11.366 0 9.318c0-1.763 1.366-3.223 3.182-3.47 1.266-.158 2.243-.834 2.243-1.956 0-.215-.014-.547-.014-.547zM8 6.5l-2 2h1.5v3h1v-3H10z"/></symbol>
+<symbol id="i-download" viewBox="0 0 16 16"><path fill="currentColor" d="M8.5 1.5A1.5 1.5 0 0 1 10 0h2.5a.5.5 0 0 1 .5.5v11a1.5 1.5 0 0 1-1.5 1.5H3.5A1.5 1.5 0 0 1 2 11.5V3.5A2.5 2.5 0 0 1 4.5 1H8zM10 1v3h2.5V1zM4 6.5a.5.5 0 0 0-.5.5v6a.5.5 0 0 0 .5.5h7a.5.5 0 0 0 .5-.5V8.5H7.354l.647.647a.5.5 0 0 1-.708.708L5 7.208V7l2.293-2.293a.5.5 0 0 1 .708.708L7 6.5z"/></symbol>
+<symbol id="i-person-badge" viewBox="0 0 16 16"><path fill="currentColor" d="M6.5 2a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1zM5 3a2 2 0 1 0 0 4h6a2 2 0 1 0 0-4zm6 1a1 1 0 1 1 0 2 1 1 0 0 1 0-2M3.5 8a.5.5 0 0 0-.5.5V13a1.5 1.5 0 0 0 1.5 1.5h7A1.5 1.5 0 0 0 13 13V8.5a.5.5 0 0 0-1 0V13a.5.5 0 0 1-.5.5H4a.5.5 0 0 1-.5-.5V8.5a.5.5 0 0 0-.5-.5"/></symbol>
+<symbol id="i-building" viewBox="0 0 16 16"><path fill="currentColor" d="M4 1v15h3V9.5l4 2V11l-4-2v-.5l4-2V5l-4-2V1zM2 0v15h1V0zm14 15V4l-3-2v13z"/></symbol>
+<symbol id="i-lock" viewBox="0 0 16 16"><path fill="currentColor" d="M8 1a2 2 0 0 1 2 2v3.5h.5a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-.5.5H4.5a.5.5 0 0 1-.5-.5V7a.5.5 0 0 1 .5-.5H5V3a2 2 0 0 1 2-2zM5.5 4.5V7h2.5V4.5a1 1 0 1 0-2.5 0z"/></symbol>
+<symbol id="i-eye" viewBox="0 0 16 16"><path fill="currentColor" d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8M1.173 8a13 13 0 0 1 1.66 2.043C4.12 11.332 5.88 12.5 8 12.5c2.12 0 3.879-1.168 5.168-2.457A13 13 0 0 0 14.828 8a13 13 0 0 1-1.66-2.043C11.879 4.668 10.119 3.5 8 3.5c-2.12 0-3.879 1.168-5.168 2.457A13 13 0 0 0 1.172 8zM8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5M8 7a1 1 0 1 1 0 2 1 1 0 0 1 0-2"/></symbol>
+<symbol id="i-eye-slash" viewBox="0 0 16 16"><path fill="currentColor" d="M13.359 11.238C15.06 9.72 16 8 16 8s-3-5.5-8-5.5a7 7 0 0 0-2.313.385L11.182 8.18a3 3 0 0 1-.83 2.116zM11.297 9.179a3.001 3.001 0 0 0-3.476-3.476l1.572 1.572a1 1 0 0 1 1.332 1.332zm-3.219 2.094a3 3 0 0 0 4.062-4.062zM3.523 9.16 1.757 7.394a14 14 0 0 1 2.667-2.353C6.187 4.018 8 3.5 8 3.5c-.815 0-1.733.064-2.677.236.16.1.319.213.474.345l4.572 4.572a4 4 0 0 1-3.473 3.473L4.93 10.66c.144-.155.255-.314.345-.474"/><path fill="currentColor" d="m1.5 13.5 13-13-1.06-1.06L.44 12.44z"/></symbol>
+<symbol id="i-search" viewBox="0 0 16 16"><path fill="currentColor" d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.111l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/></symbol>
+<symbol id="i-arrow-right" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M3 8h10m-4-4 4 4-4 4"/></symbol>
+<symbol id="i-arrow-left" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M13 8H3m4 4-4-4 4-4"/></symbol>
+<symbol id="i-arrow-counterclockwise" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" d="M12.5 8a4.5 4.5 0 1 1-1.297-3.182M12.5 3v3h-3"/></symbol>
+<symbol id="i-cash-coin" viewBox="0 0 16 16"><path fill="currentColor" fill-rule="evenodd" d="M11 6a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0m-1 0a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0"/><path fill="currentColor" d="M6.5 9.5a.5.5 0 0 0-1 0v.5h-1a.5.5 0 0 0 0 1h1v.5a.5.5 0 0 0 1 0v-.5h1a.5.5 0 0 0 0-1h-1z"/><path fill="currentColor" d="M9.5 11a4.5 4.5 0 1 0 0-9 4.48 4.48 0 0 0-2.5.756V2.5A2.5 2.5 0 0 1 9.5 0h3A2.5 2.5 0 0 1 15 2.5v3a2.5 2.5 0 0 1-2.5 2.5h-.256A4.5 4.5 0 0 0 9.5 11"/></symbol>
+<symbol id="i-bookmark-star-fill" viewBox="0 0 16 16"><path fill="currentColor" d="M2 15.5V2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v13.5a.5.5 0 0 1-.77.42l-4.73-3.18-4.73 3.18a.5.5 0 0 1-.77-.42M8.5 4.5 7.589 6.5l-2.218.245 1.65 1.43L6.5 10.398l2-1.18 2 1.18-.521-2.222 1.65-1.43L9.41 6.5z"/></symbol>
+<symbol id="i-building-fill-check" viewBox="0 0 16 16"><path fill="currentColor" d="M2 1a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1v2h2.5A1.5 1.5 0 0 1 15 4.5V13a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2zm2 2v12h2V3zm3 0v3h1V3zm0 4v3h1V7zm0 4v4h1v-4zm3-7v11h1V4z"/><path fill="#fff" d="M12.354 6.354a.5.5 0 0 0-.708-.708L8 9.293 6.354 7.646a.5.5 0 1 0-.708.708l2 2a.5.5 0 0 0 .708 0z"/></symbol>
+<symbol id="i-pencil" viewBox="0 0 16 16"><path fill="currentColor" d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325"/></symbol>
+<symbol id="i-pencil-square" viewBox="0 0 16 16"><path fill="currentColor" d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.814z"/><path fill="currentColor" fill-rule="evenodd" d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5H9a.5.5 0 0 0 0-1H2.5A1.5 1.5 0 0 0 1 2.5z"/></symbol>
+<symbol id="i-trash" viewBox="0 0 16 16"><path fill="currentColor" d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0zM14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1h2.5a1 1 0 0 1 1 1zM4.118 4 4 14.5A1.5 1.5 0 0 0 5.5 16h5a1.5 1.5 0 0 0 1.5-1.5L12 4zM2.5 2v1h11V2z"/></symbol>
+<symbol id="i-plus-lg" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M8 3v10M3 8h10"/></symbol>
+<symbol id="i-plus-circle" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="1.5" d="M2.5 8a5.5 5.5 0 1 0 11 0 5.5 5.5 0 0 0-11 0Z"/><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" d="M8 5.5v5M5.5 8h5"/></symbol>
+<symbol id="i-check-lg" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="m3.5 8.5 3 3 6-7"/></symbol>
+<symbol id="i-check2-all" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" d="m2.5 8 3 3 7-7M8 11l3-3"/></symbol>
+<symbol id="i-x-lg" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M4 4l8 8M12 4l-8 8"/></symbol>
+<symbol id="i-folder2-open" viewBox="0 0 16 16"><path fill="currentColor" d="M1 3.5A1.5 1.5 0 0 1 2.5 2h3.586a1.5 1.5 0 0 1 1.06.44L8.5 3.793l1.354-1.353a1.5 1.5 0 0 1 1.06-.44H13.5A1.5 1.5 0 0 1 15 3.5v.617a1.5 1.5 0 0 0-1-.117V3.5a.5.5 0 0 0-.5-.5h-3.586a.5.5 0 0 0-.354.146L8 4.793l-1.56-1.56A.5.5 0 0 0 6.086 3H2.5a.5.5 0 0 0-.5.5v.5h-.5a.5.5 0 0 0-.5.5zm10 1.5a.5.5 0 0 0-.5.5v3.793l-.354.354a.5.5 0 0 1-.708 0L9 8.207V4.5a.5.5 0 0 0-.5-.5H1.5a.5.5 0 0 0-.5.5v8A1.5 1.5 0 0 0 2.5 14h11a1.5 1.5 0 0 0 1.5-1.5V5.5a.5.5 0 0 0-.5-.5z"/></symbol>
+<symbol id="i-file-earmark" viewBox="0 0 16 16"><path fill="currentColor" d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5zM3 1.5v13h10V5H8.5a.5.5 0 0 1-.5-.5V1.5z"/></symbol>
+<symbol id="i-file-earmark-arrow-up" viewBox="0 0 16 16"><path fill="currentColor" d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5zM3 1.5v13h10V5h-3.5A1.5 1.5 0 0 1 8 3.5V1.5z"/><path fill="currentColor" d="M8 6.5a.5.5 0 0 1 .5.5v3.793l1.146-1.147a.5.5 0 0 1 .708.708l-2 2a.5.5 0 0 1-.708 0l-2-2a.5.5 0 0 1 .708-.708L7.5 10.793V7a.5.5 0 0 1 .5-.5"/></symbol>
+<symbol id="i-file-earmark-check" viewBox="0 0 16 16"><path fill="currentColor" d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5zM3 1.5v13h10V5h-3.5A1.5 1.5 0 0 1 8 3.5V1.5z"/><path fill="currentColor" d="M10.354 6.354a.5.5 0 0 0-.708-.708L7 8.293 6.354 7.646a.5.5 0 1 0-.708.708l1.5 1.5a.5.5 0 0 0 .708 0z"/></symbol>
+<symbol id="i-dash-circle" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="1.5" d="M2.5 8a5.5 5.5 0 1 0 11 0 5.5 5.5 0 0 0-11 0Z"/><path fill="currentColor" d="M5 8h6v-.5H5z"/></symbol>
+<symbol id="i-hdd" viewBox="0 0 16 16"><path fill="currentColor" d="M14 9a1 1 0 0 1 1 1v1a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1v-1a1 1 0 0 1 1-1zm-1 4H3v1h10zM2 2a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zm12 1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM4 5.5a.5.5 0 1 1 0-1 .5.5 0 0 1 0 1M5.5 5a.5.5 0 1 0-1 0 .5.5 0 0 0 1 0M4 7.5a.5.5 0 1 1 0-1 .5.5 0 0 1 0 1M5.5 7a.5.5 0 1 0-1 0 .5.5 0 0 0 1 0"/></symbol>
+<symbol id="i-inbox" viewBox="0 0 16 16"><path fill="currentColor" d="M.5 1A.5.5 0 0 0 0 1.5v5a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5V5h8v1.5a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-5A.5.5 0 0 0 15.5 1zM3.5 2h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1 0-1M1 8.5A1.5 1.5 0 0 1 2.5 7h11A1.5 1.5 0 0 1 15 8.5v5A1.5 1.5 0 0 1 13.5 15h-11A1.5 1.5 0 0 1 1 13.5zm1.5 0a.5.5 0 0 0-.5.5v4a.5.5 0 0 0 .5.5h11a.5.5 0 0 0 .5-.5V9a.5.5 0 0 0-.5-.5h-2.793L9.854 10.354a.5.5 0 0 1-.708 0L7.293 8.5z"/></symbol>
+<symbol id="i-cloud-arrow-down" viewBox="0 0 16 16"><path fill="currentColor" fill-rule="evenodd" d="M4.406 3.342A5.53 5.53 0 0 1 8 2c2.69 0 4.923 2 5.166 4.579C14.758 6.804 16 8.137 16 9.773 16 11.569 14.502 13 12.687 13H3.781C1.708 13 0 11.366 0 9.318c0-1.763 1.366-3.223 3.182-3.47 1.266-.158 2.243-.834 2.243-1.956 0-.215-.014-.547-.014-.547zM7.646 11.354a.5.5 0 0 0 .708 0L10.5 9.207l.647.647a.5.5 0 0 0 .708-.708L10 7.293l-1.354 1.354-.354.354a.5.5 0 0 0 .354.853zM9.5 6.5a.5.5 0 1 0 0-1 4.5 4.5 0 1 0 0 9c.265 0 .525-.022.78-.064a.5.5 0 1 0-.142-.985A3.5 3.5 0 1 1 9.5 6.5"/></symbol>
+<symbol id="i-cloud-arrow-up-fill" viewBox="0 0 16 16"><path fill="currentColor" d="M11.354 4.354a.5.5 0 0 0-.708-.708L8 6.293 5.354 3.646a.5.5 0 1 0-.708.708l2 2a.5.5 0 0 0 .708 0zM4.5 13a3.5 3.5 0 1 1 .848-6.884A4 4 0 0 1 13 5.5a3.5 3.5 0 0 1 3.5 3.5h.5a2 2 0 0 1 0 4z"/></symbol>
+<symbol id="i-database" viewBox="0 0 16 16"><path fill="currentColor" d="M4.318 2.687C5.39 2.2 6.687 2 8 2s2.61.2 3.682.687c.957.434 1.318 1.063 1.318 1.752v.185c0 .69-.361 1.319-1.318 1.752C10.61 6.8 9.313 7 8 7s-2.61-.2-3.682-.687C3.361 5.879 3 5.25 3 4.56v-.185c0-.69.361-1.319 1.318-1.752M5.5 5.61v.998c0 .13.05.246.137.34.087.094.213.156.363.165.15.008.292-.039.387-.123.094-.083.146-.197.146-.332V5.61C6.85 5.07 7.41 5 8 5s1.15.07 1.5.245v.998c0 .135.052.25.146.332.094.084.236.131.387.123.15-.009.276-.071.363-.165.087-.094.137-.21.137-.34V5.61c.42-.19.967-.422 1.281-.706a1.45 1.45 0 0 0 .355-.422C12 4.13 12 3.857 12 3.5v-.185c0-.689-.36-1.319-1.318-1.752C9.61 1.2 8.313 1 8 1s-2.61.2-3.682.687C3.361 2.18 3 2.81 3 3.5v.185c0 .857 1.07 1.51 2.5 1.926M2 6.5v3.97c0 .605.27 1.165.708 1.527C3.84 12.293 5.367 13 8 13s4.16-.706 5.292-1.503A1.94 1.94 0 0 0 14 9.97V6.5a4.5 4.5 0 0 1-1.5.13c-.788.07-1.61.22-2.41.484a11 11 0 0 1-4.18 0c-.8-.264-1.622-.414-2.41-.484A4.5 4.5 0 0 1 2 6.5"/></symbol>
+<symbol id="i-database-fill" viewBox="0 0 16 16"><path fill="currentColor" d="M2 6.5v3.97c0 .605.27 1.165.708 1.527C3.84 12.293 5.367 13 8 13s4.16-.706 5.292-1.503A1.94 1.94 0 0 0 14 9.97V6.5h-.5c.245-.5.43-1.165.43-2 0-1.166-.36-2.197-1.013-2.857C12.27 1.067 11.71 1 11 1H5c-.71 0-1.27.067-1.917.643C2.36 2.303 2 3.334 2 4.5c0 .835.185 1.5.43 2z"/></symbol>
+<symbol id="i-shield-check" viewBox="0 0 16 16"><path fill="currentColor" d="M5.072.56C6.157.265 7.31 0 8 0s1.843.265 2.928.56c1.11.3 2.229.655 2.887.87a1.54 1.54 0 0 1 1.044 1.262c.596 4.477-.787 7.795-2.465 9.99a12 12 0 0 1-2.846 2.717 1 1 0 0 1-1.094 0 12 12 0 0 1-2.846-2.717C4.787 10.487 3.404 7.17 4 2.692A1.54 1.54 0 0 1 5.044 1.43c.658-.215 1.777-.57 2.887-.87zm6.156 4.515a.5.5 0 0 0-.708-.708L8 6.293 5.479 3.772a.5.5 0 1 0-.708.708L7.293 7 4.772 9.522a.5.5 0 1 0 .708.708L8 7.707l2.521 2.522a.5.5 0 0 0 .708-.708L8.707 7z"/></symbol>
+<symbol id="i-chat-left-text" viewBox="0 0 16 16"><path fill="currentColor" fill-rule="evenodd" d="M14 1H2a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h.5a.5.5 0 0 0 .5-.5V9h11a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1M3 3h10v1H3zm0 3h6v1H3zM3 7h6v1H3z"/></symbol>
+<symbol id="i-people-fill" viewBox="0 0 16 16"><path fill="currentColor" d="M7 14s-1 0-1-1 1-4 5-4 5 3 5 4-1 1-1 1zm4-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6M4.5 7a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5m-2.5 8a2.5 2.5 0 1 1 5 0 .5.5 0 0 1-.5.5H2.5a.5.5 0 0 1-.5-.5"/></symbol>
+<symbol id="i-house" viewBox="0 0 16 16"><path fill="currentColor" d="M8.707 1.182a.5.5 0 0 0-.707 0L.5 8.5l1.414 1.414L8 4.414l6.086 5.5L15.5 8.5zM8 5.5v9a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-3h1v3a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-9a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 0-.5.5"/></symbol>
+<symbol id="i-house-door" viewBox="0 0 16 16"><path fill="currentColor" d="M8.354 1.146a.5.5 0 0 0-.708 0l-6 6A.5.5 0 0 0 1.5 7.5v7a.5.5 0 0 0 .5.5h4.5a.5.5 0 0 0 .5-.5v-4h2v4a.5.5 0 0 0 .5.5H14a.5.5 0 0 0 .5-.5v-7a.5.5 0 0 0-.146-.354L13 5.793V2.5a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5v1.293zM2.5 14V7.707l5.5-5.5 5.5 5.5V14z"/></symbol>
+<symbol id="i-cup-hot" viewBox="0 0 16 16"><path fill="currentColor" fill-rule="evenodd" d="M4 11H2a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h1v-.5A1.5 1.5 0 0 1 4.5 3h7A1.5 1.5 0 0 1 13 4.5V5h1a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-1v.5a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 4 11.5zm1-5v-.5a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 .5.5V6h-1V5.5a.5.5 0 0 0-.5-.5h-5a.5.5 0 0 0-.5.5V6zM5 7v4h6V7z"/><path fill="currentColor" d="M3.5 1.5a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 1 0V2a.5.5 0 0 0-.5-.5m2 0a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 1 0V2a.5.5 0 0 0-.5-.5m2 0a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 1 0V2a.5.5 0 0 0-.5-.5m2 0a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 1 0V2a.5.5 0 0 0-.5-.5"/></symbol>
+<symbol id="i-droplet" viewBox="0 0 16 16"><path fill="currentColor" d="M7.184 1.998a.5.5 0 0 1 .632 0l5.5 5.5a5.5 5.5 0 0 1-7.778 7.778l-5.5-5.5a5.5 5.5 0 0 1 7.146-7.146.5.5 0 0 1 0 .632z"/></symbol>
+<symbol id="i-lightning-charge" viewBox="0 0 16 16"><path fill="currentColor" d="M6.364 1.182a.5.5 0 0 1 .652-.065l4.5 3a.5.5 0 0 1-.262.92H9.5v3a.5.5 0 0 0 .5.5h1a.5.5 0 0 1 .354.854l-4.5 4.5a.5.5 0 0 1-.854-.354V8.5h-3a.5.5 0 0 1-.404-.79l4-6.5z"/></symbol>
+<symbol id="i-calculator" viewBox="0 0 16 16"><path fill="currentColor" d="M5 1.5A1.5 1.5 0 0 1 6.5 0h3A1.5 1.5 0 0 1 11 1.5v1H6.5A1.5 1.5 0 0 0 5 4v1H4a1 1 0 0 0-1 1v1a1 1 0 0 0 1 1h1v2.5A1.5 1.5 0 0 0 6.5 13h3a1.5 1.5 0 0 0 1.5-1.5V11h1a1 1 0 0 0 1-1V9a1 1 0 0 0-1-1h-1V5a1 1 0 0 0-1-1H9V3a1 1 0 0 0-1-1H6a1 1 0 0 0-1 1zm0 4V4a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 .5.5v1.5a.5.5 0 0 1-.5.5h-5a.5.5 0 0 1-.5-.5M4 7.5a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-7a.5.5 0 0 1-.5-.5zm.5 3a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5zm3 0a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5zm3 0a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5z"/></symbol>
+<symbol id="i-lightbulb" viewBox="0 0 16 16"><path fill="currentColor" d="M2 6a6 6 0 1 1 10.174 4.31c-.203.196-.359.4-.453.619l-.762 1.769A.5.5 0 0 1 10.5 13a.5.5 0 0 1 0 1 .5.5 0 0 1 0 1l-.224.447a1 1 0 0 1-.894.553H6.618a1 1 0 0 1-.894-.553L5.5 15a.5.5 0 0 1 0-1 .5.5 0 0 1 0-1 .5.5 0 0 1-.46-.302l-.761-1.77a1.964 1.964 0 0 0-.453-.618A5.984 5.984 0 0 1 2 6m6-5a5 5 0 0 0-3.479 8.592c.263.254.514.564.676.941L5.163 11h5.674l.967-2.467c.162-.377.413-.687.676-.941A5 5 0 0 0 8 1"/></symbol>
+<symbol id="i-paperclip" viewBox="0 0 16 16"><path fill="currentColor" d="M4.5 3a3.5 3.5 0 0 0-3.39 4.323l4.262 8.913a.5.5 0 0 0 .926-.33L2.04 6.992A2.5 2.5 0 0 1 4.5 2a2.5 2.5 0 0 1 2.445 2.992l-4.241 8.864a1 1 0 0 0 1.852.75L9 5.93a.5.5 0 0 0-.927-.33L4.094 11.7a.5.5 0 0 1-.926-.33z"/></symbol>
+<symbol id="i-files" viewBox="0 0 16 16"><path fill="currentColor" d="M13 0H6a2 2 0 0 0-2 2 2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2 2 2 0 0 0 2-2V2a2 2 0 0 0-2-2m0 13a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1zm0-4a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1z"/></symbol>
+<symbol id="i-table" viewBox="0 0 16 16"><path fill="currentColor" d="M0 2a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2zm15 2H1v3h14zm-1 4H1v6h14z"/></symbol>
+<symbol id="i-question-circle-fill" viewBox="0 0 16 16"><path fill="currentColor" d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0M5.255 5.786a.237.237 0 0 0 .241.247c.325 0 .464-.108.626-.398.105-.193.207-.394.423-.394.214 0 .359.144.359.339 0 .196-.116.337-.295.477-.196.156-.425.347-.583.633a.67.67 0 0 0-.102.392c0 .16.097.302.27.302a.34.34 0 0 0 .335-.35 1 1 0 0 1 .015-.169c.06-.155.181-.273.331-.394l.448-.397c.4-.356.586-.622.586-.92 0-.43-.357-.745-.886-.745-.585 0-.93.36-.93.886M8 4.5a1 1 0 1 0 0 2 1 1 0 0 0 0-2"/></symbol>
+<symbol id="i-window-stack" viewBox="0 0 16 16"><path fill="currentColor" d="M2 4a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1H2zm14 1H2v6a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2z"/></symbol>
+<symbol id="i-diagram-3" viewBox="0 0 16 16"><path fill="currentColor" d="M6 3.5A1.5 1.5 0 0 1 7.5 2h1A1.5 1.5 0 0 1 10 3.5v1A1.5 1.5 0 0 1 8.5 6v1H11a.5.5 0 0 1 .5.5v1.5h1a.5.5 0 0 1 .5.5V13a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-3.5a.5.5 0 0 1 .5-.5H10V8.5H6v.5a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5V6a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 .5.5v.5h2.5V6A1.5 1.5 0 0 1 6 4.5z"/></symbol>
+<symbol id="i-diagram-3-fill" viewBox="0 0 16 16"><path fill="currentColor" d="M6 3.5A1.5 1.5 0 0 1 7.5 2h1A1.5 1.5 0 0 1 10 3.5v1A1.5 1.5 0 0 1 8.5 6v1H11a.5.5 0 0 1 .5.5v1.5h1a.5.5 0 0 1 .5.5V13a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-3.5a.5.5 0 0 1 .5-.5H10V8.5H6v.5a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5V6a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 .5.5v.5h2.5V6A1.5 1.5 0 0 1 6 4.5z"/></symbol>
+<symbol id="i-upload" viewBox="0 0 16 16"><path fill="currentColor" d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5"/><path fill="currentColor" d="M7.646 1.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 2.707V11.5a.5.5 0 0 1-1 0V2.707L5.354 4.854a.5.5 0 1 1-.708-.708z"/></symbol>
+<symbol id="i-list-ul" viewBox="0 0 16 16"><path fill="currentColor" fill-rule="evenodd" d="M5 11.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5m-3.854-1.146a.5.5 0 0 1 0 .708l-1.5 1.5a.5.5 0 0 1-.708 0l-.5-.5a.5.5 0 1 1 .708-.708L.146 5.293l1.146-1.147a.5.5 0 0 1 .708 0"/></symbol>
+<symbol id="i-person-check" viewBox="0 0 16 16"><path fill="currentColor" d="M12.5 16a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7m1.679-4.493-1.335 2.226a.75.75 0 0 1-1.174.144l-.774-.773a.5.5 0 0 1 .708-.708l.547.548 1.17-1.951a.5.5 0 1 1 .858.514"/><path fill="currentColor" d="M15 14.5a4.5 4.5 0 0 1-3.6-1.8 5.5 5.5 0 0 0-7.05-5.85 4.5 4.5 0 1 1 7.45-3.85q.18.043.355.094A5.5 5.5 0 0 0 8 1.5 5.5 5.5 0 0 0 3.94 11.4a4.5 4.5 0 0 0 1.886 7.32A4.5 4.5 0 0 1 11 13.5h.5a4.5 4.5 0 0 0 3.5 1z"/></symbol>
+<symbol id="i-person-lines-fill" viewBox="0 0 16 16"><path fill="currentColor" d="M8.5 1.5A1.5 1.5 0 1 1 8 0a1.5 1.5 0 0 1 .5 1.5M7 3.5A1.5 1.5 0 0 1 8.5 2h.5A1.5 1.5 0 0 1 10.5 3.5v.5h.5A1.5 1.5 0 0 1 12.5 5.5v1A1.5 1.5 0 0 1 11 8H5a1.5 1.5 0 0 1-1.5-1.5v-1A1.5 1.5 0 0 1 5 4h.5v-.5A1.5 1.5 0 0 1 7 2h.5z"/><path fill="currentColor" d="M2 13.5a4.5 4.5 0 1 1 9 0 .5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5"/></symbol>
+<symbol id="i-calendar-event" viewBox="0 0 16 16"><path fill="currentColor" d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5M1 4v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4z"/><path fill="currentColor" d="M11 7.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zm-3 0a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zm-5 3a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zm3 0a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5z"/></symbol>
+</defs>
+</svg>
+</head>
+<body>
+
+<div class="bg-orbs" aria-hidden="true">
+    <span class="orb orb-1"></span>
+    <span class="orb orb-2"></span>
+    <span class="orb orb-3"></span>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+<div class="auth-shell">
+    <div class="container-fluid py-3">
+
+
+        
+        
+        
+
+        
+<div class="auth-split">
+    <!-- 左侧品牌区 -->
+    <aside class="auth-aside">
+        <div class="auth-aside-bg" aria-hidden="true">
+            <span class="auth-glow auth-glow-a"></span>
+            <span class="auth-glow auth-glow-b"></span>
+            <span class="auth-grid"></span>
+        </div>
+
+        <div class="auth-brand">
+            <div class="sidebar-logo"><svg class="icon " width="18" height="18" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-building-fill-gear"/></svg></div>
+            <div>
+                <div style="font-weight:700; font-size:1.05rem;">帕基尔项目月度结算管理系统</div>
+                <div style="opacity:.75; font-size:.8rem;">菲律宾帕基尔抽蓄基础处理工程 · 合同管理部</div>
+            </div>
+        </div>
+
+        <div class="auth-feature">
+            <h1>月度结算，<br>一目了然。</h1>
+            <p>对上申报与对下审核、各部门完成进度、结算金额总览——一个系统，全部掌握。</p>
+            <ul>
+                <li><svg class="icon " width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-bar-chart"/></svg> 全部门完成率实时排名，进度一目了然</li>
+                <li><svg class="icon " width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-clock-history"/></svg> 截止日期与逾期状态自动提醒</li>
+                <li><svg class="icon " width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-shield-lock-fill"/></svg> 分角色权限，数据各司其职</li>
+                <li><svg class="icon " width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-file-earmark-spreadsheet"/></svg> 模板文件集中管理，一键下载</li>
+            </ul>
+            <div class="auth-stats">
+                <div class="auth-stat"><b>8</b><span>参与部门</span></div>
+                <div class="auth-stat"><b>14</b><span>任务配置</span></div>
+                <div class="auth-stat"><b>35</b><span>上报条目</span></div>
+                <div class="auth-stat"><b>100%</b><span>数据可追溯</span></div>
+            </div>
+        </div>
+
+        <div class="auth-foot">© 2026 合同管理部 · 内部系统 · 请勿外传账号密码</div>
+    </aside>
+
+    <!-- 右侧登录卡片 -->
+    <div class="auth-main">
+        <div class="auth-card">
+            <div class="auth-card-glow" aria-hidden="true"></div>
+
+            <div class="auth-logo-mobile d-flex align-items-center justify-content-center gap-2 mb-3">
+                <div class="sidebar-logo"><svg class="icon " width="18" height="18" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-building-fill-gear"/></svg></div>
+                <strong>帕基尔结算系统</strong>
+            </div>
+
+            <div class="auth-head">
+                <div class="auth-badge"><svg class="icon " width="18" height="18" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-shield-lock-fill"/></svg></div>
+                <h4 class="auth-title">欢迎登录</h4>
+                <p class="auth-sub">请选择身份并输入密码进入工作台</p>
+            </div>
+
+            <div id="alert-box"></div>
+
+            <form id="login-form" autocomplete="off">
+                <div class="mb-3">
+                    <label class="form-label">账号</label>
+                    <div class="input-icon">
+                        <svg class="icon lead-icon" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-person-badge"/></svg>
+                        <select class="form-select" id="username" required>
+                            <option value="">— 请选择身份 —</option>
+                            <optgroup label="项目领导班子">
+                                <option value="leader">项目领导班子</option>
+                            </optgroup>
+                            <optgroup label="系统管理员">
+                                <option value="admin">系统管理员</option>
+                            </optgroup>
+                            <optgroup label="部门主任">
+                                <option value="director_scdd">生产调度部主任</option>
+                                <option value="director_gczljs">工程质量技术部主任</option>
+                                <option value="director_aqhbb">安全环保部主任</option>
+                                <option value="director_sbwzb">设备物资部主任</option>
+                                <option value="director_rlzyb">人力资源部主任</option>
+                                <option value="director_zhbgs">综合办公室主任</option>
+                            </optgroup>
+                            <optgroup label="部门联络人">
+                                <option value="liaison_scdd">生产调度部联络人</option>
+                                <option value="liaison_gczljs">工程质量技术部联络人</option>
+                                <option value="liaison_aqhbb">安全环保部联络人</option>
+                                <option value="liaison_sbwzb">设备物资部联络人</option>
+                                <option value="liaison_rlzyb">人力资源部联络人</option>
+                                <option value="liaison_zhbgs">综合办公室联络人</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="mb-3" id="department-wrap" style="display:none;">
+                    <label class="form-label">所属部门</label>
+                    <div class="input-icon">
+                        <svg class="icon lead-icon" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-building"/></svg>
+                        <select class="form-select" id="department">
+                            <option value="">— 请选择部门 —</option>
+                            
+                            <option value="生产调度部">生产调度部</option>
+                            
+                            <option value="工程质量技术部">工程质量技术部</option>
+                            
+                            <option value="安全环保部">安全环保部</option>
+                            
+                            <option value="设备物资部">设备物资部</option>
+                            
+                            <option value="人力资源部">人力资源部</option>
+                            
+                            <option value="综合办公室">综合办公室</option>
+                            
+                            <option value="合同管理部">合同管理部</option>
+                            
+                            <option value="项目领导">项目领导</option>
+                            
+                        </select>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">密码</label>
+                    <div class="input-icon password-wrap">
+                        <svg class="icon lead-icon" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-lock"/></svg>
+                        <input type="password" class="form-control" id="password" placeholder="请输入密码" required>
+                        <button type="button" class="password-toggle" id="toggle-pwd" aria-label="显示 / 隐藏密码" title="显示 / 隐藏密码">
+                            <svg class="icon" id="pwd-eye-icon" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-eye"/></svg>
+                        </button>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100" id="submit-btn" style="height:48px;">
+                    <svg class="icon " width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-box-arrow-in-right"/></svg> 登录
+                </button>
+            </form>
+
+            <!-- 业务提醒条：把"这是干什么的"显性化 -->
+            <div class="auth-quick">
+                <div class="auth-quick-item">
+                    <div class="auth-quick-ico"><svg class="icon " width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-calendar-event"/></svg></div>
+                    <div>
+                        <div class="auth-quick-title">本月结算周期</div>
+                        <div class="auth-quick-sub">8 月 1 日 – 8 月 31 日 · 截止 8 月 25 日</div>
+                    </div>
+                </div>
+                <div class="auth-quick-item">
+                    <div class="auth-quick-ico"><svg class="icon " width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-hourglass-split"/></svg></div>
+                    <div>
+                        <div class="auth-quick-title">未提交部门</div>
+                        <div class="auth-quick-sub">3 / 8 · 请尽快催办</div>
+                    </div>
+                </div>
+                <div class="auth-quick-item">
+                    <div class="auth-quick-ico"><svg class="icon " width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-shield-lock-fill"/></svg></div>
+                    <div>
+                        <div class="auth-quick-title">权限分级</div>
+                        <div class="auth-quick-sub">4 类角色 · 数据各司其职</div>
+                    </div>
+                </div>
+            </div>
+
+            <details class="auth-tip">
+                <summary>密码说明（参考"部门权限密码表.xlsx"）</summary>
+                <ul class="mt-2 mb-0">
+                    <li>领导班子：<code>pakil123456</code></li>
+                    <li>管理员：<code>htglb888</code></li>
+                    <li>生产调度部主任：<code>scddb111</code></li>
+                    <li>工程质量技术部主任：<code>gczljsb222</code></li>
+                    <li>安全环保部主任：<code>aqhbb333</code></li>
+                    <li>设备物资部主任：<code>sbwzb444</code></li>
+                    <li>人力资源部主任：<code>rlzyb555</code></li>
+                    <li>综合办公室主任：<code>zhbgs666</code></li>
+                    <li>联络人密码：另行发放，暂用占位符</li>
+                </ul>
+            </details>
+        </div>
+    </div>
+</div>
+
+
+
+    </div>
+</div>
+
+
+<script src="/static/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+<script>
+function doLogout() {
+  try { localStorage.removeItem('auth_token'); localStorage.removeItem('current_user'); document.cookie = 'auth_token=; path=/; max-age=0'; } catch (e) {}
+  document.getElementById('logout-form').submit();
+}
+function toggleSidebar() { const s = document.getElementById('appShell'); if (s) s.classList.toggle('sidebar-open'); }
+function toggleCollapse() { const s = document.getElementById('appShell'); if (s) s.classList.toggle('sidebar-collapsed'); }
+(function () {
+  const el = document.getElementById('live-clock');
+  if (!el) return;
+  const pad = n => (n < 10 ? '0' + n : '' + n);
+  function tick() { const d = new Date(); el.textContent = pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()); }
+  tick(); setInterval(tick, 1000);
+})();
+</script>
+
+<script>
+// 进入登录页时清掉旧的登录态（保证"每次都是登录界面"）
+try {
+  localStorage.removeItem('auth_token');
+  localStorage.removeItem('current_user');
+  document.cookie = 'auth_token=; path=/; max-age=0';
+} catch (e) {}
+
+const USERNAME_TO_DEPT = {
+  'director_scdd': '生产调度部', 'director_gczljs': '工程质量技术部', 'director_aqhbb': '安全环保部',
+  'director_sbwzb': '设备物资部', 'director_rlzyb': '人力资源部', 'director_zhbgs': '综合办公室',
+  'liaison_scdd': '生产调度部', 'liaison_gczljs': '工程质量技术部', 'liaison_aqhbb': '安全环保部',
+  'liaison_sbwzb': '设备物资部', 'liaison_rlzyb': '人力资源部', 'liaison_zhbgs': '综合办公室',
+};
+
+document.getElementById('username').addEventListener('change', function() {
+  const u = this.value;
+  const deptWrap = document.getElementById('department-wrap');
+  const deptSel = document.getElementById('department');
+  if (u && USERNAME_TO_DEPT[u]) {
+    deptWrap.style.display = '';
+    deptSel.value = USERNAME_TO_DEPT[u];
+  } else {
+    deptWrap.style.display = 'none';
+    deptSel.value = '';
+  }
+});
+
+// 密码显隐切换（SVG <use> 的 href 切换）
+document.getElementById('toggle-pwd').addEventListener('click', function() {
+  const pwd = document.getElementById('password');
+  const use = document.getElementById('pwd-eye-icon').firstElementChild;
+  if (pwd.type === 'password') {
+    pwd.type = 'text';
+    use.setAttribute('href', '#i-eye-slash');
+  } else {
+    pwd.type = 'password';
+    use.setAttribute('href', '#i-eye');
+  }
+});
+
+document.getElementById('login-form').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const btn = document.getElementById('submit-btn');
+  const alertBox = document.getElementById('alert-box');
+  alertBox.innerHTML = '';
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 登录中...';
+
+  try {
+    const fd = new FormData();
+    fd.append('username', document.getElementById('username').value);
+    fd.append('password', document.getElementById('password').value);
+    fd.append('department', document.getElementById('department').value);
+
+    const res = await fetch('/api/auth/login', { method: 'POST', body: fd });
+    const data = await res.json();
+
+    if (!res.ok || !data.ok) {
+      alertBox.innerHTML = `<div class="alert alert-danger"><svg class="icon" width="16" height="16" viewBox="0 0 16 16"><use href="#i-exclamation-triangle"/></svg> ${data.error || '登录失败'}</div>`;
+      btn.disabled = false;
+      btn.innerHTML = '<svg class="icon" width="16" height="16" viewBox="0 0 16 16"><use href="#i-box-arrow-in-right"/></svg> 登录';
+      return;
+    }
+
+    localStorage.setItem('auth_token', data.token);
+    localStorage.setItem('current_user', JSON.stringify(data.user));
+    document.cookie = `auth_token=${data.token}; path=/; max-age=${data.expires_in}`;
+
+    const nextPath = data.next || '/';
+    window.location.href = nextPath;
+  } catch (err) {
+    alertBox.innerHTML = `<div class="alert alert-danger"><svg class="icon" width="16" height="16" viewBox="0 0 16 16"><use href="#i-exclamation-triangle"/></svg> 网络错误：${err.message}</div>`;
+    btn.disabled = false;
+    btn.innerHTML = '<svg class="icon" width="16" height="16" viewBox="0 0 16 16"><use href="#i-box-arrow-in-right"/></svg> 登录';
+  }
+});
+</script>
+
+</body>
+</html>
