@@ -69,3 +69,10 @@ new_login_css.txt
 vercel_*.ps1
 *部署Vercel*.ps1
 *部署.ps1
+# 性能诊断/压缩临时脚本
+_bench.py
+_minify_css.py
+# 预览对比页（不进版本）
+icon_preview.html
+# 国内部署草稿（不进版本）
+国内部署指南.md

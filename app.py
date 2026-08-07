@@ -2592,6 +2592,31 @@ def inject_globals():
 
 
 # ===========================================================================
+# 性能优化：响应缓存头
+#   - HTML：浏览器私有缓存 10s（连切页秒开，CDN 不缓存私有页）
+#   - JSON API：不缓存（数据随时变）
+#   - 文件下载（attachment）：不缓存
+#   - 静态资源（在 /static/ 下）：交给 vercel.json 的 headers 配，这里不动
+# ===========================================================================
+@app.after_request
+def _perf_headers(response):
+    ct = (response.headers.get('Content-Type') or '').split(';')[0].strip().lower()
+
+    # HTML 页面：浏览器私有缓存 10s
+    if ct == 'text/html':
+        response.headers.setdefault('Cache-Control', 'private, max-age=10')
+    # JSON API：默认不缓存
+    elif ct in ('application/json', 'text/json'):
+        response.headers.setdefault('Cache-Control', 'no-store')
+    # 文件下载（attachment）：不缓存
+    elif 'attachment' in (response.headers.get('Content-Disposition') or ''):
+        response.headers.setdefault('Cache-Control', 'no-store')
+    # 其他（静态资源）：交给 vercel.json 的 headers 配
+
+    return response
+
+
+# ===========================================================================
 # 启动
 # ===========================================================================
 if __name__ == '__main__':
