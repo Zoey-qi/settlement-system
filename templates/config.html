@@ -28,7 +28,7 @@
                         {{ ui.icon('download', '', 16) }} 下载配置文件模板
                     </a>
                 </div>
-                <form method="POST" enctype="multipart/form-data" action="{{ url_for('upload_config') }}" id="uploadConfigForm">
+                <form method="POST" enctype="multipart/form-data" action="{{ url_for('upload_config') }}" id="uploadConfigForm" onsubmit="return lockUploadConfig(this)">
                     <div class="mb-3">
                         <label class="form-label">上传人</label>
                         <input type="text" class="form-control" name="uploader" placeholder="您的姓名">
@@ -37,7 +37,7 @@
                         <label class="form-label">选择配置文件（Excel/CSV）</label>
                         <input type="file" class="form-control" name="file" required accept=".xlsx,.xls,.csv">
                     </div>
-                    <button type="submit" class="btn btn-primary">{{ ui.icon('upload', '', 16) }} 上传并解析</button>
+                    <button type="submit" class="btn btn-primary" id="uploadConfigBtn">{{ ui.icon('upload', '', 16) }} 上传并解析</button>
                 </form>
             </div>
         </div>
@@ -508,5 +508,16 @@
         });
     });
 })();
+</script>
+<script>
+// 配置上传：提交即锁按钮，防止重复点击导致重复解析
+function lockUploadConfig(form) {
+    const btn = document.getElementById('uploadConfigBtn');
+    if (btn && !btn.disabled) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 上传并解析...';
+    }
+    return true;
+}
 </script>
 {% endblock %}

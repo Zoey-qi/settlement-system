@@ -164,6 +164,7 @@
               <label class="form-label">附件（可选，支持 PDF / Excel / Word / 图片 / 压缩包，可多选，单文件不超过 50MB）</label>
               <input type="file" class="form-control" id="attachments" multiple
                      accept=".pdf,.xlsx,.xls,.doc,.docx,.jpg,.jpeg,.png,.zip,.rar,.ppt,.pptx,.txt">
+              <div id="existing-attachments" class="small text-muted mt-2"></div>
               <div id="file-preview" class="small text-muted mt-2"></div>
             </div>
           </div>
@@ -242,10 +243,29 @@ function renderAmountsCell(amounts) {
 function renderAttachmentsCell(attachments) {
   if (!attachments || !attachments.length) return '—';
   return attachments.map(a => `
-    <a href="/download/settlement-attachment/${a.id}" class="btn btn-sm btn-outline-secondary me-1 mb-1" title="${esc(a.file_name)}">
-      {{ ui.icon('paperclip', 'bi', 14) }} <span class="small">${esc(a.file_name)}</span>
-    </a>
+    <span class="att-item d-inline-flex align-items-center me-1 mb-1">
+      <a href="/download/settlement-attachment/${a.id}" class="btn btn-sm btn-outline-secondary" title="${esc(a.file_name)}">
+        {{ ui.icon('paperclip', 'bi', 14) }} <span class="small">${esc(a.file_name)}</span>
+      </a>
+      ${CAN_EDIT ? `<button type="button" class="btn btn-sm btn-outline-danger ms-1" title="删除附件" onclick="deleteSettlementAttachment(${a.id}, this)">{{ ui.icon('trash', 'bi', 14) }}</button>` : ''}
+    </span>
   `).join('');
+}
+
+async function deleteSettlementAttachment(id, btn) {
+  if (!confirm('确认删除该附件？此操作不可撤销。')) return;
+  const item = btn.closest('.att-item');
+  const container = item ? item.parentElement : null;
+  try {
+    const r = await api('/api/settlement-attachment/' + id, { method: 'DELETE' });
+    if (!r.ok) { alert((r.data && r.data.error) ? r.data.error : '删除失败'); return; }
+    if (item) item.remove();
+    if (container && !container.querySelector('.att-item')) {
+      container.innerHTML = container.classList.contains('attach-cell') ? '—' : '';
+    }
+  } catch (err) {
+    alert('删除失败：' + err);
+  }
 }
 
 const CURRENCY_OPTIONS = ['PHP','USD','CNY'].map(c => `<option value="${c}">${c}</option>`).join('');
@@ -360,7 +380,7 @@ function renderTable(dir) {
       <td class="settle-month">${esc(r.settle_month || fmtDate(r.settle_date).slice(0,7))}</td>
       <td><span class="badge ${statusBadge(r.status)}">${statusText(r.status)}</span></td>
       <td class="notes-cell" title="${esc(r.notes)}">${esc(r.notes || '—')}</td>
-      <td>${renderAttachmentsCell(r.attachments)}</td>
+      <td class="attach-cell">${renderAttachmentsCell(r.attachments)}</td>
       <td>
         ${CAN_EDIT ? `<button class="btn btn-sm btn-outline-primary" onclick='openEdit(${JSON.stringify(r)})'>{{ ui.icon('pencil', 'bi', 16) }}</button>` : ''}
         ${CAN_DELETE ? `<button class="btn btn-sm btn-outline-danger" onclick="del(${r.id})">{{ ui.icon('trash', 'bi', 16) }}</button>` : ''}
@@ -391,8 +411,14 @@ function openEdit(r) {
   document.getElementById('amount-rows').innerHTML = '';
   document.getElementById('attachments').value = '';
   const filePreview = document.getElementById('file-preview');
-  filePreview.innerHTML = (r.attachments && r.attachments.length)
-    ? '<div class="mb-1">已上传附件（继续选择将追加）：</div>' + r.attachments.map(a => `<div class="text-truncate" style="max-width:100%" title="${esc(a.file_name)}">• ${esc(a.file_name)}</div>`).join('')
+  filePreview.innerHTML = '';
+  const existingWrap = document.getElementById('existing-attachments');
+  existingWrap.innerHTML = (r.attachments && r.attachments.length)
+    ? '<div class="mb-1">已上传附件（可单独删除）：</div>' + r.attachments.map(a => `
+        <div class="att-item d-flex align-items-center justify-content-between border rounded px-2 py-1 mb-1">
+          <span class="text-truncate me-2" style="max-width:78%" title="${esc(a.file_name)}">{{ ui.icon('paperclip', 'bi', 14) }} ${esc(a.file_name)}</span>
+          ${CAN_EDIT ? `<button type="button" class="btn btn-sm btn-outline-danger" title="删除附件" onclick="deleteSettlementAttachment(${a.id}, this)">{{ ui.icon('trash', 'bi', 14) }}</button>` : ''}
+        </div>`).join('')
     : '';
   const amounts = (r.amounts && r.amounts.length) ? r.amounts : [{ currency: r.currency || 'PHP', amount: r.amount || 0 }];
   amounts.forEach((a, i) => addAmountRow(amounts));

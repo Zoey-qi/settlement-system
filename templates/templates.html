@@ -91,7 +91,7 @@
 <div class="modal fade" id="uploadModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form method="POST" enctype="multipart/form-data" action="{{ url_for('upload_template') }}">
+            <form method="POST" enctype="multipart/form-data" action="{{ url_for('upload_template') }}" id="uploadTemplateForm" onsubmit="return uploadTemplateSubmit(event)">
                 <div class="modal-header">
                     <h5 class="modal-title">{{ ui.icon('cloud-arrow-up', 'bi', 16) }} 上传模板文件</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -125,16 +125,69 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label">选择文件 <span class="text-danger">*</span></label>
-                        <input type="file" class="form-control" name="file" required
-                               accept=".xlsx,.xls,.csv,.doc,.docx,.pdf,.jpg,.jpeg,.png,.zip,.rar,.ppt,.pptx,.txt">
+                        <input type="file" class="form-control" name="files" required multiple
+                               accept=".xlsx,.xls,.csv,.doc,.docx,.pdf,.jpg,.jpeg,.png,.zip,.rar,.ppt,.pptx,.txt"
+                               onchange="previewTemplateFiles(this)">
+                        <div class="form-text">可同时选择多份模板文件，每个文件会作为独立模板入库</div>
+                        <div id="templateFileList" class="small text-muted mt-2"></div>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                    <button type="submit" class="btn btn-primary">{{ ui.icon('check-lg', 'bi', 16) }} 上传</button>
+                    <button type="submit" class="btn btn-primary" id="uploadTemplateBtn">{{ ui.icon('check-lg', 'bi', 16) }} 上传</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => (
+        {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]
+    ));
+}
+function previewTemplateFiles(input) {
+    const box = document.getElementById('templateFileList');
+    if (!box) return;
+    if (!input.files || !input.files.length) { box.innerHTML = ''; return; }
+    let html = '已选择 ' + input.files.length + ' 个文件：<ul class="mb-0 ps-3">';
+    for (let i = 0; i < input.files.length; i++) {
+        const f = input.files[i];
+        const kb = (f.size / 1024).toFixed(1);
+        html += '<li>' + escapeHtml(f.name) + ' <span class="text-muted">(' + kb + ' KB)</span></li>';
+    }
+    html += '</ul>';
+    box.innerHTML = html;
+}
+function uploadTemplateSubmit(e) {
+    e.preventDefault();
+    const form = document.getElementById('uploadTemplateForm');
+    const btn = document.getElementById('uploadTemplateBtn');
+    const fileInput = form.querySelector('input[name="files"]');
+    if (!fileInput.files || fileInput.files.length === 0) { alert('请选择文件'); return; }
+    const fd = new FormData(form);
+    const orig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 上传中...';
+    fetch(form.action, {
+        method: 'POST',
+        headers: {'X-Requested-With': 'XMLHttpRequest'},
+        body: fd
+    })
+    .then(r => r.json().then(d => ({status: r.status, d})))
+    .then(({status, d}) => {
+        if (d && d.ok) {
+            location.reload();
+        } else {
+            alert('上传失败：' + (d && d.error ? d.error : ('HTTP ' + status)));
+        }
+    })
+    .catch(err => alert('上传失败：' + err))
+    .finally(() => { btn.disabled = false; btn.innerHTML = orig; });
+    return false;
+}
+</script>
 {% endblock %}

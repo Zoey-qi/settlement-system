@@ -679,6 +679,21 @@ def submit_task(task_id):
 
     items = get_items_with_status(task['task_config_id'], month)
 
+    # 为多附件模式注入 files 列表
+    sub_ids = [i['sub_id'] for i in items if i['sub_id']]
+    files_map = {}
+    if sub_ids:
+        placeholders = ','.join('?' * len(sub_ids))
+        file_rows = db.execute(
+            f'SELECT id, item_submission_id, file_name FROM item_submission_files WHERE item_submission_id IN ({placeholders}) ORDER BY sort_order, id',
+            sub_ids
+        ).fetchall()
+        for r in file_rows:
+            files_map.setdefault(r['item_submission_id'], []).append({'id': r['id'], 'file_name': r['file_name']})
+    items = [dict(i) for i in items]
+    for i in items:
+        i['files'] = files_map.get(i['sub_id'], [])
+
     # 获取所有模板供关联选择
     all_templates = db.execute('SELECT * FROM template_files ORDER BY name').fetchall()
 
@@ -732,34 +747,53 @@ def submit_item(item_id):
         flash(f'「{item["item_name"]}」已标记为"无"', 'success')
 
     elif submission_type == 'file':
-        file = request.files.get('file')
-        if not file or not file.filename:
+        # 支持多附件上传（新前端使用 files[]），兼容旧客户端单文件字段 file
+        files = request.files.getlist('files')
+        single_file = request.files.get('file')
+        if single_file and single_file.filename:
+            files.insert(0, single_file)
+        files = [f for f in files if f and f.filename]
+
+        if not files:
             if request_is_ajax():
                 return jsonify({'error': '请选择要上传的文件'}), 400
             flash('请选择要上传的文件', 'warning')
             return redirect(request.referrer or url_for('submit'))
 
-        if not allowed_file(file.filename):
-            if request_is_ajax():
-                return jsonify({'error': '不支持的文件类型'}), 400
-            flash(f'不支持的文件类型', 'danger')
-            return redirect(request.referrer or url_for('submit'))
+        for f in files:
+            if not allowed_file(f.filename):
+                if request_is_ajax():
+                    return jsonify({'error': '不支持的文件类型：' + f.filename}), 400
+                flash(f'不支持的文件类型', 'danger')
+                return redirect(request.referrer or url_for('submit'))
 
-        stored_name, file_size, original_name, file_data = save_upload_file(file)
-        # 先删除旧提交再插入
+        # 先删除旧提交再插入（级联删除旧附件）
         db.execute('DELETE FROM item_submissions WHERE task_item_id = ? AND month = ?', (item_id, month))
+        # 每个文件仅保存一次；主记录保留首个文件名（兼容旧逻辑），子表存全部
+        saved = [save_upload_file(f) for f in files]
+        primary_stored, primary_size, primary_name, primary_data = saved[0]
         if USE_POSTGRES:
             db.execute('''
                 INSERT INTO item_submissions (task_item_id, month, submission_type, file_name, stored_name, file_data, file_size, submitter, remarks)
                 VALUES (?, ?, 'file', ?, ?, ?, ?, ?, ?)
-            ''', (item_id, month, original_name, stored_name, file_data, file_size, submitter, remarks))
+            ''', (item_id, month, primary_name, primary_stored, primary_data, primary_size, submitter, remarks))
         else:
             db.execute('''
                 INSERT INTO item_submissions (task_item_id, month, submission_type, file_name, stored_name, file_size, submitter, remarks)
                 VALUES (?, ?, 'file', ?, ?, ?, ?, ?)
-            ''', (item_id, month, original_name, stored_name, file_size, submitter, remarks))
+            ''', (item_id, month, primary_name, primary_stored, primary_size, submitter, remarks))
+
+        sub_row = db.execute('SELECT id FROM item_submissions WHERE task_item_id=? AND month=?', (item_id, month)).fetchone()
+        sub_id = sub_row['id'] if sub_row else None
+        # 保存所有附件到子表（每个文件已在上一步保存，直接落库）
+        for i, (stored, size, original, data) in enumerate(saved):
+            db.execute('''
+                INSERT INTO item_submission_files (item_submission_id, file_name, stored_name, file_data, file_size, sort_order)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (sub_id, original, stored, data, size, i))
+
         db.commit()
-        flash(f'「{item["item_name"]}」文件「{original_name}」上传成功', 'success')
+        flash(f'「{item["item_name"]}」上传成功 {len(files)} 个文件', 'success')
 
     # 更新任务状态（只重算该条目所属的任务配置，避免全量重算）
     ensure_tasks_for_month(month, only_config_id=item['task_config_id'])
@@ -778,16 +812,32 @@ def submit_item(item_id):
             submitted_at = submitted_at[:16]
         else:
             submitted_at = ''
+
+        # 读取多附件列表
+        files_list = []
+        if sub_id:
+            file_rows = db.execute(
+                'SELECT id, file_name FROM item_submission_files WHERE item_submission_id = ? ORDER BY sort_order, id',
+                (sub_id,)
+            ).fetchall()
+            if file_rows:
+                files_list = [{'id': r['id'], 'file_name': r['file_name'],
+                               'download_url': url_for('download_item_submission_file', file_id=r['id'])} for r in file_rows]
+            elif sub['file_name']:
+                # 兼容旧数据：没有子表记录时fallback到主表
+                files_list = [{'id': None, 'file_name': sub['file_name'],
+                               'download_url': url_for('download_item_submission', sub_id=sub_id)}]
+
         return jsonify({
             'ok': True,
             'item_id': item_id,
             'month': month,
             'submission_type': submission_type,
             'sub_id': sub_id,
+            'files': files_list,
             'file_name': sub['file_name'] if sub else None,
             'submitter': submitter or (sub['submitter'] if sub else ''),
             'submitted_at': submitted_at,
-            'download_url': url_for('download_item_submission', sub_id=sub_id) if sub_id else '',
         })
     return redirect(request.referrer or url_for('submit_task', task_id=request.form.get('task_id'), month=month))
 
@@ -824,6 +874,8 @@ def mark_all_none(task_id):
             count += 1
     db.commit()
     ensure_tasks_for_month(month, only_config_id=task['task_config_id'])
+    if request_is_ajax():
+        return jsonify({'ok': True, 'count': count})
     flash(f'已将 {count} 个条目标记为"无"', 'success')
     return redirect(url_for('submit_task', task_id=task_id, month=month))
 
@@ -951,7 +1003,12 @@ def api_add_item():
     ''', (task_config_id, item_name, template_file_id, max_order + 1))
     db.commit()
     new_id = db.execute('SELECT MAX(id) as m FROM task_items WHERE task_config_id=?', (task_config_id,)).fetchone()['m']
-    return jsonify({'ok': True, 'id': new_id, 'item_name': item_name})
+
+    tpl_name = None
+    if template_file_id:
+        tpl = db.execute('SELECT name FROM template_files WHERE id = ?', (template_file_id,)).fetchone()
+        tpl_name = tpl['name'] if tpl else None
+    return jsonify({'ok': True, 'id': new_id, 'item_name': item_name, 'template_file_id': template_file_id, 'template_name': tpl_name})
 
 
 @app.route('/api/item/delete', methods=['POST'])
@@ -1200,6 +1257,55 @@ def download_item_submission(sub_id):
     return send_file(filepath, as_attachment=True, download_name=sub['file_name'])
 
 
+@app.route('/download/item-submission-file/<int:file_id>')
+def download_item_submission_file(file_id):
+    """下载条目提交的单个附件（多附件模式下使用）"""
+    db = get_db()
+    row = db.execute('SELECT * FROM item_submission_files WHERE id = ?', (file_id,)).fetchone()
+    if not row:
+        abort(404)
+    if USE_POSTGRES:
+        if not row['file_data']:
+            abort(404)
+        return send_file(io.BytesIO(row['file_data']), as_attachment=True, download_name=row['file_name'])
+    filepath = os.path.join(UPLOAD_DIR, 'item_submissions', row['stored_name'])
+    if not os.path.exists(filepath):
+        flash('文件不存在', 'danger')
+        return redirect(request.referrer or url_for('summary'))
+    return send_file(filepath, as_attachment=True, download_name=row['file_name'])
+
+
+@app.route('/api/item-submission-file/<int:file_id>', methods=['DELETE'])
+@require_auth
+def api_delete_item_submission_file(file_id):
+    """删除条目提交的某个附件（多附件模式）；仅该部门可写角色（admin / 本部门 liaison）可操作。"""
+    db = get_db()
+    user = g.current_user
+    row = db.execute('''
+        SELECT sf.*, d.name as dept_name
+        FROM item_submission_files sf
+        JOIN item_submissions isub ON sf.item_submission_id = isub.id
+        JOIN task_items ti ON isub.task_item_id = ti.id
+        JOIN task_configs tc ON ti.task_config_id = tc.id
+        JOIN departments d ON tc.department_id = d.id
+        WHERE sf.id = ?
+    ''', (file_id,)).fetchone()
+    if not row:
+        return jsonify({'error': '附件不存在'}), 404
+    if not user_can_write_to_dept(user, row['dept_name']):
+        return jsonify({'error': '权限不足：您不能修改该部门的数据'}), 403
+    if not USE_POSTGRES:
+        filepath = os.path.join(UPLOAD_DIR, 'item_submissions', row['stored_name'])
+        if os.path.exists(filepath):
+            try:
+                os.remove(filepath)
+            except Exception:
+                pass
+    db.execute('DELETE FROM item_submission_files WHERE id = ?', (file_id,))
+    db.commit()
+    return jsonify({'ok': True})
+
+
 @app.route('/download/template/<int:tid>')
 def download_template_by_id(tid):
     """下载模板文件"""
@@ -1254,50 +1360,67 @@ def upload_template():
     settlement_type = request.form.get('settlement_type', 'common').strip()
     department = request.form.get('department', '').strip()
     uploader = request.form.get('uploader', '').strip()
-    file = request.files.get('file')
 
-    if not file or not file.filename:
+    files = request.files.getlist('files')
+    single_file = request.files.get('file')
+    if single_file and single_file.filename:
+        files.insert(0, single_file)
+    files = [f for f in files if f and f.filename]
+
+    if not files:
+        if request_is_ajax():
+            return jsonify({'error': '请选择文件'}), 400
         flash('请选择文件', 'warning')
         return redirect(url_for('templates_page'))
 
-    if not allowed_file(file.filename):
+    bad = [f.filename for f in files if not allowed_file(f.filename)]
+    if bad:
+        if request_is_ajax():
+            return jsonify({'error': '不支持的文件类型：' + ', '.join(bad)}), 400
         flash('不支持的文件类型', 'danger')
         return redirect(url_for('templates_page'))
-
-    if not name:
-        name = os.path.splitext(file.filename)[0]
-
-    timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
-    original = secure_filename(file.filename)
-    if not original:
-        original = 'template_file'
-    stored_name = f"{timestamp}_{original}"
 
     st_names = {
         'upstream': '对上结算',
         'downstream': '对下结算',
         'common': '通用'
     }
+    ts_name = st_names.get(settlement_type, '通用')
+    multi = len(files) > 1
 
-    if USE_POSTGRES:
-        file_data = file.read()
-        file_size = len(file_data)
-        db.execute('''
-            INSERT INTO template_files (name, description, settlement_type, department, file_name, stored_name, file_data, file_size, uploader)
-            VALUES (?,?,?,?,?,?,?,?,?)
-        ''', (name, description, st_names.get(settlement_type, '通用'), department,
-              original, stored_name, file_data, file_size, uploader))
-    else:
-        filepath = os.path.join(TEMPLATE_DIR, stored_name)
-        file.save(filepath)
-        file_size = os.path.getsize(filepath)
-        db.execute('''
-            INSERT INTO template_files (name, description, settlement_type, department, file_name, stored_name, file_size, uploader)
-            VALUES (?,?,?,?,?,?,?,?)
-        ''', (name, description, st_names.get(settlement_type, '通用'), department,
-              original, stored_name, file_size, uploader))
+    for i, file in enumerate(files):
+        base_name = name if name else os.path.splitext(file.filename)[0]
+        # 多文件时名称追加序号，避免重名
+        tpl_name = f"{base_name} ({i+1})" if multi else base_name
+
+        timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+        original = secure_filename(file.filename)
+        if not original:
+            original = 'template_file'
+        stored_name = f"{timestamp}_{i}_{original}"
+
+        if USE_POSTGRES:
+            file_data = file.read()
+            file_size = len(file_data)
+            db.execute('''
+                INSERT INTO template_files (name, description, settlement_type, department, file_name, stored_name, file_data, file_size, uploader)
+                VALUES (?,?,?,?,?,?,?,?,?)
+            ''', (tpl_name, description, ts_name, department,
+                  original, stored_name, file_data, file_size, uploader))
+        else:
+            filepath = os.path.join(TEMPLATE_DIR, stored_name)
+            file.save(filepath)
+            file_size = os.path.getsize(filepath)
+            db.execute('''
+                INSERT INTO template_files (name, description, settlement_type, department, file_name, stored_name, file_size, uploader)
+                VALUES (?,?,?,?,?,?,?,?)
+            ''', (tpl_name, description, ts_name, department,
+                  original, stored_name, file_size, uploader))
+
     db.commit()
-    flash(f'模板文件「{name}」上传成功', 'success')
+    if request_is_ajax():
+        return jsonify({'ok': True, 'count': len(files)})
+    flash(f'模板文件上传成功 {len(files)} 个', 'success')
     return redirect(url_for('templates_page'))
 
 
@@ -2585,6 +2708,26 @@ def download_settlement_attachment(aid):
     if not os.path.exists(filepath):
         abort(404)
     return send_file(filepath, as_attachment=True, download_name=row['file_name'])
+
+
+@app.route('/api/settlement-attachment/<int:aid>', methods=['DELETE'])
+@require_role('admin')
+def api_delete_settlement_attachment(aid):
+    """删除结算单的某个附件（仅管理员可操作）。"""
+    db = get_db()
+    row = db.execute('SELECT * FROM settlement_attachments WHERE id = ?', (aid,)).fetchone()
+    if not row:
+        return jsonify({'error': '附件不存在'}), 404
+    if not USE_POSTGRES:
+        filepath = os.path.join(UPLOAD_DIR, 'settlement_attachments', row['stored_name'])
+        if os.path.exists(filepath):
+            try:
+                os.remove(filepath)
+            except Exception:
+                pass
+    db.execute('DELETE FROM settlement_attachments WHERE id = ?', (aid,))
+    db.commit()
+    return jsonify({'ok': True})
 
 
 # ---------- 部门文件管理 ----------

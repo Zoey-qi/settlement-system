@@ -261,6 +261,17 @@ def init_schema(db):
             UNIQUE(task_item_id, month),
             FOREIGN KEY (task_item_id) REFERENCES task_items(id)
         )''',
+        f'''CREATE TABLE IF NOT EXISTS item_submission_files (
+            id {ai},
+            item_submission_id INTEGER NOT NULL,
+            file_name TEXT NOT NULL,
+            stored_name TEXT NOT NULL,
+            file_data BYTEA,
+            file_size INTEGER,
+            sort_order INTEGER DEFAULT 0,
+            uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (item_submission_id) REFERENCES item_submissions(id) ON DELETE CASCADE
+        )''',
         f'''CREATE TABLE IF NOT EXISTS fee_rates (
             id {ai},
             fee_type TEXT NOT NULL UNIQUE,
@@ -418,6 +429,33 @@ def init_schema(db):
         print(f'[init_schema] migrated {migrated.rowcount} settlement attachments')
     except Exception as e:
         print(f'[init_schema] settlement_attachments migration skipped: {e}')
+
+    # 兼容已有数据库：提交资料拆分为多附件子表
+    try:
+        db.execute(f'''CREATE TABLE IF NOT EXISTS item_submission_files (
+            id {ai},
+            item_submission_id INTEGER NOT NULL,
+            file_name TEXT NOT NULL,
+            stored_name TEXT NOT NULL,
+            file_data BYTEA,
+            file_size INTEGER,
+            sort_order INTEGER DEFAULT 0,
+            uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (item_submission_id) REFERENCES item_submissions(id) ON DELETE CASCADE
+        )''')
+        migrated = db.execute('''
+            INSERT INTO item_submission_files (item_submission_id, file_name, stored_name, file_data, file_size, sort_order)
+            SELECT id, file_name, stored_name, file_data, file_size, 0
+            FROM item_submissions
+            WHERE submission_type = 'file'
+              AND stored_name IS NOT NULL AND stored_name != ''
+              AND NOT EXISTS (
+                  SELECT 1 FROM item_submission_files sf WHERE sf.item_submission_id = item_submissions.id
+              )
+        ''')
+        print(f'[init_schema] migrated {migrated.rowcount} item submissions to item_submission_files')
+    except Exception as e:
+        print(f'[init_schema] item_submission_files migration skipped: {e}')
 
     # 兼容已有数据库：结算日期扩展为结算月份
     try:
