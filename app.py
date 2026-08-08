@@ -340,6 +340,36 @@ def get_items_with_status(task_config_id, month):
     return items
 
 
+def get_items_with_status_bulk(task_config_ids, month):
+    """批量获取多个任务配置下所有条目及其月度提交状态（消除 N+1）。
+
+    一次 IN 查询替代逐个 task_config 调用 get_items_with_status，
+    在 Vercel+Neon 架构下把约 14+ 次网络往返降为 1 次。
+    返回 {task_config_id: [item, ...]}。
+    """
+    if not task_config_ids:
+        return {}
+    db = get_db()
+    placeholders = ','.join('?' * len(task_config_ids))
+    items = db.execute(f'''
+        SELECT ti.*,
+               ist.id as sub_id, ist.submission_type, ist.file_name as sub_file_name,
+               ist.stored_name as sub_stored_name, ist.file_size as sub_file_size,
+               ist.submitter, ist.submitted_at, ist.remarks as sub_remarks,
+               tf.id as tpl_id, tf.name as tpl_name, tf.stored_name as tpl_stored,
+               tf.file_name as tpl_file_name
+        FROM task_items ti
+        LEFT JOIN item_submissions ist ON ist.task_item_id = ti.id AND ist.month = ?
+        LEFT JOIN template_files tf ON tf.id = ti.template_file_id
+        WHERE ti.task_config_id IN ({placeholders}) AND ti.is_active = 1
+        ORDER BY ti.task_config_id, ti.sort_order, ti.id
+    ''', [month] + list(task_config_ids)).fetchall()
+    result = {}
+    for it in items:
+        result.setdefault(it['task_config_id'], []).append(it)
+    return result
+
+
 def get_current_month():
     return datetime.now().strftime('%Y-%m')
 
@@ -481,10 +511,12 @@ def dashboard():
         ORDER BY st.id, d.sort_order
     ''', (month,)).fetchall()
 
-    # 为每个任务附加条目信息
+    # 为每个任务附加条目信息（批量查询所有配置条目，避免 N+1）
+    config_ids = [t['task_config_id'] for t in tasks]
+    items_by_config = get_items_with_status_bulk(config_ids, month)
     task_list = []
     for t in tasks:
-        items = get_items_with_status(t['task_config_id'], month)
+        items = items_by_config.get(t['task_config_id'], [])
         total_items = len(items)
         completed_items = sum(1 for i in items if i['sub_id'])
         task_dict = dict(t)
@@ -626,9 +658,11 @@ def submit():
     sql += ' ORDER BY st.id, d.sort_order'
     tasks = db.execute(sql, params).fetchall()
 
+    config_ids = [t['task_config_id'] for t in tasks]
+    items_by_config = get_items_with_status_bulk(config_ids, month)
     task_list = []
     for t in tasks:
-        items = get_items_with_status(t['task_config_id'], month)
+        items = items_by_config.get(t['task_config_id'], [])
         total_items = len(items)
         completed_items = sum(1 for i in items if i['sub_id'])
         task_dict = dict(t)
@@ -785,12 +819,16 @@ def submit_item(item_id):
 
         sub_row = db.execute('SELECT id FROM item_submissions WHERE task_item_id=? AND month=?', (item_id, month)).fetchone()
         sub_id = sub_row['id'] if sub_row else None
-        # 保存所有附件到子表（每个文件已在上一步保存，直接落库）
-        for i, (stored, size, original, data) in enumerate(saved):
-            db.execute('''
+        # 批量插入所有附件（一次 executemany 替代逐条 INSERT，减少 Neon 往返）
+        file_rows = [
+            (sub_id, original, stored, data, size, i)
+            for i, (stored, size, original, data) in enumerate(saved)
+        ]
+        if file_rows:
+            db.executemany('''
                 INSERT INTO item_submission_files (item_submission_id, file_name, stored_name, file_data, file_size, sort_order)
                 VALUES (?, ?, ?, ?, ?, ?)
-            ''', (sub_id, original, stored, data, size, i))
+            ''', file_rows)
 
         db.commit()
         flash(f'「{item["item_name"]}」上传成功 {len(files)} 个文件', 'success')
@@ -913,10 +951,12 @@ def summary():
 
     tasks = db.execute(query, params).fetchall()
 
-    # 收集所有条目
+    # 收集所有条目（批量查询，避免 N+1）
+    config_ids = [t['task_config_id'] for t in tasks]
+    items_by_config = get_items_with_status_bulk(config_ids, month)
     all_items = []
     for t in tasks:
-        items = get_items_with_status(t['task_config_id'], month)
+        items = items_by_config.get(t['task_config_id'], [])
         for item in items:
             item_dict = dict(item)
             item_dict['dept_name'] = t['dept_name']

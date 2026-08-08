@@ -51,6 +51,14 @@ class PgConnection:
         cur.execute(sql, params)
         return cur
 
+    def executemany(self, sql, params_seq):
+        sql = self._adapt_sql(sql)
+        if not params_seq:
+            return EmptyCursor()
+        cur = self._conn.cursor(cursor_factory=DictCursor)
+        cur.executemany(sql, params_seq)
+        return cur
+
     def commit(self):
         # autocommit=True 下 commit 是 no-op，保留兼容
         try:
