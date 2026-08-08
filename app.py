@@ -13,6 +13,9 @@ import shutil
 import io
 import secrets
 import time
+import json
+import urllib.request
+import urllib.error
 from datetime import datetime, date
 from functools import wraps
 from flask import (
@@ -68,6 +71,53 @@ ALLOWED_EXTENSIONS = {
     '.pdf', '.jpg', '.jpeg', '.png', '.zip', '.rar',
     '.ppt', '.pptx', '.txt'
 }
+
+# ===========================================================================
+# Vercel Blob 对象存储（可选，启用后附件上传绕开 Neon BYTEA，显著提升上传速度）
+# 仅在环境变量 BLOB_READ_WRITE_TOKEN 存在时启用；缺失则自动回退到原 DB/磁盘存储。
+# ===========================================================================
+BLOB_TOKEN = os.environ.get('BLOB_READ_WRITE_TOKEN')
+BLOB_ACCESS = os.environ.get('BLOB_ACCESS', 'public')  # public 或 private
+
+
+def blob_enabled():
+    """是否在 Vercel Blob 启用状态下（有读写令牌）"""
+    return bool(BLOB_TOKEN)
+
+
+def _blob_store_id():
+    """从 BLOB_READ_WRITE_TOKEN 解析 store id（格式 vercel_blob_rw_<storeId>_<secret>）"""
+    if not BLOB_TOKEN:
+        return None
+    rest = BLOB_TOKEN
+    if rest.startswith('vercel_blob_rw_'):
+        rest = rest[len('vercel_blob_rw_'):]
+    if '_' not in rest:
+        return None
+    return rest.rsplit('_', 1)[0]
+
+
+def blob_put_bytes(file_bytes, filename, folder):
+    """把字节上传到 Vercel Blob，返回 (url, pathname)。失败抛异常。
+
+    服务端直传：使用读写令牌作为 Bearer，store id 作为 x-api-key。
+    """
+    store_id = _blob_store_id()
+    if not store_id:
+        raise ValueError('无法解析 BLOB store id')
+    safe = secure_filename(filename) or 'file'
+    ts = datetime.now().strftime('%Y%m%d%H%M%S%f')
+    pathname = f"{folder}/{ts}_{safe}"
+    url = f"https://{store_id}.public.blob.vercel-storage.com/{pathname}"
+    req = urllib.request.Request(url, data=file_bytes, method='PUT')
+    req.add_header('authorization', f'Bearer {BLOB_TOKEN}')
+    req.add_header('x-api-key', store_id)
+    req.add_header('content-type', mimetypes.guess_type(filename)[0] or 'application/octet-stream')
+    req.add_header('x-add-random-suffix', '0')
+    with urllib.request.urlopen(req, timeout=60) as resp:
+        body = json.loads(resp.read().decode('utf-8'))
+    return body.get('url') or url, body.get('pathname') or pathname
+
 
 # ===========================================================================
 # 权限装饰器与辅助函数（必须定义在所有路由之前）
@@ -412,18 +462,34 @@ def request_is_ajax():
 
 
 def save_upload_file(file, subdir='item_submissions'):
-    """保存上传文件。本地存磁盘，Vercel 存内存（返回 bytes）"""
+    """保存上传文件。
+
+    返回 6 元组 (stored_name, file_size, original, file_data, blob_url, blob_pathname)。
+    - 未启用 Blob：file_data 为字节（Vercel）/ None（本地磁盘），blob 两字段为 None。
+    - 启用 Blob：file_data 置 None，blob 两字段为对象存储 URL/pathname。
+    任何异常（网络/令牌错误）都回退到原 DB/磁盘存储，保证上传不中断。
+    """
     timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
     original = secure_filename(file.filename)
     if not original:
         original = 'unnamed_file'
     stored_name = f"{timestamp}_{original}"
 
+    # 尝试走 Vercel Blob（更快、不撑大数据库）；失败则回退
+    if blob_enabled():
+        try:
+            file_data = file.read()
+            file_size = len(file_data)
+            blob_url, blob_pathname = blob_put_bytes(file_data, original, subdir)
+            return stored_name, file_size, original, None, blob_url, blob_pathname
+        except Exception as e:
+            app.logger.warning(f'[blob] 上传失败，回退到原存储: {e}')
+
     if USE_POSTGRES:
         # Vercel: 读取文件到内存
         file_data = file.read()
         file_size = len(file_data)
-        return stored_name, file_size, original, file_data
+        return stored_name, file_size, original, file_data, None, None
     else:
         # 本地: 存到磁盘
         upload_dir = os.path.join(UPLOAD_DIR, subdir)
@@ -431,7 +497,7 @@ def save_upload_file(file, subdir='item_submissions'):
         filepath = os.path.join(upload_dir, stored_name)
         file.save(filepath)
         file_size = os.path.getsize(filepath)
-        return stored_name, file_size, original, None
+        return stored_name, file_size, original, None, None, None
 
 
 # ===========================================================================
@@ -821,13 +887,13 @@ def submit_item(item_id):
         sub_id = sub_row['id'] if sub_row else None
         # 批量插入所有附件（一次 executemany 替代逐条 INSERT，减少 Neon 往返）
         file_rows = [
-            (sub_id, original, stored, data, size, i)
-            for i, (stored, size, original, data) in enumerate(saved)
+            (sub_id, original, stored, data, size, blob_url, blob_pathname, i)
+            for i, (stored, size, original, data, blob_url, blob_pathname) in enumerate(saved)
         ]
         if file_rows:
             db.executemany('''
-                INSERT INTO item_submission_files (item_submission_id, file_name, stored_name, file_data, file_size, sort_order)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO item_submission_files (item_submission_id, file_name, stored_name, file_data, file_size, blob_url, blob_pathname, sort_order)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ''', file_rows)
 
         db.commit()
@@ -1304,6 +1370,9 @@ def download_item_submission_file(file_id):
     row = db.execute('SELECT * FROM item_submission_files WHERE id = ?', (file_id,)).fetchone()
     if not row:
         abort(404)
+    # 启用 Blob 时直接重定向到对象存储 URL（鉴权已在路由层完成）
+    if row['blob_pathname'] and row['blob_url']:
+        return redirect(row['blob_url'])
     if USE_POSTGRES:
         if not row['file_data']:
             abort(404)
@@ -1353,6 +1422,9 @@ def download_template_by_id(tid):
     tpl = db.execute('SELECT * FROM template_files WHERE id = ?', (tid,)).fetchone()
     if not tpl:
         abort(404)
+    # 启用 Blob 时直接重定向到对象存储 URL（鉴权已在路由层完成）
+    if tpl['blob_pathname'] and tpl['blob_url']:
+        return redirect(tpl['blob_url'])
     if USE_POSTGRES:
         if not tpl['file_data']:
             abort(404)
@@ -1433,29 +1505,12 @@ def upload_template():
         # 多文件时名称追加序号，避免重名
         tpl_name = f"{base_name} ({i+1})" if multi else base_name
 
-        timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
-        original = secure_filename(file.filename)
-        if not original:
-            original = 'template_file'
-        stored_name = f"{timestamp}_{i}_{original}"
-
-        if USE_POSTGRES:
-            file_data = file.read()
-            file_size = len(file_data)
-            db.execute('''
-                INSERT INTO template_files (name, description, settlement_type, department, file_name, stored_name, file_data, file_size, uploader)
-                VALUES (?,?,?,?,?,?,?,?,?)
-            ''', (tpl_name, description, ts_name, department,
-                  original, stored_name, file_data, file_size, uploader))
-        else:
-            filepath = os.path.join(TEMPLATE_DIR, stored_name)
-            file.save(filepath)
-            file_size = os.path.getsize(filepath)
-            db.execute('''
-                INSERT INTO template_files (name, description, settlement_type, department, file_name, stored_name, file_size, uploader)
-                VALUES (?,?,?,?,?,?,?,?)
-            ''', (tpl_name, description, ts_name, department,
-                  original, stored_name, file_size, uploader))
+        stored, file_size, original, data, blob_url, blob_pathname = save_upload_file(file, subdir='template_files')
+        db.execute('''
+            INSERT INTO template_files (name, description, settlement_type, department, file_name, stored_name, file_data, file_size, blob_url, blob_pathname, uploader)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?)
+        ''', (tpl_name, description, ts_name, department,
+              original, stored, data, file_size, blob_url, blob_pathname, uploader))
 
     db.commit()
     if request_is_ajax():
@@ -2537,23 +2592,17 @@ def save_settlement_amounts(db, record_id, amounts):
 
 
 def save_settlement_attachments(db, record_id, files):
-    """保存结算单的多附件：追加模式。本地存磁盘，Vercel 存 BYTEA。"""
+    """保存结算单的多附件：追加模式。本地存磁盘，Vercel 存 BYTEA，启用 Blob 时存 URL。"""
     for file in files:
         if not file or not file.filename:
             continue
         if not allowed_file(file.filename):
             continue
-        stored, size, original, data = save_upload_file(file, subdir='settlement_attachments')
-        if USE_POSTGRES:
-            db.execute('''
-                INSERT INTO settlement_attachments (settlement_record_id, file_name, stored_name, file_data, file_size)
-                VALUES (?, ?, ?, ?, ?)
-            ''', (record_id, original, stored, data, size))
-        else:
-            db.execute('''
-                INSERT INTO settlement_attachments (settlement_record_id, file_name, stored_name, file_size)
-                VALUES (?, ?, ?, ?)
-            ''', (record_id, original, stored, size))
+        stored, size, original, data, blob_url, blob_pathname = save_upload_file(file, subdir='settlement_attachments')
+        db.execute('''
+            INSERT INTO settlement_attachments (settlement_record_id, file_name, stored_name, file_data, file_size, blob_url, blob_pathname)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (record_id, original, stored, data, size, blob_url, blob_pathname))
 
 
 @app.route('/api/settlement-records', methods=['POST'])
@@ -2740,6 +2789,9 @@ def download_settlement_attachment(aid):
     row = db.execute('SELECT * FROM settlement_attachments WHERE id = ?', (aid,)).fetchone()
     if not row:
         abort(404)
+    # 启用 Blob 时直接重定向到对象存储 URL（鉴权已在路由层完成）
+    if row['blob_pathname'] and row['blob_url']:
+        return redirect(row['blob_url'])
     if USE_POSTGRES:
         if not row['file_data']:
             abort(404)
@@ -2838,24 +2890,16 @@ def api_upload_department_file():
         if department != own_dept:
             return jsonify({'error': f'联络人只能上传到本部门（{own_dept}）'}), 403
 
-    stored, size, original, data = save_upload_file(file, subdir='department_files')
+    stored, size, original, data, blob_url, blob_pathname = save_upload_file(file, subdir='department_files')
 
     uploader = user['display_name']
     uploader_dept = user.get('department', '')
 
-    if USE_POSTGRES:
-        new_id = insert_returning_id(db, '''
-            INSERT INTO department_files
-            (department, file_name, stored_name, file_data, file_size, uploader, uploader_department, description)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (department, original, stored, data, size, uploader, uploader_dept, description))
-    else:
-        db.execute('''
-            INSERT INTO department_files
-            (department, file_name, stored_name, file_size, uploader, uploader_department, description)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', (department, original, stored, size, uploader, uploader_dept, description))
-        new_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
+    new_id = insert_returning_id(db, '''
+        INSERT INTO department_files
+        (department, file_name, stored_name, file_data, file_size, blob_url, blob_pathname, uploader, uploader_department, description)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (department, original, stored, data, size, blob_url, blob_pathname, uploader, uploader_dept, description))
     db.commit()
     return jsonify({'ok': True, 'id': new_id})
 

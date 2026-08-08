@@ -231,6 +231,8 @@ def init_schema(db):
             stored_name TEXT NOT NULL,
             file_data BYTEA,
             file_size INTEGER,
+            blob_url TEXT,
+            blob_pathname TEXT,
             uploader TEXT,
             uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )''',
@@ -276,6 +278,8 @@ def init_schema(db):
             stored_name TEXT NOT NULL,
             file_data BYTEA,
             file_size INTEGER,
+            blob_url TEXT,
+            blob_pathname TEXT,
             sort_order INTEGER DEFAULT 0,
             uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (item_submission_id) REFERENCES item_submissions(id) ON DELETE CASCADE
@@ -348,6 +352,8 @@ def init_schema(db):
             stored_name TEXT NOT NULL,
             file_data BYTEA,
             file_size INTEGER,
+            blob_url TEXT,
+            blob_pathname TEXT,
             uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (settlement_record_id) REFERENCES settlement_records(id) ON DELETE CASCADE
         )''',
@@ -358,6 +364,8 @@ def init_schema(db):
             stored_name TEXT NOT NULL,
             file_data BYTEA,
             file_size INTEGER,
+            blob_url TEXT,
+            blob_pathname TEXT,
             uploader TEXT,
             uploader_department TEXT,
             description TEXT,
@@ -422,6 +430,8 @@ def init_schema(db):
             stored_name TEXT NOT NULL,
             file_data BYTEA,
             file_size INTEGER,
+            blob_url TEXT,
+            blob_pathname TEXT,
             uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (settlement_record_id) REFERENCES settlement_records(id) ON DELETE CASCADE
         )''')
@@ -447,6 +457,8 @@ def init_schema(db):
             stored_name TEXT NOT NULL,
             file_data BYTEA,
             file_size INTEGER,
+            blob_url TEXT,
+            blob_pathname TEXT,
             sort_order INTEGER DEFAULT 0,
             uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (item_submission_id) REFERENCES item_submissions(id) ON DELETE CASCADE
@@ -485,6 +497,14 @@ def init_schema(db):
             """)
     except Exception as e:
         print(f'[init_schema] settle_month migration skipped: {e}')
+
+    # 兼容已有数据库：附件表增加 Vercel Blob 存储字段（启用对象存储时落 URL，否则留空走 DB）
+    for _t in ('item_submission_files', 'settlement_attachments', 'template_files', 'department_files'):
+        for _c in ('blob_url', 'blob_pathname'):
+            try:
+                db.execute(f'ALTER TABLE {_t} ADD COLUMN {_c} TEXT')
+            except Exception:
+                pass
 
     db.commit()
 
