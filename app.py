@@ -135,13 +135,17 @@ def blob_put_bytes(file_bytes, filename, folder):
 
 
 @app.route('/api/blob-status')
-@require_role('admin')
 def api_blob_status():
     """诊断 Vercel Blob 是否真正可用：做真实上传 + 删除往返。
 
     未配置令牌时仅报告状态；已配置时实测一次上传并清理，便于激活后
     一键验证（访问 /api/blob-status 即可看到 roundtrip 结果）。
     """
+    # 权限检查放在函数体内（运行时 require_role/get_current_user 均已定义），
+    # 避免模块加载期装饰器引用未定义符号导致全站 500。
+    user = get_current_user()
+    if not user or user.get('role') != 'admin':
+        return jsonify({'error': '权限不足'}), 403
     if not blob_enabled():
         return jsonify({'enabled': False,
                         'reason': 'BLOB_READ_WRITE_TOKEN 未设置，当前走原存储回退'})
