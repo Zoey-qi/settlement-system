@@ -16,6 +16,7 @@ import time
 import json
 import urllib.request
 import urllib.error
+from urllib.parse import quote
 from datetime import datetime, date
 from functools import wraps
 from flask import (
@@ -86,37 +87,86 @@ def blob_enabled():
 
 
 def _blob_store_id():
-    """从 BLOB_READ_WRITE_TOKEN 解析 store id（格式 vercel_blob_rw_<storeId>_<secret>）"""
+    """从 BLOB_READ_WRITE_TOKEN 解析 store id。
+
+    真实令牌格式为 vercel_blob_rw_<storeId>（4 段），storeId 取
+    token.split('_')[3]，与官方 @vercel/blob SDK 的
+    parseStoreIdFromReadWriteToken 完全一致。
+    """
     if not BLOB_TOKEN:
         return None
-    rest = BLOB_TOKEN
-    if rest.startswith('vercel_blob_rw_'):
-        rest = rest[len('vercel_blob_rw_'):]
-    if '_' not in rest:
+    parts = BLOB_TOKEN.split('_')
+    if len(parts) < 4:
         return None
-    return rest.rsplit('_', 1)[0]
+    return parts[3]
 
 
 def blob_put_bytes(file_bytes, filename, folder):
     """把字节上传到 Vercel Blob，返回 (url, pathname)。失败抛异常。
 
-    服务端直传：使用读写令牌作为 Bearer，store id 作为 x-api-key。
+    服务端直传：走 Blob 控制面 https://vercel.com/api/blob（与官方
+    @vercel/blob SDK 的 put() 一致）——完整读写令牌作为 Bearer，
+    store id 作为 x-vercel-blob-store-id 头；*.blob.vercel-storage.com
+    那个域名仅用于下载，不是上传端点。
     """
     store_id = _blob_store_id()
     if not store_id:
-        raise ValueError('无法解析 BLOB store id')
+        raise ValueError('无法解析 BLOB store id（令牌格式应为 vercel_blob_rw_<storeId>）')
     safe = secure_filename(filename) or 'file'
     ts = datetime.now().strftime('%Y%m%d%H%M%S%f')
     pathname = f"{folder}/{ts}_{safe}"
-    url = f"https://{store_id}.public.blob.vercel-storage.com/{pathname}"
-    req = urllib.request.Request(url, data=file_bytes, method='PUT')
+    api_base = os.environ.get('VERCEL_BLOB_API_URL') or 'https://vercel.com/api/blob'
+    put_url = f"{api_base}/?pathname={quote(pathname)}"
+    ctype = mimetypes.guess_type(filename)[0] or 'application/octet-stream'
+    req = urllib.request.Request(put_url, data=file_bytes, method='PUT')
     req.add_header('authorization', f'Bearer {BLOB_TOKEN}')
-    req.add_header('x-api-key', store_id)
-    req.add_header('content-type', mimetypes.guess_type(filename)[0] or 'application/octet-stream')
+    req.add_header('x-vercel-blob-store-id', store_id)
+    req.add_header('x-api-version', '12')
+    req.add_header('x-vercel-blob-access', BLOB_ACCESS)
+    req.add_header('content-type', ctype)
+    req.add_header('x-content-type', ctype)
     req.add_header('x-add-random-suffix', '0')
+    req.add_header('x-api-blob-request-id',
+                  f"{store_id}:{int(time.time())}:{os.urandom(4).hex()}")
     with urllib.request.urlopen(req, timeout=60) as resp:
         body = json.loads(resp.read().decode('utf-8'))
-    return body.get('url') or url, body.get('pathname') or pathname
+    return (body.get('url') or f"https://{store_id}.{BLOB_ACCESS}.blob.vercel-storage.com/{pathname}",
+            body.get('pathname') or pathname)
+
+
+@app.route('/api/blob-status')
+@require_role('admin')
+def api_blob_status():
+    """诊断 Vercel Blob 是否真正可用：做真实上传 + 删除往返。
+
+    未配置令牌时仅报告状态；已配置时实测一次上传并清理，便于激活后
+    一键验证（访问 /api/blob-status 即可看到 roundtrip 结果）。
+    """
+    if not blob_enabled():
+        return jsonify({'enabled': False,
+                        'reason': 'BLOB_READ_WRITE_TOKEN 未设置，当前走原存储回退'})
+    store_id = _blob_store_id()
+    result = {'enabled': True, 'store_id': store_id, 'access': BLOB_ACCESS}
+    try:
+        url, pathname = blob_put_bytes(b'vercel-blob-self-test', 'self_test.txt', 'blob-test')
+        result['upload'] = {'ok': True, 'url': url, 'pathname': pathname}
+        # 清理刚上传的测试文件（走 /delete 控制面）
+        api_base = os.environ.get('VERCEL_BLOB_API_URL') or 'https://vercel.com/api/blob'
+        del_url = f"{api_base}/delete"
+        dreq = urllib.request.Request(
+            del_url, data=json.dumps({'urls': [url]}).encode('utf-8'), method='POST')
+        dreq.add_header('authorization', f'Bearer {BLOB_TOKEN}')
+        dreq.add_header('x-vercel-blob-store-id', store_id)
+        dreq.add_header('x-api-version', '12')
+        dreq.add_header('content-type', 'application/json')
+        with urllib.request.urlopen(dreq, timeout=30) as dresp:
+            dbody = json.loads(dresp.read().decode('utf-8'))
+        result['delete'] = {'ok': True, 'response': dbody}
+        result['roundtrip'] = 'OK'
+    except Exception as e:
+        result['roundtrip'] = 'FAIL'
+        result['error'] = f'{type(e).__name__}: {e}'
+    return jsonify(result)
 
 
 # ===========================================================================
