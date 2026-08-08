@@ -376,6 +376,11 @@ def allowed_file(filename):
     return ext in ALLOWED_EXTENSIONS
 
 
+def request_is_ajax():
+    """判断是否为 AJAX 请求（前端 fetch 带 X-Requested-With 头）"""
+    return request.headers.get('X-Requested-With', '').lower() == 'xmlhttprequest'
+
+
 def save_upload_file(file, subdir='item_submissions'):
     """保存上传文件。本地存磁盘，Vercel 存内存（返回 bytes）"""
     timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
@@ -705,10 +710,14 @@ def submit_item(item_id):
         WHERE ti.id = ?
     ''', (item_id,)).fetchone()
     if not item:
-        return jsonify({'error': '条目不存在'}), 404
+        if request_is_ajax():
+            return jsonify({'error': '条目不存在'}), 404
+        return redirect(url_for('submit'))
 
     # 部门隔离 + 角色校验：director/leader 不能写；liaison 仅本部门
     if not user_can_write_to_dept(g.current_user, item['dept_name']):
+        if request_is_ajax():
+            return jsonify({'error': '权限不足：您不能向该部门提交/修改条目'}), 403
         flash('权限不足：您不能向该部门提交/修改条目', 'danger')
         return redirect(url_for('submit'))
 
@@ -725,10 +734,14 @@ def submit_item(item_id):
     elif submission_type == 'file':
         file = request.files.get('file')
         if not file or not file.filename:
+            if request_is_ajax():
+                return jsonify({'error': '请选择要上传的文件'}), 400
             flash('请选择要上传的文件', 'warning')
             return redirect(request.referrer or url_for('submit'))
 
         if not allowed_file(file.filename):
+            if request_is_ajax():
+                return jsonify({'error': '不支持的文件类型'}), 400
             flash(f'不支持的文件类型', 'danger')
             return redirect(request.referrer or url_for('submit'))
 
@@ -751,6 +764,31 @@ def submit_item(item_id):
     # 更新任务状态（只重算该条目所属的任务配置，避免全量重算）
     ensure_tasks_for_month(month, only_config_id=item['task_config_id'])
 
+    if request_is_ajax():
+        # AJAX 提交：返回更新后的条目信息，前端原地刷新行，避免整页重载
+        sub = db.execute(
+            'SELECT * FROM item_submissions WHERE task_item_id = ? AND month = ?',
+            (item_id, month)
+        ).fetchone()
+        sub_id = sub['id'] if sub else None
+        submitted_at = sub['submitted_at'] if sub else None
+        if submitted_at is not None and hasattr(submitted_at, 'strftime'):
+            submitted_at = submitted_at.strftime('%Y-%m-%d %H:%M')
+        elif isinstance(submitted_at, str):
+            submitted_at = submitted_at[:16]
+        else:
+            submitted_at = ''
+        return jsonify({
+            'ok': True,
+            'item_id': item_id,
+            'month': month,
+            'submission_type': submission_type,
+            'sub_id': sub_id,
+            'file_name': sub['file_name'] if sub else None,
+            'submitter': submitter or (sub['submitter'] if sub else ''),
+            'submitted_at': submitted_at,
+            'download_url': url_for('download_item_submission', sub_id=sub_id) if sub_id else '',
+        })
     return redirect(request.referrer or url_for('submit_task', task_id=request.form.get('task_id'), month=month))
 
 

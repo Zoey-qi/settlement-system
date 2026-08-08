@@ -151,7 +151,7 @@
                                             {{ ui.icon('upload', 'bi', 16) }} 上传
                                         </button>
                                         <form method="POST" action="{{ url_for('submit_item', item_id=item['id']) }}" class="d-inline"
-                                              onsubmit="return confirm('确定标记为"无"吗？')">
+                                              onsubmit="return submitNone(event, {{ item['id'] }}, '{{ month }}')">
                                             <input type="hidden" name="month" value="{{ month }}">
                                             <input type="hidden" name="submission_type" value="none">
                                             <input type="hidden" name="submitter" value="管理员">
@@ -188,7 +188,7 @@
 <div class="modal fade" id="uploadModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form method="POST" enctype="multipart/form-data" id="uploadForm" action="">
+            <form method="POST" enctype="multipart/form-data" id="uploadForm" action="" onsubmit="return uploadSubmit(event)">
                 <div class="modal-header">
                     <h5 class="modal-title">{{ ui.icon('cloud-arrow-up', 'bi', 16) }} 上传文件</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -298,6 +298,120 @@
 {% block scripts %}
 <script>
 const taskConfigId = {{ task['task_config_id'] }};
+const TASK_ID = '{{ task["id"] }}';
+const CURRENT_ROLE = '{{ user_role }}';
+const CURRENT_DEPT = '{{ user_department }}';
+// 预渲染图标（服务端 Jinja 渲染为内联 SVG），供 JS 原地重建行时使用
+const ICON_FILE = '{{ ui.icon("file-earmark", "bi", 16) }}';
+const ICON_NONE = '{{ ui.icon("dash-circle", "bi", 16) }}';
+const ICON_UNSUB = '{{ ui.icon("arrow-counterclockwise", "bi", 16) }}';
+const ICON_TRASH = '{{ ui.icon("trash", "bi", 16) }}';
+const ICON_REMARKS = '{{ ui.icon("pencil-square", "bi", 16) }}';
+
+function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => (
+        {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]
+    ));
+}
+
+// 异步提交（上传文件 / 标记为无）成功后，原地刷新对应行，避免整页重载
+function updateRowAfterSubmit(d) {
+    const row = document.getElementById('row-' + d.item_id);
+    if (!row) { location.reload(); return; }
+    const cells = row.querySelectorAll('td');
+    const itemName = (cells[1] ? cells[1].textContent.trim() : '');
+    row.className = 'table-success';
+
+    // 状态徽章
+    cells[3].innerHTML = d.submission_type === 'file'
+        ? '<span class="badge bg-success">已上传</span>'
+        : '<span class="badge bg-secondary">无</span>';
+
+    // 提交内容
+    let contentHtml;
+    if (d.submission_type === 'file') {
+        contentHtml = '<a href="' + d.download_url + '" class="text-decoration-none">' + ICON_FILE + ' ' + escapeHtml(d.file_name) + '</a>';
+        if (CURRENT_ROLE === 'admin' && CURRENT_DEPT === '合同管理部') {
+            contentHtml += '<br><button class="btn btn-sm btn-outline-secondary py-0 mt-1" onclick="openRemarksModal('
+                + d.item_id + ', ' + d.sub_id + ", '', '"
+                + escapeHtml(itemName) + "', '" + d.month + "')\">" + ICON_REMARKS + ' 编辑备注</button>';
+        }
+    } else {
+        contentHtml = '<span class="text-muted">' + ICON_NONE + ' 无</span>';
+    }
+    cells[4].innerHTML = contentHtml;
+
+    // 提交人 / 提交时间
+    cells[5].textContent = d.submitter || '-';
+    cells[6].textContent = d.submitted_at || '-';
+
+    // 操作按钮：撤销 + 删除（已提交态）
+    cells[7].innerHTML = '<div class="d-flex gap-1 flex-wrap">'
+        + '<button class="btn btn-sm btn-outline-warning py-0" onclick="unsubmitItem(' + d.item_id + ", '" + d.month + "')\">" + ICON_UNSUB + ' 撤销</button>'
+        + '<button class="btn btn-sm btn-outline-danger py-0" onclick="deleteItem(' + d.item_id + ')">' + ICON_TRASH + '</button>'
+        + '</div>';
+}
+
+// 上传文件：异步提交 + 加载态（spinner / 防重），成功后原地刷新行
+function uploadSubmit(e) {
+    e.preventDefault();
+    const form = document.getElementById('uploadForm');
+    const btn = form.querySelector('button[type="submit"]');
+    const fileInput = form.querySelector('input[name="file"]');
+    const f = fileInput.files && fileInput.files[0];
+    if (!f) { alert('请选择要上传的文件'); return; }
+    if (f.size > 50 * 1024 * 1024) {
+        if (!confirm('文件较大（' + (f.size / 1024 / 1024).toFixed(1) + ' MB），上传可能需要较长时间，确定继续吗？')) return;
+    }
+    const fd = new FormData(form);
+    const orig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 上传中...';
+    fetch(form.action, {
+        method: 'POST',
+        headers: {'X-Requested-With': 'XMLHttpRequest'},
+        body: fd
+    })
+    .then(r => r.json().then(d => ({status: r.status, d})))
+    .then(({status, d}) => {
+        if (d && d.ok) {
+            updateRowAfterSubmit(d);
+            bootstrap.Modal.getInstance(document.getElementById('uploadModal')).hide();
+            form.reset();
+        } else {
+            alert('上传失败：' + (d && d.error ? d.error : ('HTTP ' + status)));
+        }
+    })
+    .catch(err => alert('上传失败：' + err))
+    .finally(() => { btn.disabled = false; btn.innerHTML = orig; });
+}
+
+// 标记为"无"：异步提交（同一端点），成功后原地刷新行
+function submitNone(e, itemId, month) {
+    e.preventDefault();
+    if (!confirm('确定标记为"无"吗？')) return false;
+    const fd = new FormData();
+    fd.append('month', month);
+    fd.append('submission_type', 'none');
+    fd.append('submitter', '管理员');
+    fd.append('task_id', TASK_ID);
+    fetch('/submit/item/' + itemId, {
+        method: 'POST',
+        headers: {'X-Requested-With': 'XMLHttpRequest'},
+        body: fd
+    })
+    .then(r => r.json().then(d => ({status: r.status, d})))
+    .then(({status, d}) => {
+        if (d && d.ok) {
+            updateRowAfterSubmit(d);
+        } else {
+            alert('操作失败：' + (d && d.error ? d.error : ('HTTP ' + status)));
+        }
+    })
+    .catch(err => alert('请求失败：' + err));
+    return false;
+}
+
 
 // 编辑条目名称
 function editItemName(itemId, span) {
