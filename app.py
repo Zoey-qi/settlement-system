@@ -2174,7 +2174,7 @@ def api_list_settlement_records():
 
     query = '''
         SELECT sr.id, sr.direction, sr.project_name, sr.counterparty, sr.contract_no,
-               sr.amount, sr.currency, sr.settle_date, sr.status, sr.notes,
+               sr.amount, sr.currency, sr.settle_date, sr.settle_month, sr.status, sr.notes,
                sr.attachment_name, sr.attachment_size, sr.created_by, sr.created_at, sr.updated_at,
                sa.currency as amt_currency, sa.amount as amt_amount, sa.sort_order
         FROM settlement_records sr
@@ -2214,6 +2214,7 @@ def api_list_settlement_records():
                 'amount': float(r['amount']) if r['amount'] is not None else 0.0,
                 'currency': r['currency'] or 'PHP',
                 'settle_date': r['settle_date'],
+                'settle_month': r['settle_month'] or '',
                 'status': r['status'],
                 'notes': r['notes'],
                 'attachment_name': r['attachment_name'],
@@ -2222,6 +2223,7 @@ def api_list_settlement_records():
                 'created_at': r['created_at'],
                 'updated_at': r['updated_at'],
                 'amounts': [],
+                'attachments': [],
             }
             records_map[rid] = d
         if r['amt_currency'] is not None:
@@ -2229,6 +2231,22 @@ def api_list_settlement_records():
                 'currency': r['amt_currency'],
                 'amount': float(r['amt_amount']) if r['amt_amount'] is not None else 0.0,
             })
+
+    # 批量查询附件
+    if records_map:
+        placeholders = ','.join('?' * len(records_map))
+        att_rows = db.execute(
+            f'SELECT id, settlement_record_id, file_name, file_size FROM settlement_attachments WHERE settlement_record_id IN ({placeholders}) ORDER BY id',
+            list(records_map.keys())
+        ).fetchall()
+        for ar in att_rows:
+            rec = records_map.get(ar['settlement_record_id'])
+            if rec:
+                rec['attachments'].append({
+                    'id': ar['id'],
+                    'file_name': ar['file_name'],
+                    'file_size': ar['file_size'],
+                })
 
     # 兼容无子表金额的旧数据：退回到主表 amount/currency
     records = []
@@ -2288,9 +2306,9 @@ def api_settlement_summary():
             "COUNT(DISTINCT sr.id) as cnt "
             "FROM settlement_records sr "
             "LEFT JOIN settlement_amounts sa ON sr.id = sa.settlement_record_id "
-            "WHERE sr.direction = ? AND sr.settle_date LIKE ? "
+            "WHERE sr.direction = ? AND (sr.settle_month = ? OR sr.settle_date LIKE ?) "
             "GROUP BY COALESCE(sa.currency, 'PHP')",
-            [direction, f'{month_prefix}%']
+            [direction, month_prefix, f'{month_prefix}%']
         )
 
     # 未付款(unpaid) 也视为办理中口径
@@ -2355,6 +2373,26 @@ def save_settlement_amounts(db, record_id, amounts):
         )
 
 
+def save_settlement_attachments(db, record_id, files):
+    """保存结算单的多附件：追加模式。本地存磁盘，Vercel 存 BYTEA。"""
+    for file in files:
+        if not file or not file.filename:
+            continue
+        if not allowed_file(file.filename):
+            continue
+        stored, size, original, data = save_upload_file(file, subdir='settlement_attachments')
+        if USE_POSTGRES:
+            db.execute('''
+                INSERT INTO settlement_attachments (settlement_record_id, file_name, stored_name, file_data, file_size)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (record_id, original, stored, data, size))
+        else:
+            db.execute('''
+                INSERT INTO settlement_attachments (settlement_record_id, file_name, stored_name, file_size)
+                VALUES (?, ?, ?, ?)
+            ''', (record_id, original, stored, size))
+
+
 @app.route('/api/settlement-records', methods=['POST'])
 @require_role('admin')
 def api_create_settlement_record():
@@ -2366,7 +2404,7 @@ def api_create_settlement_record():
     project_name = (request.form.get('project_name') or '').strip()
     counterparty = (request.form.get('counterparty') or '').strip()
     contract_no = (request.form.get('contract_no') or '').strip()
-    settle_date = (request.form.get('settle_date') or '').strip()
+    settle_month = (request.form.get('settle_month') or '').strip()
     status = (request.form.get('status') or 'pending').strip()
     notes = (request.form.get('notes') or '').strip()
     department_tag = (request.form.get('department') or user.get('department', '')).strip()
@@ -2395,47 +2433,42 @@ def api_create_settlement_record():
         return jsonify({'error': '请至少填写一笔金额'}), 400
 
     primary = amounts[0]
-    attachment_name = ''
-    attachment_stored = ''
-    attachment_data = None
-    attachment_size = 0
 
-    file = request.files.get('attachment')
-    if file and file.filename:
-        if not allowed_file(file.filename):
-            return jsonify({'error': '不支持的附件类型'}), 400
-        stored, size, original, data = save_upload_file(file, subdir='settlement_attachments')
-        attachment_name = original
-        attachment_stored = stored
-        attachment_size = size
-        attachment_data = data
+    # 多附件上传（新前端使用 attachments[]）
+    uploaded_files = request.files.getlist('attachments')
+    # 兼容旧客户端单附件字段
+    single_file = request.files.get('attachment')
+    if single_file and single_file.filename:
+        uploaded_files.insert(0, single_file)
 
     created_by = f"{user['display_name']}({user['role']})"
     # 把部门信息写入 notes，便于按部门过滤（director/liaison 的过滤查询依赖此字段）
     if department_tag and department_tag not in notes:
         notes = f"[{department_tag}] {notes}".strip()
 
+    # 为了兼容旧统计/排序，结算月份也回填到 settle_date（当月首日）
+    settle_date = None
+    if settle_month:
+        settle_date = f"{settle_month}-01"
+
     if USE_POSTGRES:
         new_id = insert_returning_id(db, '''
             INSERT INTO settlement_records
-            (direction, project_name, counterparty, contract_no, amount, currency, settle_date, status, notes,
-             attachment_name, attachment_stored, attachment_data, attachment_size, created_by)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (direction, project_name, counterparty, contract_no, amount, currency, settle_date, settle_month, status, notes, created_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (direction, project_name, counterparty, contract_no, primary['amount'], primary['currency'],
-              settle_date or None, status, notes,
-              attachment_name, attachment_stored, attachment_data, attachment_size, created_by))
+              settle_date, settle_month or None, status, notes, created_by))
     else:
         db.execute('''
             INSERT INTO settlement_records
-            (direction, project_name, counterparty, contract_no, amount, currency, settle_date, status, notes,
-             attachment_name, attachment_stored, attachment_size, created_by)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (direction, project_name, counterparty, contract_no, amount, currency, settle_date, settle_month, status, notes, created_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (direction, project_name, counterparty, contract_no, primary['amount'], primary['currency'],
-              settle_date or None, status, notes,
-              attachment_name, attachment_stored, attachment_size, created_by))
+              settle_date, settle_month or None, status, notes, created_by))
         new_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
 
     save_settlement_amounts(db, new_id, amounts)
+    save_settlement_attachments(db, new_id, uploaded_files)
     db.commit()
     return jsonify({'ok': True, 'id': new_id})
 
@@ -2451,69 +2484,76 @@ def api_update_settlement_record(rid):
     if not row:
         return jsonify({'error': '记录不存在'}), 404
 
-    direction = (request.form.get('direction') or row['direction']).strip()
-    project_name = (request.form.get('project_name') or row['project_name']).strip()
-    counterparty = (request.form.get('counterparty') or row['counterparty']).strip()
-    contract_no = (request.form.get('contract_no') or row['contract_no'] or '').strip()
-    settle_date = (request.form.get('settle_date') or row['settle_date'] or '').strip()
-    status = (request.form.get('status') or row['status'] or 'pending').strip()
-    notes = (request.form.get('notes') or row['notes'] or '').strip()
+    try:
+        direction = (request.form.get('direction') or row['direction']).strip()
+        project_name = (request.form.get('project_name') or row['project_name']).strip()
+        counterparty = (request.form.get('counterparty') or row['counterparty']).strip()
+        contract_no = (request.form.get('contract_no') or row['contract_no'] or '').strip()
+        settle_month = (request.form.get('settle_month') or row['settle_month'] or '').strip()
+        status = (request.form.get('status') or row['status'] or 'pending').strip()
+        notes = (request.form.get('notes') or row['notes'] or '').strip()
 
-    amounts = parse_amounts_from_form(request.form)
-    # 兼容旧客户端：未传 amounts[] 时使用单币种字段
-    if not amounts:
-        amount_raw = request.form.get('amount', str(row['amount'] or 0))
-        currency = (request.form.get('currency') or row['currency'] or 'PHP').strip()
-        try:
-            amount = float(amount_raw)
-        except ValueError:
-            return jsonify({'error': '金额必须是数字'}), 400
-        if amount < 0:
-            return jsonify({'error': '金额不能为负数'}), 400
-        amounts = [{'currency': currency, 'amount': amount}]
+        amounts = parse_amounts_from_form(request.form)
+        # 兼容旧客户端：未传 amounts[] 时使用单币种字段
+        if not amounts:
+            amount_raw = request.form.get('amount', str(row['amount'] or 0))
+            currency = (request.form.get('currency') or row['currency'] or 'PHP').strip()
+            try:
+                amount = float(amount_raw)
+            except ValueError:
+                return jsonify({'error': '金额必须是数字'}), 400
+            if amount < 0:
+                return jsonify({'error': '金额不能为负数'}), 400
+            amounts = [{'currency': currency, 'amount': amount}]
 
-    if not amounts:
-        return jsonify({'error': '请至少填写一笔金额'}), 400
+        if not amounts:
+            return jsonify({'error': '请至少填写一笔金额'}), 400
 
-    primary = amounts[0]
-    file = request.files.get('attachment')
-    attachment_name = row['attachment_name']
-    attachment_stored = row['attachment_stored']
-    attachment_data = row['attachment_data']
-    attachment_size = row['attachment_size'] or 0
-    if file and file.filename:
-        if not allowed_file(file.filename):
-            return jsonify({'error': '不支持的附件类型'}), 400
-        stored, size, original, data = save_upload_file(file, subdir='settlement_attachments')
-        attachment_name = original
-        attachment_stored = stored
-        attachment_size = size
-        attachment_data = data
+        primary = amounts[0]
 
-    if USE_POSTGRES:
-        db.execute('''
-            UPDATE settlement_records
-            SET direction=?, project_name=?, counterparty=?, contract_no=?, amount=?, currency=?, settle_date=?,
-                status=?, notes=?, attachment_name=?, attachment_stored=?, attachment_data=?, attachment_size=?,
-                updated_at=CURRENT_TIMESTAMP
-            WHERE id=?
-        ''', (direction, project_name, counterparty, contract_no, primary['amount'], primary['currency'],
-              settle_date or None, status, notes,
-              attachment_name, attachment_stored, attachment_data, attachment_size, rid))
-    else:
-        db.execute('''
-            UPDATE settlement_records
-            SET direction=?, project_name=?, counterparty=?, contract_no=?, amount=?, currency=?, settle_date=?,
-                status=?, notes=?, attachment_name=?, attachment_stored=?, attachment_size=?,
-                updated_at=CURRENT_TIMESTAMP
-            WHERE id=?
-        ''', (direction, project_name, counterparty, contract_no, primary['amount'], primary['currency'],
-              settle_date or None, status, notes,
-              attachment_name, attachment_stored, attachment_size, rid))
+        # 结算月份回填到 settle_date（当月首日），兼容旧统计
+        settle_date = None
+        if settle_month:
+            settle_date = f"{settle_month}-01"
+        elif row['settle_date']:
+            settle_date = row['settle_date']
 
-    save_settlement_amounts(db, rid, amounts)
-    db.commit()
-    return jsonify({'ok': True})
+        # 多附件上传：追加模式
+        uploaded_files = request.files.getlist('attachments')
+        single_file = request.files.get('attachment')
+        if single_file and single_file.filename:
+            uploaded_files.insert(0, single_file)
+
+        if USE_POSTGRES:
+            db.execute('''
+                UPDATE settlement_records
+                SET direction=?, project_name=?, counterparty=?, contract_no=?, amount=?, currency=?,
+                    settle_date=?, settle_month=?, status=?, notes=?,
+                    attachment_name=NULL, attachment_stored=NULL, attachment_data=NULL, attachment_size=NULL,
+                    updated_at=CURRENT_TIMESTAMP
+                WHERE id=?
+            ''', (direction, project_name, counterparty, contract_no, primary['amount'], primary['currency'],
+                  settle_date, settle_month or None, status, notes, rid))
+        else:
+            db.execute('''
+                UPDATE settlement_records
+                SET direction=?, project_name=?, counterparty=?, contract_no=?, amount=?, currency=?,
+                    settle_date=?, settle_month=?, status=?, notes=?,
+                    attachment_name=NULL, attachment_stored=NULL, attachment_size=NULL,
+                    updated_at=CURRENT_TIMESTAMP
+                WHERE id=?
+            ''', (direction, project_name, counterparty, contract_no, primary['amount'], primary['currency'],
+                  settle_date, settle_month or None, status, notes, rid))
+
+        save_settlement_amounts(db, rid, amounts)
+        save_settlement_attachments(db, rid, uploaded_files)
+        db.commit()
+        return jsonify({'ok': True})
+    except Exception as e:
+        print(f'[api_update_settlement_record] error: {e}')
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': f'保存失败：{str(e)}'}), 500
 
 
 @app.route('/api/settlement-records/<int:rid>', methods=['DELETE'])
@@ -2529,22 +2569,22 @@ def api_delete_settlement_record(rid):
     return jsonify({'ok': True})
 
 
-@app.route('/download/settlement-attachment/<int:rid>')
+@app.route('/download/settlement-attachment/<int:aid>')
 @require_role('leader', 'admin')
-def download_settlement_attachment(rid):
-    """下载结算金额附件"""
+def download_settlement_attachment(aid):
+    """下载结算金额附件（按 settlement_attachments.id）"""
     db = get_db()
-    row = db.execute('SELECT * FROM settlement_records WHERE id = ?', (rid,)).fetchone()
-    if not row or not row['attachment_stored']:
+    row = db.execute('SELECT * FROM settlement_attachments WHERE id = ?', (aid,)).fetchone()
+    if not row:
         abort(404)
     if USE_POSTGRES:
-        if not row['attachment_data']:
+        if not row['file_data']:
             abort(404)
-        return send_file(io.BytesIO(row['attachment_data']), as_attachment=True, download_name=row['attachment_name'])
-    filepath = os.path.join(UPLOAD_DIR, 'settlement_attachments', row['attachment_stored'])
+        return send_file(io.BytesIO(row['file_data']), as_attachment=True, download_name=row['file_name'])
+    filepath = os.path.join(UPLOAD_DIR, 'settlement_attachments', row['stored_name'])
     if not os.path.exists(filepath):
         abort(404)
-    return send_file(filepath, as_attachment=True, download_name=row['attachment_name'])
+    return send_file(filepath, as_attachment=True, download_name=row['file_name'])
 
 
 # ---------- 部门文件管理 ----------

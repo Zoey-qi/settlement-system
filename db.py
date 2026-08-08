@@ -303,6 +303,7 @@ def init_schema(db):
             amount NUMERIC DEFAULT 0,
             currency TEXT DEFAULT 'PHP',
             settle_date DATE,
+            settle_month TEXT,
             status TEXT DEFAULT 'pending',
             notes TEXT,
             attachment_name TEXT,
@@ -319,6 +320,16 @@ def init_schema(db):
             currency TEXT NOT NULL DEFAULT 'PHP',
             amount NUMERIC DEFAULT 0,
             sort_order INTEGER DEFAULT 0,
+            FOREIGN KEY (settlement_record_id) REFERENCES settlement_records(id) ON DELETE CASCADE
+        )''',
+        f'''CREATE TABLE IF NOT EXISTS settlement_attachments (
+            id {ai},
+            settlement_record_id INTEGER NOT NULL,
+            file_name TEXT NOT NULL,
+            stored_name TEXT NOT NULL,
+            file_data BYTEA,
+            file_size INTEGER,
+            uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (settlement_record_id) REFERENCES settlement_records(id) ON DELETE CASCADE
         )''',
         f'''CREATE TABLE IF NOT EXISTS department_files (
@@ -382,6 +393,52 @@ def init_schema(db):
         print(f'[init_schema] migrated {migrated.rowcount} settlement_records to settlement_amounts')
     except Exception as e:
         print(f'[init_schema] settlement_amounts migration skipped: {e}')
+
+    # 兼容已有数据库：结算单附件拆分为多附件子表
+    try:
+        db.execute(f'''CREATE TABLE IF NOT EXISTS settlement_attachments (
+            id {ai},
+            settlement_record_id INTEGER NOT NULL,
+            file_name TEXT NOT NULL,
+            stored_name TEXT NOT NULL,
+            file_data BYTEA,
+            file_size INTEGER,
+            uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (settlement_record_id) REFERENCES settlement_records(id) ON DELETE CASCADE
+        )''')
+        migrated = db.execute('''
+            INSERT INTO settlement_attachments (settlement_record_id, file_name, stored_name, file_data, file_size)
+            SELECT sr.id, sr.attachment_name, sr.attachment_stored, sr.attachment_data, sr.attachment_size
+            FROM settlement_records sr
+            WHERE sr.attachment_stored IS NOT NULL AND sr.attachment_stored != ''
+              AND NOT EXISTS (
+                  SELECT 1 FROM settlement_attachments sa WHERE sa.settlement_record_id = sr.id
+              )
+        ''')
+        print(f'[init_schema] migrated {migrated.rowcount} settlement attachments')
+    except Exception as e:
+        print(f'[init_schema] settlement_attachments migration skipped: {e}')
+
+    # 兼容已有数据库：结算日期扩展为结算月份
+    try:
+        db.execute('ALTER TABLE settlement_records ADD COLUMN settle_month TEXT')
+    except Exception:
+        pass
+    try:
+        if USE_POSTGRES:
+            db.execute("""
+                UPDATE settlement_records
+                SET settle_month = COALESCE(settle_month, TO_CHAR(settle_date, 'YYYY-MM'))
+                WHERE settle_month IS NULL AND settle_date IS NOT NULL
+            """)
+        else:
+            db.execute("""
+                UPDATE settlement_records
+                SET settle_month = COALESCE(settle_month, strftime('%Y-%m', settle_date))
+                WHERE settle_month IS NULL AND settle_date IS NOT NULL
+            """)
+    except Exception as e:
+        print(f'[init_schema] settle_month migration skipped: {e}')
 
     db.commit()
 

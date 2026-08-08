@@ -75,8 +75,8 @@
         <table class="table table-hover table-sm mb-0" id="table-up">
           <thead class="table-light">
             <tr>
-              <th>项目名称</th><th>对方单位</th><th>合同号</th><th class="amount-col">金额</th>
-              <th class="date-col">结算日期</th><th>状态</th><th>附件</th><th>操作</th>
+              <th class="project-col">项目名称</th><th class="counterparty-col">对方单位</th><th>合同号</th><th class="amount-col">金额</th>
+              <th class="month-col">结算月份</th><th>状态</th><th>备注</th><th>附件</th><th>操作</th>
             </tr>
           </thead>
           <tbody></tbody>
@@ -92,8 +92,8 @@
         <table class="table table-hover table-sm mb-0" id="table-down">
           <thead class="table-light">
             <tr>
-              <th>项目名称</th><th>对方单位</th><th>合同号</th><th class="amount-col">金额</th>
-              <th class="date-col">结算日期</th><th>状态</th><th>附件</th><th>操作</th>
+              <th class="project-col">项目名称</th><th class="counterparty-col">对方单位</th><th>合同号</th><th class="amount-col">金额</th>
+              <th class="month-col">结算月份</th><th>状态</th><th>备注</th><th>附件</th><th>操作</th>
             </tr>
           </thead>
           <tbody></tbody>
@@ -143,8 +143,8 @@
               <div class="form-text">一笔结算可包含多种币种金额，例如 PHP + USD。</div>
             </div>
             <div class="col-md-6">
-              <label class="form-label">结算日期</label>
-              <input type="date" class="form-control" id="settle_date">
+              <label class="form-label">结算月份</label>
+              <input type="month" class="form-control" id="settle_month">
             </div>
             <div class="col-md-6">
               <label class="form-label">状态</label>
@@ -157,9 +157,14 @@
               </select>
             </div>
             <div class="col-12">
-              <label class="form-label">附件（可选，支持 PDF / Excel / Word / 图片 / 压缩包，单文件不超过 50MB）</label>
-              <input type="file" class="form-control" id="attachment"
+              <label class="form-label">备注</label>
+              <textarea class="form-control" id="notes" rows="2" placeholder="说明本次结算的具体内容"></textarea>
+            </div>
+            <div class="col-12">
+              <label class="form-label">附件（可选，支持 PDF / Excel / Word / 图片 / 压缩包，可多选，单文件不超过 50MB）</label>
+              <input type="file" class="form-control" id="attachments" multiple
                      accept=".pdf,.xlsx,.xls,.doc,.docx,.jpg,.jpeg,.png,.zip,.rar,.ppt,.pptx,.txt">
+              <div id="file-preview" class="small text-muted mt-2"></div>
             </div>
           </div>
         </div>
@@ -233,6 +238,14 @@ function statusText(s) { return { pending:'办理中', processing:'审核中', c
 function renderAmountsCell(amounts) {
   if (!amounts || !amounts.length) return '—';
   return amounts.map(a => `<div class="amount-row"><span class="amount-num">${fmt(a.amount)}</span><span class="amount-cur">${esc(a.currency)}</span></div>`).join('');
+}
+function renderAttachmentsCell(attachments) {
+  if (!attachments || !attachments.length) return '—';
+  return attachments.map(a => `
+    <a href="/download/settlement-attachment/${a.id}" class="btn btn-sm btn-outline-secondary me-1 mb-1" title="${esc(a.file_name)}">
+      {{ ui.icon('paperclip', 'bi', 14) }} <span class="small">${esc(a.file_name)}</span>
+    </a>
+  `).join('');
 }
 
 const CURRENCY_OPTIONS = ['PHP','USD','CNY'].map(c => `<option value="${c}">${c}</option>`).join('');
@@ -335,18 +348,19 @@ function renderTable(dir) {
   const tbody = document.querySelector('#table-' + dir + ' tbody');
   const list = records[dir];
   if (!list.length) {
-    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">暂无数据</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted py-4">暂无数据</td></tr>';
     return;
   }
   tbody.innerHTML = list.map(r => `
     <tr>
-      <td>${esc(r.project_name)}</td>
-      <td>${esc(r.counterparty)}</td>
+      <td class="project-cell">${esc(r.project_name)}</td>
+      <td class="counterparty-cell">${esc(r.counterparty)}</td>
       <td><code>${esc(r.contract_no)}</code></td>
       <td class="text-end fw-bold amount-cell">${renderAmountsCell(r.amounts)}</td>
-      <td class="settle-date">${fmtDate(r.settle_date)}</td>
+      <td class="settle-month">${esc(r.settle_month || fmtDate(r.settle_date).slice(0,7))}</td>
       <td><span class="badge ${statusBadge(r.status)}">${statusText(r.status)}</span></td>
-      <td>${r.attachment_name ? `<a href="/download/settlement-attachment/${r.id}" class="btn btn-sm btn-outline-secondary" title="${esc(r.attachment_name)}">{{ ui.icon('paperclip', 'bi', 16) }}</a>` : '—'}</td>
+      <td class="notes-cell" title="${esc(r.notes)}">${esc(r.notes || '—')}</td>
+      <td>${renderAttachmentsCell(r.attachments)}</td>
       <td>
         ${CAN_EDIT ? `<button class="btn btn-sm btn-outline-primary" onclick='openEdit(${JSON.stringify(r)})'>{{ ui.icon('pencil', 'bi', 16) }}</button>` : ''}
         ${CAN_DELETE ? `<button class="btn btn-sm btn-outline-danger" onclick="del(${r.id})">{{ ui.icon('trash', 'bi', 16) }}</button>` : ''}
@@ -360,6 +374,8 @@ function openCreate() {
   document.getElementById('record-form').reset();
   document.getElementById('record-id').value = '';
   document.getElementById('amount-rows').innerHTML = '';
+  document.getElementById('attachments').value = '';
+  document.getElementById('file-preview').innerHTML = '';
   addAmountRow([{ currency: 'PHP', amount: '' }]);
 }
 function openEdit(r) {
@@ -369,9 +385,15 @@ function openEdit(r) {
   document.getElementById('project_name').value = r.project_name || '';
   document.getElementById('counterparty').value = r.counterparty || '';
   document.getElementById('contract_no').value = r.contract_no || '';
-  document.getElementById('settle_date').value = r.settle_date || '';
+  document.getElementById('settle_month').value = r.settle_month || (r.settle_date ? fmtDate(r.settle_date).slice(0, 7) : '');
   document.getElementById('status').value = r.status || 'pending';
+  document.getElementById('notes').value = r.notes || '';
   document.getElementById('amount-rows').innerHTML = '';
+  document.getElementById('attachments').value = '';
+  const filePreview = document.getElementById('file-preview');
+  filePreview.innerHTML = (r.attachments && r.attachments.length)
+    ? '<div class="mb-1">已上传附件（继续选择将追加）：</div>' + r.attachments.map(a => `<div class="text-truncate" style="max-width:100%" title="${esc(a.file_name)}">• ${esc(a.file_name)}</div>`).join('')
+    : '';
   const amounts = (r.amounts && r.amounts.length) ? r.amounts : [{ currency: r.currency || 'PHP', amount: r.amount || 0 }];
   amounts.forEach((a, i) => addAmountRow(amounts));
   new bootstrap.Modal(document.getElementById('recordModal')).show();
@@ -393,10 +415,13 @@ document.getElementById('record-form').addEventListener('submit', async function
     fd.append(`amounts[${i}][currency]`, a.currency);
     fd.append(`amounts[${i}][amount]`, a.amount);
   });
-  fd.append('settle_date', document.getElementById('settle_date').value);
+  fd.append('settle_month', document.getElementById('settle_month').value);
   fd.append('status', document.getElementById('status').value);
-  const file = document.getElementById('attachment').files[0];
-  if (file) fd.append('attachment', file);
+  fd.append('notes', document.getElementById('notes').value);
+  const files = document.getElementById('attachments').files;
+  for (let i = 0; i < files.length; i++) {
+    fd.append('attachments', files[i]);
+  }
 
   const originalHtml = btn.innerHTML;
   btn.disabled = true;
@@ -425,6 +450,14 @@ document.getElementById('record-form').addEventListener('submit', async function
 document.getElementById('recordModal').addEventListener('hidden.bs.modal', function() {
   const btn = this.querySelector('button[type="submit"]');
   if (btn) { btn.disabled = false; btn.innerHTML = '保存'; }
+});
+
+// 多附件选择预览
+document.getElementById('attachments').addEventListener('change', function() {
+  const preview = document.getElementById('file-preview');
+  if (this.files.length) {
+    preview.innerHTML = '<div class="mb-1">本次将上传：</div>' + Array.from(this.files).map(f => `<div>• ${esc(f.name)} (${(f.size/1024/1024).toFixed(2)} MB)</div>`).join('');
+  }
 });
 
 async function del(id) {
