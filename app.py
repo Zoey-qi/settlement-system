@@ -653,6 +653,9 @@ def dashboard():
             task_dict['status'] = 'pending'
         task_list.append(task_dict)
 
+    # 过滤掉没有任何条目（部门尚未配置资料）的任务，避免空任务占据列表与统计
+    task_list = [t for t in task_list if t['total_items'] > 0]
+
     total = len(task_list)
     completed = sum(1 for t in task_list if t['status'] == 'completed')
     pending = sum(1 for t in task_list if t['status'] == 'pending')
@@ -797,6 +800,9 @@ def submit():
         else:
             task_dict['status'] = 'pending'
         task_list.append(task_dict)
+
+    # 过滤掉没有任何条目（部门尚未配置资料）的任务，避免空任务占据列表
+    task_list = [t for t in task_list if t['total_items'] > 0]
 
     return render_template('submit_list.html', tasks=task_list, month=month,
                            user_role=user['role'], user_dept=user_dept)
