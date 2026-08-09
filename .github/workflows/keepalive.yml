@@ -1,0 +1,12 @@
+name: KeepAlive
+on:
+  schedule:
+    - cron: '*/5 * * * *'   # GitHub Actions 最小粒度为 5 分钟
+  workflow_dispatch:
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Ping settlement login page
+        run: curl -fsS -o /dev/null -w "HTTP %{http_code} in %{time_total}s\n" https://settlementsystem.vercel.app/login
