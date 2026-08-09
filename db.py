@@ -190,6 +190,7 @@ def init_schema(db):
             deadline_day INTEGER NOT NULL,
             remarks TEXT,
             is_active INTEGER DEFAULT 1,
+            items_initialized INTEGER DEFAULT 0,
             FOREIGN KEY (department_id) REFERENCES departments(id),
             FOREIGN KEY (settlement_type_id) REFERENCES settlement_types(id),
             UNIQUE(department_id, settlement_type_id)
@@ -505,6 +506,20 @@ def init_schema(db):
                 db.execute(f'ALTER TABLE {_t} ADD COLUMN {_c} TEXT')
             except Exception:
                 pass
+
+    # 兼容已有数据库：task_configs 增加 items_initialized 标记，防止冷启动时误重建已删除的条目
+    try:
+        db.execute('ALTER TABLE task_configs ADD COLUMN items_initialized INTEGER DEFAULT 0')
+    except Exception:
+        pass
+    # 历史库兜底：把全部已有配置标记为已初始化，冻结当前条目状态。
+    # 这样部署后冷启动不会再对"用户已删除条目"的配置重建条目（修复"删除的条目又回来"）。
+    # 之后新增的配置（DEFAULT 0）仍会在冷启动时被 migrate_to_items 首次建档。
+    try:
+        db.execute('UPDATE task_configs SET items_initialized = 1 WHERE COALESCE(items_initialized, 0) = 0')
+        print('[init_schema] task_configs.items_initialized backfilled')
+    except Exception as e:
+        print(f'[init_schema] items_initialized backfill skipped: {e}')
 
     db.commit()
 

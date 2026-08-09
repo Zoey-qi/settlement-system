@@ -309,12 +309,22 @@ def init_db():
 
 
 def migrate_to_items(conn):
-    """将已有的 task_configs.required_materials 拆分为 task_items 条目"""
+    """将已有的 task_configs.required_materials 拆分为 task_items 条目。
+
+    关键约束：仅对 items_initialized=0 的配置建档；建档后立即标记该配置为已初始化。
+    此举修复『删除的条目又自己加回来』——用户删除某配置的全部条目后，该配置
+    items_initialized 已为 1，冷启动不再重建其条目。新增配置（DEFAULT 0）仍会在
+    首次冷启动被建档一次。
+    """
     configs = conn.execute('SELECT * FROM task_configs').fetchall()
     for cfg in configs:
-        # 检查该 config 是否已有 items
+        # 已初始化（含用户删除后变空的配置）：跳过，绝不重建条目
+        if cfg.get('items_initialized'):
+            continue
+        # 已有条目但标记未置位（其它路径创建）：直接标记并跳过，避免重复建档
         existing = conn.execute('SELECT COUNT(*) as c FROM task_items WHERE task_config_id = ?', (cfg['id'],)).fetchone()['c']
         if existing > 0:
+            conn.execute('UPDATE task_configs SET items_initialized = 1 WHERE id = ?', (cfg['id'],))
             continue
         items = split_materials(cfg['required_materials'])
         if not items:
@@ -325,6 +335,7 @@ def migrate_to_items(conn):
                 INSERT INTO task_items (task_config_id, item_name, sort_order, is_active)
                 VALUES (?,?,?,1)
             ''', (cfg['id'], item_name, idx))
+        conn.execute('UPDATE task_configs SET items_initialized = 1 WHERE id = ?', (cfg['id'],))
     conn.commit()
 
     # 自动关联模板
