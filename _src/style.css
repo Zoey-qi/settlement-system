@@ -1123,11 +1123,11 @@ svg.icon { fill: currentColor; }
 .table-responsive .amount-col,
 .table-responsive .amount-cell {
   text-align: right;
-  white-space: nowrap;
   min-width: 190px;
 }
 .amount-row {
-  display: inline-flex;
+  display: flex;
+  justify-content: flex-end;
   align-items: baseline;
   gap: 0.35em;
   white-space: nowrap;
