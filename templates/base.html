@@ -10,7 +10,7 @@
     <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}">
     <meta name="theme-color" content="#1E40AF">
     <link href="{{ url_for('static', filename='vendor/bootstrap/css/bootstrap.min.css') }}" rel="stylesheet">
-    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}?v=2" rel="stylesheet">
     {% block extra_css %}{% endblock %}
     {% block icons %}{% endblock %}
 </head>
