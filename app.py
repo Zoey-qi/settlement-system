@@ -3069,6 +3069,45 @@ def api_run_merge_hr():
     return jsonify({'ok': False, 'error': 'migration_already_done', 'message': 'HR 合并已在 2026-08-13 完成，本端点已禁用。如需重新启用请参见 git log 2f14327/271c2f5 的迁移实现。'}), 410
 
 
+# ---------- 一次性同步：把 task_configs.required_materials 刷新到当前/历史月份 tasks 行（已完成，2026-08-13 禁用） ----------
+@app.route('/api/_sync-tasks-materials', methods=['GET'])
+def api_sync_tasks_materials():
+    """合并后冷启动已经存在的 tasks 行持有合并前的 required_materials 快照；本端点把
+    task_configs 当前 required_materials 覆盖到所有 tasks 行，修复『仪表盘/导出看不到新加内容』。
+
+    合并后执行一次即可，后续调用返回 410。
+    """
+    user = get_current_user()
+    if not user or user.get('role') != 'admin':
+        return jsonify({'ok': False, 'error': 'forbidden'}), 403
+
+    db = get_db()
+    # 查 zhbgs 部门 id
+    dept = db.execute("SELECT id FROM departments WHERE code='zhbgs' OR name='综合办公室' LIMIT 1").fetchone()
+    if not dept:
+        return jsonify({'ok': False, 'error': 'no_zhbgs_dept'}), 500
+    zhbgs_id = dept['id']
+
+    # 拉 zhbgs 全部 task_configs
+    configs = db.execute('SELECT id, required_materials FROM task_configs WHERE department_id=?', (zhbgs_id,)).fetchall()
+    updated = 0
+    for cfg in configs:
+        n = db.execute(
+            'UPDATE tasks SET required_materials=? WHERE task_config_id=? AND required_materials IS DISTINCT FROM ?',
+            (cfg['required_materials'], cfg['id'], cfg['required_materials'])
+        ).rowcount
+        updated += n
+    db.commit()
+
+    return jsonify({
+        'ok': True,
+        'zhbgs_dept_id': zhbgs_id,
+        'configs_synced': len(configs),
+        'tasks_rows_updated': updated,
+        'note': 'tasks 行 required_materials 已与 task_configs 同步（合并前快照已被覆盖）',
+    }), 200
+
+
 # ===========================================================================
 # 错误处理
 # ===========================================================================
