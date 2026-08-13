@@ -3108,16 +3108,18 @@ def api_run_merge_hr():
             zg = zhbgs_by_st.get(st_id)
             if zg is None:
                 # zhbgs 没有这个 settlement_type → HR config 直接迁过来（更新 department_id）
-                # 同步迁 HR 衍生的 tasks / 子表
-                tasks_n = db.execute("SELECT id FROM tasks WHERE task_config_id = ?", (hr_cfg['id'],)).fetchall()
-                for t in tasks_n:
-                    db.execute("DELETE FROM item_submissions WHERE task_id = ?", (t['id'],))
-                    db.execute("DELETE FROM item_submission_files WHERE task_id = ?", (t['id'],))
-                db.execute("""DELETE FROM settlement_records WHERE task_id IN (SELECT id FROM tasks WHERE task_config_id = ?)""", (hr_cfg['id'],))
+                # 先清 HR config 衍生的 items 及其子表（item_submissions/task_item_id FK）
+                items_n = db.execute("SELECT id FROM task_items WHERE task_config_id = ?", (hr_cfg['id'],)).fetchall()
+                for it in items_n:
+                    db.execute("DELETE FROM item_submission_files WHERE item_submission_id IN (SELECT id FROM item_submissions WHERE task_item_id = ?)", (it['id'],))
+                    db.execute("DELETE FROM item_submissions WHERE task_item_id = ?", (it['id'],))
+                db.execute("DELETE FROM task_items WHERE task_config_id = ?", (hr_cfg['id'],))
+                db.execute("""DELETE FROM settlement_records WHERE task_config_id = ?""", (hr_cfg['id'],))
                 db.execute("""DELETE FROM settlement_amounts WHERE task_config_id = ?""", (hr_cfg['id'],))
+                db.execute("""DELETE FROM settlements WHERE task_config_id = ?""", (hr_cfg['id'],))
                 db.execute("DELETE FROM tasks WHERE task_config_id = ?", (hr_cfg['id'],))
                 db.execute("UPDATE task_configs SET department_id = ? WHERE id = ?", (zhbgs_id, hr_cfg['id']))
-                result['steps'].append({'action': 'moved_hr_to_zhbgs', 'config_id': hr_cfg['id'], 'st': st_id})
+                result['steps'].append({'action': 'moved_hr_to_zhbgs', 'config_id': hr_cfg['id'], 'st': st_id, 'items_deleted': len(items_n)})
             else:
                 # 合并材料到 zhbgs 行
                 merged_materials = zg['required_materials'] + '\n\n[2026-08-13 起承接原人力资源部业务]\n' + hr_cfg['required_materials']
@@ -3125,16 +3127,18 @@ def api_run_merge_hr():
                 merged_deadline = min(zg['deadline_day'], hr_cfg['deadline_day'])
                 db.execute("""UPDATE task_configs SET required_materials = ?, deadline_day = ?, remarks = ? WHERE id = ?""",
                            (merged_materials, merged_deadline, merged_remarks, zg['id']))
-                # 删除 HR 行（连带清其衍生的 tasks/...）
-                tasks_n = db.execute("SELECT id FROM tasks WHERE task_config_id = ?", (hr_cfg['id'],)).fetchall()
-                for t in tasks_n:
-                    db.execute("DELETE FROM item_submissions WHERE task_id = ?", (t['id'],))
-                    db.execute("DELETE FROM item_submission_files WHERE task_id = ?", (t['id'],))
-                db.execute("""DELETE FROM settlement_records WHERE task_id IN (SELECT id FROM tasks WHERE task_config_id = ?)""", (hr_cfg['id'],))
+                # 删除 HR 行（连带清其衍生 task_items / 子表）
+                items_n = db.execute("SELECT id FROM task_items WHERE task_config_id = ?", (hr_cfg['id'],)).fetchall()
+                for it in items_n:
+                    db.execute("DELETE FROM item_submission_files WHERE item_submission_id IN (SELECT id FROM item_submissions WHERE task_item_id = ?)", (it['id'],))
+                    db.execute("DELETE FROM item_submissions WHERE task_item_id = ?", (it['id'],))
+                db.execute("DELETE FROM task_items WHERE task_config_id = ?", (hr_cfg['id'],))
+                db.execute("""DELETE FROM settlement_records WHERE task_config_id = ?""", (hr_cfg['id'],))
                 db.execute("""DELETE FROM settlement_amounts WHERE task_config_id = ?""", (hr_cfg['id'],))
+                db.execute("""DELETE FROM settlements WHERE task_config_id = ?""", (hr_cfg['id'],))
                 db.execute("DELETE FROM tasks WHERE task_config_id = ?", (hr_cfg['id'],))
                 db.execute("DELETE FROM task_configs WHERE id = ?", (hr_cfg['id'],))
-                result['steps'].append({'action': 'merged', 'zhbgs_config_id': zg['id'], 'hr_config_id': hr_cfg['id'], 'st': st_id, 'hr_tasks_deleted': len(tasks_n)})
+                result['steps'].append({'action': 'merged', 'zhbgs_config_id': zg['id'], 'hr_config_id': hr_cfg['id'], 'st': st_id, 'hr_items_deleted': len(items_n)})
 
         # 3. users 表 department 文本更新（虽然马上要被删，但保持一致）
         n_u = db.execute("UPDATE users SET department = '综合办公室' WHERE department = '人力资源部'")
