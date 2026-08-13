@@ -2937,7 +2937,38 @@ def inject_globals():
     return {
         'app_title': '帕基尔项目月度结算管理系统',
         'current_month': get_current_month(),
+        'static_url': static_url,  # 注册到 Jinja globals，import 出来的 macro 也能用
     }
+
+
+# ===========================================================================
+# 静态资源 URL 自动加内容 hash（基于文件 mtime + size，前 8 字符）。
+# 配合 vercel.json 的 `immutable, max-age=2592000`（30天）实现：
+# - 首次访问：浏览器下载并缓存 30 天
+# - 二次访问：304/命中本地缓存，零网络请求
+# - 文件更新后：hash 变化 → URL 变化 → 浏览器拉新版，旧版继续缓存不污染
+# 必须在 inject_globals 之前定义（被它引用），并注册到 jinja_env.globals 让
+# {% import '_macros.html' as ui %} 后的宏也能解析到。
+# ===========================================================================
+import hashlib as _hashlib
+from flask import url_for as _url_for
+_STATIC_ROOT = os.path.join(app.static_folder) if app.static_folder else None
+
+
+def static_url(filename):
+    try:
+        full = os.path.join(_STATIC_ROOT, filename) if _STATIC_ROOT else filename
+        if os.path.isfile(full):
+            st = os.stat(full)
+            h = _hashlib.md5(f"{st.st_mtime_ns}:{st.st_size}".encode()).hexdigest()[:8]
+            return _url_for('static', filename=filename) + f'?v={h}'
+    except Exception:
+        pass
+    return _url_for('static', filename=filename)
+
+
+# 让 {% import %} 出来的宏也能用 static_url（context_processor 不会注入到 imported namespace）
+app.jinja_env.globals['static_url'] = static_url
 
 
 # ===========================================================================

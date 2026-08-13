@@ -4,13 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}{{ app_title }}{% endblock %}</title>
-    <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml" sizes="any">
-    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" sizes="32x32 48x48" type="image/x-icon">
-    <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/apple-touch-icon.png') }}">
-    <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}">
+    <link rel="icon" href="{{ static_url('favicon.svg') }}" type="image/svg+xml" sizes="any">
+    <link rel="icon" href="{{ static_url('favicon.ico') }}" sizes="32x32 48x48" type="image/x-icon">
+    <link rel="apple-touch-icon" href="{{ static_url('icons/apple-touch-icon.png') }}">
+    <link rel="manifest" href="{{ static_url('manifest.webmanifest') }}">
     <meta name="theme-color" content="#1E40AF">
-    <link href="{{ url_for('static', filename='vendor/bootstrap/css/bootstrap.min.css') }}" rel="stylesheet">
-    <link href="{{ url_for('static', filename='css/style.css') }}?v=2" rel="stylesheet">
+    <link href="{{ static_url('vendor/bootstrap/css/bootstrap.min.css') }}" rel="stylesheet">
+    <link href="{{ static_url('css/style.css') }}" rel="stylesheet">
     {% block extra_css %}{% endblock %}
     {% block icons %}{% endblock %}
 </head>
@@ -138,7 +138,7 @@
 </div>
 {% endif %}
 
-<script src="{{ url_for('static', filename='vendor/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
+<script src="{{ static_url('vendor/bootstrap/js/bootstrap.bundle.min.js') }}" defer></script>
 <script>
 function doLogout() {
   try { localStorage.removeItem('auth_token'); localStorage.removeItem('current_user'); document.cookie = 'auth_token=; path=/; max-age=0'; } catch (e) {}
