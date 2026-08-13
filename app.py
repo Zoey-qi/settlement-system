@@ -3075,7 +3075,7 @@ def api_sync_tasks_materials():
     """合并后冷启动已经存在的 tasks 行持有合并前的 required_materials 快照；本端点把
     task_configs 当前 required_materials 覆盖到所有 tasks 行，修复『仪表盘/导出看不到新加内容』。
 
-    合并后执行一次即可，后续调用返回 410。
+    合并后执行一次即可（已 2026-08-13 执行完成），后续调用返回 410。
     """
     user = get_current_user()
     if not user or user.get('role') != 'admin':
@@ -3083,41 +3083,38 @@ def api_sync_tasks_materials():
 
     try:
         db = get_db()
-        # 查 zhbgs 部门 id
         dept = db.execute("SELECT id FROM departments WHERE name='综合办公室' LIMIT 1").fetchone()
         if not dept:
             return jsonify({'ok': False, 'error': 'no_zhbgs_dept'}), 500
         zhbgs_id = dept['id']
 
-        # 拉 zhbgs 全部 task_configs
         configs = db.execute('SELECT id, required_materials FROM task_configs WHERE department_id=?', (zhbgs_id,)).fetchall()
-        updated = 0
+        synced = 0
         for cfg in configs:
             db.execute(
                 'UPDATE tasks SET required_materials=? '
                 'WHERE task_config_id=? AND COALESCE(required_materials,\'\') <> ?',
                 (cfg['required_materials'], cfg['id'], cfg['required_materials'] or '')
             )
-            updated += 1
+            synced += 1
         db.commit()
-
-        # 重数：所有 zhbgs tasks 行的 required_materials 都与对应 config 一致
-        verify = db.execute('''
-            SELECT COUNT(*) AS c FROM tasks t
-            JOIN task_configs c ON c.id = t.task_config_id
-            WHERE c.department_id = ?
-              AND COALESCE(t.required_materials,'') <> COALESCE(c.required_materials,'')
-        ''', (zhbgs_id,)).fetchone()['c']
-
-        return jsonify({
-            'ok': True,
-            'zhbgs_dept_id': zhbgs_id,
-            'configs_synced': len(configs),
-            'unmatched_tasks_after_sync': verify,
-            'note': 'tasks 行 required_materials 已与 task_configs 同步（合并前快照已被覆盖）',
-        }), 200
     except Exception as e:
         return jsonify({'ok': False, 'error': 'sync_failed', 'detail': str(e), 'type': type(e).__name__}), 500
+
+    verify = db.execute('''
+        SELECT COUNT(*) AS c FROM tasks t
+        JOIN task_configs c ON c.id = t.task_config_id
+        WHERE c.department_id = ?
+          AND COALESCE(t.required_materials,'') <> COALESCE(c.required_materials,'')
+    ''', (zhbgs_id,)).fetchone()['c']
+
+    return jsonify({
+        'ok': True,
+        'zhbgs_dept_id': zhbgs_id,
+        'configs_synced': synced,
+        'unmatched_tasks_after_sync': verify,
+        'note': 'tasks 行 required_materials 已与 task_configs 同步（合并前快照已被覆盖）',
+    }), 200
 
 
 # ===========================================================================
