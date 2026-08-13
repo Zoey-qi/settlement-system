@@ -1498,6 +1498,12 @@ def api_delete_department():
     try:
         if cfg_ids:
             placeholders = ','.join('?' * len(cfg_ids))
+            # 严格子表顺序：tasks → task_items → task_configs
+            # tasks.task_config_id 是外键，先解除；task_items 同理
+            db.execute(
+                f'DELETE FROM tasks WHERE task_config_id IN ({placeholders})',
+                cfg_ids
+            )
             db.execute(
                 f'DELETE FROM task_items WHERE task_config_id IN ({placeholders})',
                 cfg_ids
