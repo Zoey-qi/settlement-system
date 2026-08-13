@@ -3064,12 +3064,18 @@ def api_init_users():
 def api_run_merge_hr():
     """执行 HR 部门合并到综合办公室（admin 鉴权）。
 
-    步骤：
-      1. UPDATE task_configs SET department_id = 综合办公室.id WHERE department_id = 人力资源部.id
-      2. UPDATE users SET department = '综合办公室' WHERE department = '人力资源部'
-      3. UPDATE department_files SET department = '综合办公室' WHERE department = '人力资源部'
-      4. DELETE FROM users WHERE username IN ('director_rlzyb','liaison_rlzyb')
-      5. DELETE FROM departments WHERE name = '人力资源部'
+    策略：HR 的 2 个 task_configs 与 zhbgs 的 2 个 task_configs 在
+    (department_id=6, settlement_type_id) 上唯一键冲突。解决方案：
+      1. 找出 HR 的 task_config (id=5,12) 与 zhbgs 冲突的 (id=?)
+         对应的 settlement_type
+      2. 先 DELETE 掉 zhbgs 同 settlement_type 的旧 config（连带删掉其 task_items/settlements）
+      3. UPDATE HR 的 config department_id → 6
+    但这样会丢 zhbgs 旧 config 下的历史 task_items/settlement_records。
+
+    替代策略（更安全）：把 zhbgs 旧 config 改 department_id=其它（废）→ 再迁移 HR。
+    但仍会丢 zhbgs 旧 config 的条目。
+
+    最干净的方案：HR 的两行迁移后用 HR 自己的内容覆盖 zhbgs 旧两行（合二为一）。
     """
     user = get_current_user()
     if not user or user.get('role') != 'admin':
@@ -3081,43 +3087,70 @@ def api_run_merge_hr():
         return jsonify({'ok': False, 'error': 'no_hr_department', 'message': '人力资源部已不存在（可能已合并）'})
     hr_id = hr['id']
     zhbgs = db.execute("SELECT id FROM departments WHERE name = '综合办公室'").fetchone()
-    if not zhbgs:
-        return jsonify({'ok': False, 'error': 'no_zhbgs_department', 'message': '综合办公室不存在'})
     zhbgs_id = zhbgs['id']
 
     result = {'ok': True, 'hr_id': hr_id, 'zhbgs_id': zhbgs_id, 'steps': []}
 
     try:
-        n = db.execute("UPDATE task_configs SET department_id = ? WHERE department_id = ?", (zhbgs_id, hr_id)).rowcount if hasattr(db, 'execute') else 0
-        # psycopg2 的 execute 不直接返 rowcount，需要回查
-        n_tc = db.execute("SELECT COUNT(*) AS c FROM task_configs WHERE department_id = ?", (zhbgs_id,)).fetchone()['c']
-        result['steps'].append({'step': 'update task_configs', 'zhbgs_dept_configs_total': n_tc})
+        # 1. 列出冲突
+        hr_configs = db.execute("SELECT id, settlement_type_id, required_materials, deadline_day, remarks, is_active FROM task_configs WHERE department_id = ?", (hr_id,)).fetchall()
+        zhbgs_configs = db.execute("SELECT id, settlement_type_id, required_materials, deadline_day, remarks, is_active FROM task_configs WHERE department_id = ?", (zhbgs_id,)).fetchall()
+        hr_by_st = {c['settlement_type_id']: dict(c) for c in hr_configs}
+        zhbgs_by_st = {c['settlement_type_id']: dict(c) for c in zhbgs_configs}
 
-        n_u = db.execute("UPDATE users SET department = '综合办公室' WHERE department = '人力资源部'").rowcount if hasattr(db, 'execute') else 0
-        n_users = db.execute("SELECT COUNT(*) AS c FROM users WHERE department = '综合办公室'").fetchone()['c']
-        result['steps'].append({'step': 'update users dept text', 'zhbgs_users_total': n_users})
+        result['hr_configs'] = [dict(c) for c in hr_configs]
+        result['zhbgs_configs'] = [dict(c) for c in zhbgs_configs]
 
-        n_f = db.execute("UPDATE department_files SET department = '综合办公室' WHERE department = '人力资源部'").rowcount if hasattr(db, 'execute') else 0
-        result['steps'].append({'step': 'update department_files', 'rows_updated': n_f})
+        # 2. 合并策略：HR 的内容覆盖到 zhbgs 同 settlement_type 的行（合二为一，保留历史 task_items）
+        #    操作：UPDATE zhbgs_configs SET required_materials = HR+zhbgs 合并, deadline=MIN, remarks=合并
+        for st_id, hr_cfg in hr_by_st.items():
+            zg = zhbgs_by_st.get(st_id)
+            if zg is None:
+                # zhbgs 没有这个 settlement_type，直接迁过来
+                db.execute("UPDATE task_configs SET department_id = ? WHERE id = ?", (zhbgs_id, hr_cfg['id']))
+                result['steps'].append({'action': 'moved_hr_to_zhbgs', 'config_id': hr_cfg['id'], 'st': st_id})
+            else:
+                # 合并材料列
+                merged_materials = zg['required_materials'] + '\n\n[2026-08-13 起承接原人力资源部业务]\n' + hr_cfg['required_materials']
+                merged_remarks = (zg.get('remarks') or '') + ' | ' + (hr_cfg.get('remarks') or '原 HR 业务')
+                merged_deadline = min(zg['deadline_day'], hr_cfg['deadline_day'])
+                # 更新 zhbgs 行
+                db.execute("""UPDATE task_configs SET required_materials = ?, deadline_day = ?, remarks = ? WHERE id = ?""",
+                           (merged_materials, merged_deadline, merged_remarks, zg['id']))
+                # 删除 hr 行（合到 zhbgs）
+                db.execute("DELETE FROM task_configs WHERE id = ?", (hr_cfg['id'],))
+                result['steps'].append({'action': 'merged', 'zhbgs_config_id': zg['id'], 'hr_config_id': hr_cfg['id'], 'st': st_id})
 
-        n_d = db.execute("DELETE FROM users WHERE username IN ('director_rlzyb','liaison_rlzyb')").rowcount if hasattr(db, 'execute') else 0
-        result['steps'].append({'step': 'delete HR accounts', 'rows_deleted': n_d})
+        # 3. users 表 department 文本更新（虽然马上要被删，但保持一致）
+        n_u = db.execute("UPDATE users SET department = '综合办公室' WHERE department = '人力资源部'")
+        result['steps'].append({'step': 'update users dept text'})
 
-        n_dep = db.execute("DELETE FROM departments WHERE id = ?", (hr_id,)).rowcount if hasattr(db, 'execute') else 0
-        result['steps'].append({'step': 'delete HR department', 'rows_deleted': n_dep})
+        # 4. department_files（0 行但保留）
+        db.execute("UPDATE department_files SET department = '综合办公室' WHERE department = '人力资源部'")
+        result['steps'].append({'step': 'update department_files'})
+
+        # 5. 删除 HR 账号
+        n_d = db.execute("DELETE FROM users WHERE username IN ('director_rlzyb','liaison_rlzyb')")
+        result['steps'].append({'step': 'delete HR accounts'})
+
+        # 6. 删除 HR 部门行
+        n_dep = db.execute("DELETE FROM departments WHERE id = ?", (hr_id,))
+        result['steps'].append({'step': 'delete HR department'})
 
         db.commit()
 
         # 终态校验
-        still_hr = db.execute("SELECT COUNT(*) AS c FROM departments WHERE name = '人力资源部'").fetchone()['c']
-        still_acc = db.execute("SELECT COUNT(*) AS c FROM users WHERE username IN ('director_rlzyb','liaison_rlzyb')").fetchone()['c']
-        tc_to_hr = db.execute("SELECT COUNT(*) AS c FROM task_configs tc JOIN departments d ON tc.department_id=d.id WHERE d.name='人力资源部'").fetchone()['c']
-        result['verify'] = {'remaining_hr_dept': still_hr, 'remaining_hr_accounts': still_acc, 'task_configs_still_pointing_to_hr': tc_to_hr}
-
+        result['verify'] = {
+            'remaining_hr_dept': db.execute("SELECT COUNT(*) AS c FROM departments WHERE name = '人力资源部'").fetchone()['c'],
+            'remaining_hr_accounts': db.execute("SELECT COUNT(*) AS c FROM users WHERE username IN ('director_rlzyb','liaison_rlzyb')").fetchone()['c'],
+            'zhbgs_task_configs_count': db.execute("SELECT COUNT(*) AS c FROM task_configs WHERE department_id = ?", (zhbgs_id,)).fetchone()['c'],
+            'zhbgs_users_count': db.execute("SELECT COUNT(*) AS c FROM users WHERE department = '综合办公室'").fetchone()['c'],
+        }
         return jsonify(result)
     except Exception as e:
+        import traceback
         db.rollback()
-        return jsonify({'ok': False, 'error': str(e)})
+        return jsonify({'ok': False, 'error': str(e), 'trace': traceback.format_exc()})
 
 
 # ===========================================================================
