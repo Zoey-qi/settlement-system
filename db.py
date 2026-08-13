@@ -358,20 +358,8 @@ def init_schema(db):
             uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (settlement_record_id) REFERENCES settlement_records(id) ON DELETE CASCADE
         )''',
-        f'''CREATE TABLE IF NOT EXISTS department_files (
-            id {ai},
-            department TEXT NOT NULL,
-            file_name TEXT NOT NULL,
-            stored_name TEXT NOT NULL,
-            file_data BYTEA,
-            file_size INTEGER,
-            blob_url TEXT,
-            blob_pathname TEXT,
-            uploader TEXT,
-            uploader_department TEXT,
-            description TEXT,
-            uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )''',
+        # department_files 表已于 2026-08-13 随 /department-files 模块下线而移除（用户要求"不用再加部门文件模块"）。
+        # 历史实现参见 git log 8e3f9af 等提交。
         # 用户登录会话表（持久化，跨 Serverless 冷启动）
         # Vercel Serverless 每次冷启动会清空内存字典，故 session 必须落库
         f'''CREATE TABLE IF NOT EXISTS user_sessions (
@@ -500,7 +488,8 @@ def init_schema(db):
         print(f'[init_schema] settle_month migration skipped: {e}')
 
     # 兼容已有数据库：附件表增加 Vercel Blob 存储字段（启用对象存储时落 URL，否则留空走 DB）
-    for _t in ('item_submission_files', 'settlement_attachments', 'template_files', 'department_files'):
+    # 注：department_files 表已随部门文件模块下线（2026-08-13），不再加 blob 字段。
+    for _t in ('item_submission_files', 'settlement_attachments', 'template_files'):
         for _c in ('blob_url', 'blob_pathname'):
             try:
                 db.execute(f'ALTER TABLE {_t} ADD COLUMN {_c} TEXT')

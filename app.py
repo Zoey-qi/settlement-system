@@ -230,16 +230,6 @@ def user_can_write_to_dept(user, dept_name):
     return False
 
 
-def user_can_view_dept(user, dept_name):
-    """判断当前用户是否可查看指定部门数据。"""
-    if not user:
-        return False
-    role = user['role']
-    if role in ('admin', 'leader'):
-        return True
-    return dept_name == user.get('department', '')
-
-
 def _check_task_dept_or_403(task_config_id):
     """根据 task_config_id 查询对应部门名，供路由层做权限校验。"""
     db = get_db()
@@ -2893,171 +2883,9 @@ def api_delete_settlement_attachment(aid):
     return jsonify({'ok': True})
 
 
-# ---------- 部门文件管理 ----------
-# 说明：用户要求"不用再加部门文件模块"，此模块已下线。
-# 为防止通过旧链接/书签直链误入，本路由直接 404；如需恢复可放开 @require_auth。
-@app.route('/department-files')
-def department_files_page():
-    """部门文件管理页 - 已下线（统一返回 404）"""
-    from flask import abort
-    abort(404)
-
-
-@app.route('/api/department-files', methods=['GET'])
-@require_auth
-def api_list_department_files():
-    """查询部门文件列表"""
-    db = get_db()
-    user = g.current_user
-
-    department_filter = request.args.get('department', '').strip()
-
-    query = 'SELECT id, department, file_name, stored_name, file_size, uploader, uploader_department, description, uploaded_at FROM department_files WHERE 1=1'
-    params = []
-    if department_filter:
-        query += ' AND department = ?'
-        params.append(department_filter)
-    # 角色过滤
-    if user['role'] in ('director', 'liaison'):
-        dept = user.get('department', '')
-        if dept:
-            query += ' AND department = ?'
-            params.append(dept)
-    query += ' ORDER BY uploaded_at DESC'
-    rows = db.execute(query, params).fetchall()
-    files = []
-    for r in rows:
-        d = dict(r)
-        d['file_size'] = int(d['file_size']) if d['file_size'] is not None else 0
-        files.append(d)
-    return jsonify({'ok': True, 'files': files})
-
-
-@app.route('/api/department-files', methods=['POST'])
-@require_role('admin', 'liaison')
-def api_upload_department_file():
-    """上传部门文件（仅管理员 + 联络人）
-
-    - admin：可上传到任意部门
-    - liaison：只能上传到本部门（系统自动锁定）
-    """
-    db = get_db()
-    user = g.current_user
-
-    department = (request.form.get('department') or user.get('department', '')).strip()
-    description = (request.form.get('description') or '').strip()
-    file = request.files.get('file')
-
-    if not file or not file.filename:
-        return jsonify({'error': '请选择文件'}), 400
-    if not allowed_file(file.filename):
-        return jsonify({'error': '不支持的文件类型'}), 400
-    if not department:
-        return jsonify({'error': '请指定部门'}), 400
-
-    # 联络人：强制限只能上传到自己的部门（防止选错）
-    if user['role'] == 'liaison':
-        own_dept = user.get('department', '')
-        if department != own_dept:
-            return jsonify({'error': f'联络人只能上传到本部门（{own_dept}）'}), 403
-
-    stored, size, original, data, blob_url, blob_pathname = save_upload_file(file, subdir='department_files')
-
-    uploader = user['display_name']
-    uploader_dept = user.get('department', '')
-
-    new_id = insert_returning_id(db, '''
-        INSERT INTO department_files
-        (department, file_name, stored_name, file_data, file_size, blob_url, blob_pathname, uploader, uploader_department, description)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ''', (department, original, stored, data, size, blob_url, blob_pathname, uploader, uploader_dept, description))
-    db.commit()
-    return jsonify({'ok': True, 'id': new_id})
-
-
-@app.route('/api/department-files/<int:fid>', methods=['DELETE'])
-@require_role('admin', 'liaison')
-def api_delete_department_file(fid):
-    """删除部门文件
-
-    - admin：可删任意
-    - liaison：只能删自己上传的文件（且必须属于本部门）
-    - director：没有删除权限（只读）
-    """
-    db = get_db()
-    user = g.current_user
-
-    row = db.execute('SELECT * FROM department_files WHERE id = ?', (fid,)).fetchone()
-    if not row:
-        return jsonify({'error': '文件不存在'}), 404
-    if user['role'] == 'liaison':
-        own_dept = user.get('department', '')
-        if row['department'] != own_dept:
-            return jsonify({'error': '只能删除本部门文件'}), 403
-        if row['uploader'] != user['display_name']:
-            return jsonify({'error': '联络人只能删除自己上传的文件'}), 403
-
-    db.execute('DELETE FROM department_files WHERE id = ?', (fid,))
-    db.commit()
-    return jsonify({'ok': True})
-
-
-@app.route('/download/department-file/<int:fid>')
-@require_auth
-def download_department_file(fid):
-    """下载部门文件"""
-    db = get_db()
-    user = g.current_user
-    row = db.execute('SELECT * FROM department_files WHERE id = ?', (fid,)).fetchone()
-    if not row:
-        abort(404)
-    # 角色权限校验
-    if user['role'] in ('director', 'liaison'):
-        if row['department'] != user.get('department', ''):
-            abort(403)
-    if USE_POSTGRES:
-        if not row['file_data']:
-            abort(404)
-        return send_file(io.BytesIO(row['file_data']), as_attachment=True, download_name=row['file_name'])
-    filepath = os.path.join(UPLOAD_DIR, 'department_files', row['stored_name'])
-    if not os.path.exists(filepath):
-        abort(404)
-    return send_file(filepath, as_attachment=True, download_name=row['file_name'])
-
-
-@app.route('/api/_init-users', methods=['GET'])
-def api_init_users():
-    """首次访问自动 seed 用户（公开接口，仅当 users 表为空时生效）
-
-    支持表不存在的情况：先用全新连接跑 init_schema 建表 + commit，
-    再用同一个全新连接 SELECT 验证表已存在，再 seed。
-    """
-    fresh = connect()
-    try:
-        # 1. 验证/创建 users 表
-        try:
-            count = fresh.execute('SELECT COUNT(*) as c FROM users').fetchone()['c']
-            print(f'[_init-users] users 表已存在，行数 {count}')
-        except Exception as e:
-            print(f'[_init-users] users 表不存在，开始建表：{e}')
-            fresh.rollback()  # 关键：清掉 SELECT 失败造成的 aborted 状态
-            init_schema(fresh)
-            fresh.commit()
-            # 立刻用同一个连接 SELECT 验证
-            count = fresh.execute('SELECT COUNT(*) as c FROM users').fetchone()['c']
-            print(f'[_init-users] 同一连接 SELECT 验证：行数 {count}')
-        # 2. seed（仍在同一连接，避免 Neon PgBouncer 跨连接问题）
-        if count == 0:
-            seed_users(fresh)
-            fresh.commit()
-            return jsonify({'ok': True, 'seeded': True, 'message': '已初始化 10 个内置用户'})
-        return jsonify({'ok': True, 'seeded': False, 'message': f'已存在 {count} 个用户'})
-    except Exception as e:
-        print(f'[_init-users] 失败：{e}')
-        return jsonify({'ok': False, 'error': str(e)}), 500
-    finally:
-        fresh.close()
-
+# 部门文件管理模块已于 2026-08-13 下线（用户要求"不用再加部门文件模块"）。
+# 5 个路由（/department-files 与 4 个 /api/department-files）已整体移除，department_files 表 schema 同步从 db.py 删除。
+# 历史实现参见 git log 8e3f9af 等提交。
 
 # ---------- 一次性迁移端点：HR → 综合办公室（已完成，2026-08-13 禁用） ----------
 @app.route('/api/_run-merge-hr', methods=['GET'])
@@ -3070,51 +2898,19 @@ def api_run_merge_hr():
 
 
 # ---------- 一次性同步：把 task_configs.required_materials 刷新到当前/历史月份 tasks 行（已完成，2026-08-13 禁用） ----------
+# 端点已执行完成（unmatched_tasks_after_sync=0）。为避免被误调造成覆盖，路由永久返回 410。
+# 历史实现与执行结果参见 git log cca6d2c / 8b06235；如需重新启用请从 git 历史恢复。
 @app.route('/api/_sync-tasks-materials', methods=['GET'])
 def api_sync_tasks_materials():
-    """合并后冷启动已经存在的 tasks 行持有合并前的 required_materials 快照；本端点把
-    task_configs 当前 required_materials 覆盖到所有 tasks 行，修复『仪表盘/导出看不到新加内容』。
-
-    合并后执行一次即可（已 2026-08-13 执行完成），后续调用返回 410。
-    """
+    """已禁用。合并后冷启动已经存在的 tasks 行持有合并前的 required_materials 快照；该同步已在 2026-08-13 执行完成（configs_synced=2, unmatched_tasks_after_sync=0），本端点永久 410。"""
     user = get_current_user()
     if not user or user.get('role') != 'admin':
         return jsonify({'ok': False, 'error': 'forbidden'}), 403
-
-    try:
-        db = get_db()
-        dept = db.execute("SELECT id FROM departments WHERE name='综合办公室' LIMIT 1").fetchone()
-        if not dept:
-            return jsonify({'ok': False, 'error': 'no_zhbgs_dept'}), 500
-        zhbgs_id = dept['id']
-
-        configs = db.execute('SELECT id, required_materials FROM task_configs WHERE department_id=?', (zhbgs_id,)).fetchall()
-        synced = 0
-        for cfg in configs:
-            db.execute(
-                'UPDATE tasks SET required_materials=? '
-                'WHERE task_config_id=? AND COALESCE(required_materials,\'\') <> ?',
-                (cfg['required_materials'], cfg['id'], cfg['required_materials'] or '')
-            )
-            synced += 1
-        db.commit()
-    except Exception as e:
-        return jsonify({'ok': False, 'error': 'sync_failed', 'detail': str(e), 'type': type(e).__name__}), 500
-
-    verify = db.execute('''
-        SELECT COUNT(*) AS c FROM tasks t
-        JOIN task_configs c ON c.id = t.task_config_id
-        WHERE c.department_id = ?
-          AND COALESCE(t.required_materials,'') <> COALESCE(c.required_materials,'')
-    ''', (zhbgs_id,)).fetchone()['c']
-
     return jsonify({
-        'ok': True,
-        'zhbgs_dept_id': zhbgs_id,
-        'configs_synced': synced,
-        'unmatched_tasks_after_sync': verify,
-        'note': 'tasks 行 required_materials 已与 task_configs 同步（合并前快照已被覆盖）',
-    }), 200
+        'ok': False,
+        'error': 'sync_already_done',
+        'message': 'required_materials 同步已在 2026-08-13 完成，本端点已禁用。'
+    }), 410
 
 
 # ===========================================================================
