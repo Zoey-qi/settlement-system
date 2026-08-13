@@ -3101,25 +3101,40 @@ def api_run_merge_hr():
         result['hr_configs'] = [dict(c) for c in hr_configs]
         result['zhbgs_configs'] = [dict(c) for c in zhbgs_configs]
 
-        # 2. 合并策略：HR 的内容覆盖到 zhbgs 同 settlement_type 的行（合二为一，保留历史 task_items）
-        #    操作：UPDATE zhbgs_configs SET required_materials = HR+zhbgs 合并, deadline=MIN, remarks=合并
+        # 2. 合并策略：把 HR 的内容合到 zhbgs 同 settlement_type 的 config 上
+        #    zhbgs 旧的 config id 保留 → task_items/submissions/settlements FK 不变
+        #    HR 衍生的 task_items/... 一并删（HR 部门只 seed 不久，历史为空）
         for st_id, hr_cfg in hr_by_st.items():
             zg = zhbgs_by_st.get(st_id)
             if zg is None:
-                # zhbgs 没有这个 settlement_type，直接迁过来
+                # zhbgs 没有这个 settlement_type → HR config 直接迁过来（更新 department_id）
+                # 同步迁 HR 衍生的 tasks / 子表
+                tasks_n = db.execute("SELECT id FROM tasks WHERE task_config_id = ?", (hr_cfg['id'],)).fetchall()
+                for t in tasks_n:
+                    db.execute("DELETE FROM item_submissions WHERE task_id = ?", (t['id'],))
+                    db.execute("DELETE FROM item_submission_files WHERE task_id = ?", (t['id'],))
+                db.execute("""DELETE FROM settlement_records WHERE task_id IN (SELECT id FROM tasks WHERE task_config_id = ?)""", (hr_cfg['id'],))
+                db.execute("""DELETE FROM settlement_amounts WHERE task_config_id = ?""", (hr_cfg['id'],))
+                db.execute("DELETE FROM tasks WHERE task_config_id = ?", (hr_cfg['id'],))
                 db.execute("UPDATE task_configs SET department_id = ? WHERE id = ?", (zhbgs_id, hr_cfg['id']))
                 result['steps'].append({'action': 'moved_hr_to_zhbgs', 'config_id': hr_cfg['id'], 'st': st_id})
             else:
-                # 合并材料列
+                # 合并材料到 zhbgs 行
                 merged_materials = zg['required_materials'] + '\n\n[2026-08-13 起承接原人力资源部业务]\n' + hr_cfg['required_materials']
                 merged_remarks = (zg.get('remarks') or '') + ' | ' + (hr_cfg.get('remarks') or '原 HR 业务')
                 merged_deadline = min(zg['deadline_day'], hr_cfg['deadline_day'])
-                # 更新 zhbgs 行
                 db.execute("""UPDATE task_configs SET required_materials = ?, deadline_day = ?, remarks = ? WHERE id = ?""",
                            (merged_materials, merged_deadline, merged_remarks, zg['id']))
-                # 删除 hr 行（合到 zhbgs）
+                # 删除 HR 行（连带清其衍生的 tasks/...）
+                tasks_n = db.execute("SELECT id FROM tasks WHERE task_config_id = ?", (hr_cfg['id'],)).fetchall()
+                for t in tasks_n:
+                    db.execute("DELETE FROM item_submissions WHERE task_id = ?", (t['id'],))
+                    db.execute("DELETE FROM item_submission_files WHERE task_id = ?", (t['id'],))
+                db.execute("""DELETE FROM settlement_records WHERE task_id IN (SELECT id FROM tasks WHERE task_config_id = ?)""", (hr_cfg['id'],))
+                db.execute("""DELETE FROM settlement_amounts WHERE task_config_id = ?""", (hr_cfg['id'],))
+                db.execute("DELETE FROM tasks WHERE task_config_id = ?", (hr_cfg['id'],))
                 db.execute("DELETE FROM task_configs WHERE id = ?", (hr_cfg['id'],))
-                result['steps'].append({'action': 'merged', 'zhbgs_config_id': zg['id'], 'hr_config_id': hr_cfg['id'], 'st': st_id})
+                result['steps'].append({'action': 'merged', 'zhbgs_config_id': zg['id'], 'hr_config_id': hr_cfg['id'], 'st': st_id, 'hr_tasks_deleted': len(tasks_n)})
 
         # 3. users 表 department 文本更新（虽然马上要被删，但保持一致）
         n_u = db.execute("UPDATE users SET department = '综合办公室' WHERE department = '人力资源部'")
