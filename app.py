@@ -3088,18 +3088,21 @@ def api_sync_tasks_materials():
         return jsonify({'ok': False, 'error': 'no_zhbgs_dept'}), 500
     zhbgs_id = dept['id']
 
-    # 拉 zhbgs 全部 task_configs
-    configs = db.execute('SELECT id, required_materials FROM task_configs WHERE department_id=?', (zhbgs_id,)).fetchall()
-    updated = 0
-    for cfg in configs:
-        # 用 != 简单判断（required_materials 是文本，None vs '' 用 COALESCE 兼容）
-        db.execute(
-            'UPDATE tasks SET required_materials=? '
-            'WHERE task_config_id=? AND COALESCE(required_materials,\'\') <> ?',
-            (cfg['required_materials'], cfg['id'], cfg['required_materials'] or '')
-        )
-        updated += db.execute('SELECT changes() AS c').fetchone()['c'] if False else 0
-    db.commit()
+    try:
+        # 拉 zhbgs 全部 task_configs
+        configs = db.execute('SELECT id, required_materials FROM task_configs WHERE department_id=?', (zhbgs_id,)).fetchall()
+        updated = 0
+        for cfg in configs:
+            db.execute(
+                'UPDATE tasks SET required_materials=? '
+                'WHERE task_config_id=? AND COALESCE(required_materials,\'\') <> ?',
+                (cfg['required_materials'], cfg['id'], cfg['required_materials'] or '')
+            )
+            updated += 1
+        db.commit()
+    except Exception as e:
+        import traceback
+        return jsonify({'ok': False, 'error': 'sync_failed', 'detail': str(e), 'traceback': traceback.format_exc()}), 500
 
     # 重数：所有 zhbgs tasks 行的 required_materials 都与对应 config 一致
     verify = db.execute('''
