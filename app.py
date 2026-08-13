@@ -3081,14 +3081,14 @@ def api_sync_tasks_materials():
     if not user or user.get('role') != 'admin':
         return jsonify({'ok': False, 'error': 'forbidden'}), 403
 
-    db = get_db()
-    # 查 zhbgs 部门 id
-    dept = db.execute("SELECT id FROM departments WHERE code='zhbgs' OR name='综合办公室' LIMIT 1").fetchone()
-    if not dept:
-        return jsonify({'ok': False, 'error': 'no_zhbgs_dept'}), 500
-    zhbgs_id = dept['id']
-
     try:
+        db = get_db()
+        # 查 zhbgs 部门 id
+        dept = db.execute("SELECT id FROM departments WHERE code='zhbgs' OR name='综合办公室' LIMIT 1").fetchone()
+        if not dept:
+            return jsonify({'ok': False, 'error': 'no_zhbgs_dept'}), 500
+        zhbgs_id = dept['id']
+
         # 拉 zhbgs 全部 task_configs
         configs = db.execute('SELECT id, required_materials FROM task_configs WHERE department_id=?', (zhbgs_id,)).fetchall()
         updated = 0
@@ -3100,25 +3100,24 @@ def api_sync_tasks_materials():
             )
             updated += 1
         db.commit()
+
+        # 重数：所有 zhbgs tasks 行的 required_materials 都与对应 config 一致
+        verify = db.execute('''
+            SELECT COUNT(*) AS c FROM tasks t
+            JOIN task_configs c ON c.id = t.task_config_id
+            WHERE c.department_id = ?
+              AND COALESCE(t.required_materials,'') <> COALESCE(c.required_materials,'')
+        ''', (zhbgs_id,)).fetchone()['c']
+
+        return jsonify({
+            'ok': True,
+            'zhbgs_dept_id': zhbgs_id,
+            'configs_synced': len(configs),
+            'unmatched_tasks_after_sync': verify,
+            'note': 'tasks 行 required_materials 已与 task_configs 同步（合并前快照已被覆盖）',
+        }), 200
     except Exception as e:
-        import traceback
-        return jsonify({'ok': False, 'error': 'sync_failed', 'detail': str(e), 'traceback': traceback.format_exc()}), 500
-
-    # 重数：所有 zhbgs tasks 行的 required_materials 都与对应 config 一致
-    verify = db.execute('''
-        SELECT COUNT(*) AS c FROM tasks t
-        JOIN task_configs c ON c.id = t.task_config_id
-        WHERE c.department_id = ?
-          AND COALESCE(t.required_materials,'') <> COALESCE(c.required_materials,'')
-    ''', (zhbgs_id,)).fetchone()['c']
-
-    return jsonify({
-        'ok': True,
-        'zhbgs_dept_id': zhbgs_id,
-        'configs_synced': len(configs),
-        'unmatched_tasks_after_sync': verify,
-        'note': 'tasks 行 required_materials 已与 task_configs 同步（合并前快照已被覆盖）',
-    }), 200
+        return jsonify({'ok': False, 'error': 'sync_failed', 'detail': str(e), 'type': type(e).__name__}), 500
 
 
 # ===========================================================================
