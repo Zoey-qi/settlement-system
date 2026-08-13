@@ -72,8 +72,12 @@
 <div class="row">
     <div class="col-12">
         <div class="card">
-            <div class="card-header">
+            <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <h6 class="mb-0">{{ ui.icon('list-ul', '', 16) }} 当前任务配置（共 {{ configs|length }} 项）</h6>
+                <button type="button" class="btn btn-sm btn-success" id="addDeptBtn"
+                        data-bs-toggle="modal" data-bs-target="#addDepartmentModal">
+                    {{ ui.icon('plus-lg', '', 14) }} 添加部门
+                </button>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
@@ -190,6 +194,50 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
                 <button type="button" class="btn btn-primary" id="deadlineSaveBtn">
+                    {{ ui.icon('check-lg', '', 16) }} 保存
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 添加部门弹窗 -->
+<div class="modal fade" id="addDepartmentModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">{{ ui.icon('plus-circle', '', 16) }} 添加部门</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info py-2 px-3 small mb-3">
+                    {{ ui.icon('info-circle', '', 14) }}
+                    新部门将同时创建「对上结算」与「对下结算」两条任务配置，提交后请在新行编辑资料明细。
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">部门名 <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control form-control-lg" id="addDeptNameInput"
+                           maxlength="50" placeholder="例如：试验检测部" required>
+                    <div class="form-text">最多 50 个字符；同名部门会被拒绝</div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">联络人姓名</label>
+                    <input type="text" class="form-control" id="addDeptContactInput"
+                           maxlength="50" placeholder="（可稍后在「联络人」列编辑）">
+                </div>
+                <div class="mb-1">
+                    <label class="form-label">默认截止日期（每月几号前）</label>
+                    <div class="input-group">
+                        <input type="number" class="form-control form-control-lg" id="addDeptDeadlineInput"
+                               min="1" max="31" value="28" required>
+                        <span class="input-group-text">日</span>
+                    </div>
+                    <div class="form-text">范围 1-31；后续可在截止日期列单独调整</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-success" id="addDeptSaveBtn">
                     {{ ui.icon('check-lg', '', 16) }} 保存
                 </button>
             </div>
@@ -332,6 +380,70 @@
         .finally(() => {
             contactSaveBtn.disabled = false;
             contactSaveBtn.innerHTML = '✓ 保存';
+        });
+    });
+
+    // ============================================================
+    // 添加部门
+    // ============================================================
+    const addDeptModal = document.getElementById('addDepartmentModal');
+    const addDeptNameInput = document.getElementById('addDeptNameInput');
+    const addDeptContactInput = document.getElementById('addDeptContactInput');
+    const addDeptDeadlineInput = document.getElementById('addDeptDeadlineInput');
+    const addDeptSaveBtn = document.getElementById('addDeptSaveBtn');
+
+    addDeptModal.addEventListener('show.bs.modal', function() {
+        addDeptNameInput.value = '';
+        addDeptContactInput.value = '';
+        addDeptDeadlineInput.value = 28;
+        addDeptSaveBtn.disabled = false;
+        addDeptSaveBtn.innerHTML = '✓ 保存';
+        setTimeout(() => addDeptNameInput.focus(), 200);
+    });
+
+    addDeptSaveBtn.addEventListener('click', function() {
+        const name = (addDeptNameInput.value || '').trim();
+        const contact = (addDeptContactInput.value || '').trim();
+        const deadline = parseInt(addDeptDeadlineInput.value, 10);
+        if (!name) {
+            showToast('部门名不能为空', 'error');
+            addDeptNameInput.focus();
+            return;
+        }
+        if (name.length > 50) {
+            showToast('部门名不能超过 50 个字符', 'error');
+            return;
+        }
+        if (contact && contact.length > 50) {
+            showToast('联络人姓名不能超过 50 个字符', 'error');
+            return;
+        }
+        if (isNaN(deadline) || deadline < 1 || deadline > 31) {
+            showToast('截止日必须在 1-31 之间', 'error');
+            addDeptDeadlineInput.focus();
+            return;
+        }
+        addDeptSaveBtn.disabled = true;
+        addDeptSaveBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 保存中...';
+        const formData = new FormData();
+        formData.append('name', name);
+        formData.append('contact_person', contact);
+        formData.append('deadline_day', String(deadline));
+        fetch('/api/config/add-department', {
+            method: 'POST',
+            body: formData
+        })
+        .then(r => r.json())
+        .then(body => {
+            if (!body.ok) throw new Error(body.error || '保存失败');
+            bootstrap.Modal.getInstance(addDeptModal).hide();
+            showToast('✓ 部门「' + body.department_name + '」已添加，刷新页面查看');
+            setTimeout(() => location.reload(), 800);
+        })
+        .catch(err => {
+            showToast('保存失败：' + err.message, 'error');
+            addDeptSaveBtn.disabled = false;
+            addDeptSaveBtn.innerHTML = '✓ 保存';
         });
     });
 

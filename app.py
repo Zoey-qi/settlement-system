@@ -1347,6 +1347,99 @@ def api_update_contact():
     return jsonify({'ok': True, 'department_id': department_id, 'contact_person': contact_person})
 
 
+@app.route('/api/config/add-department', methods=['POST'])
+@require_role('admin')
+def api_add_department():
+    """新增部门（admin 专用）
+
+    - 接收部门名 + 联络人（可选）+ 默认截止日（1-31）
+    - 事务内：INSERT INTO departments；然后查 up/down 两条 settlement_type_id
+      各建一条 task_configs（required_materials='（请编辑需提供资料）'，
+      deadline_day 由表单传入，remarks='', is_active=1）；调用 split_materials
+      初始化 task_items（与 Excel 导入行为一致）。
+    - sort_order 取当前最大 + 5（留中间空位，方便后续插入新部门）。
+    - 返回新部门 id 和对应对上/对下 task_config_id（前端按需刷新页面）。
+    """
+    db = get_db()
+    name = (request.form.get('name') or '').strip()
+    contact_person = (request.form.get('contact_person') or '').strip()
+    deadline_raw = (request.form.get('deadline_day') or '28').strip()
+
+    if not name:
+        return jsonify({'error': '部门名不能为空'}), 400
+    if len(name) > 50:
+        return jsonify({'error': '部门名不能超过 50 个字符'}), 400
+    if contact_person and len(contact_person) > 50:
+        return jsonify({'error': '联络人姓名不能超过 50 个字符'}), 400
+    try:
+        deadline_day = int(deadline_raw)
+    except (TypeError, ValueError):
+        return jsonify({'error': '截止日必须为 1-31 之间的整数'}), 400
+    if deadline_day < 1 or deadline_day > 31:
+        return jsonify({'error': '截止日必须在 1-31 之间'}), 400
+
+    existing = db.execute('SELECT id FROM departments WHERE name = ?', (name,)).fetchone()
+    if existing:
+        return jsonify({'error': f'已存在同名部门「{name}」'}), 409
+
+    max_order = db.execute('SELECT MAX(sort_order) FROM departments').fetchone()[0] or 0
+    new_sort = (max_order or 0) + 5
+
+    db.execute(
+        'INSERT INTO departments (name, contact_person, sort_order) VALUES (?, ?, ?)',
+        (name, contact_person or None, new_sort)
+    )
+    if USE_POSTGRES:
+        new_dept_id = db.execute('SELECT lastval()').fetchone()[0]
+    else:
+        new_dept_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
+
+    # 自动建对上 / 对下 两条 task_configs
+    settlement_types = db.execute('SELECT id, code FROM settlement_types').fetchall()
+    created = []
+    placeholder_materials = '（请编辑需提供资料）'
+    for st in settlement_types:
+        # 防御：万一历史脏数据已有同 (dept, st)，跳过避免 UNIQUE 冲突
+        dup = db.execute(
+            'SELECT id FROM task_configs WHERE department_id = ? AND settlement_type_id = ?',
+            (new_dept_id, st['id'])
+        ).fetchone()
+        if dup:
+            created.append({'settlement_type': st['code'], 'task_config_id': dup['id'], 'existed': True})
+            continue
+        db.execute('''
+            INSERT INTO task_configs
+                (department_id, settlement_type_id, required_materials, deadline_day, remarks, is_active)
+            VALUES (?, ?, ?, ?, '', 1)
+        ''', (new_dept_id, st['id'], placeholder_materials, deadline_day))
+        if USE_POSTGRES:
+            new_cfg_id = db.execute('SELECT lastval()').fetchone()[0]
+        else:
+            new_cfg_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
+        # 拆分条目（与 Excel 导入行为一致）；老库若 items_initialized 列不存在则忽略 UPDATE
+        items = split_materials(placeholder_materials)
+        if not items:
+            items = ['请编辑需提供资料']
+        for idx, item_name in enumerate(items):
+            db.execute('''
+                INSERT INTO task_items (task_config_id, item_name, sort_order, is_active)
+                VALUES (?, ?, ?, 1)
+            ''', (new_cfg_id, item_name, idx))
+        try:
+            db.execute('UPDATE task_configs SET items_initialized = 1 WHERE id = ?', (new_cfg_id,))
+        except Exception:
+            pass  # 老库无该列，跳过（条目已建好，效果一致）
+        created.append({'settlement_type': st['code'], 'task_config_id': new_cfg_id, 'existed': False})
+
+    db.commit()
+    return jsonify({
+        'ok': True,
+        'department_id': new_dept_id,
+        'department_name': name,
+        'created_configs': created,
+    })
+
+
 @app.route('/api/config/update-materials-remarks', methods=['POST'])
 @require_role('admin')
 def api_update_materials_remarks():
