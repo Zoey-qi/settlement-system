@@ -4,14 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}{{ app_title }}{% endblock %}</title>
-    {# 静态层直发资源：favicon / bootstrap 等稳定资源走 Vercel 静态层（public/），绕开 Serverless 函数冷启动 #}
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml" sizes="any">
-    <link rel="icon" href="/favicon.ico" sizes="32x32 48x48" type="image/x-icon">
-    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
-    <link rel="manifest" href="/manifest.webmanifest">
+    {# 静态资源走 Flask /static/（Vercel 边缘 30天 immutable 缓存，已足够快）
+   public/ 方案因 Vercel rewrites 与 path-to-regexp 语法冲突无法生效，回归稳定方案。 #}
+    <link rel="icon" href="{{ static_url('favicon.svg') }}" type="image/svg+xml" sizes="any">
+    <link rel="icon" href="{{ static_url('favicon.ico') }}" sizes="32x32 48x48" type="image/x-icon">
+    <link rel="apple-touch-icon" href="{{ static_url('icons/apple-touch-icon.png') }}">
+    <link rel="manifest" href="{{ static_url('manifest.webmanifest') }}">
     <meta name="theme-color" content="#1E40AF">
-    <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
-    {# style.css 仍走 Flask /static/（频繁改动，与 Python 同步部署） #}
+    <link href="{{ static_url('vendor/bootstrap/css/bootstrap.min.css') }}" rel="stylesheet">
     <link href="{{ static_url('css/style.css') }}" rel="stylesheet">
     {% block extra_css %}{% endblock %}
     {# 注意：原计划在 head 里 inline，但 base.html 的 {% block %} 在子模板之前先渲染——届时
@@ -158,7 +158,7 @@ function toggleCollapse() { const s = document.getElementById('appShell'); if (s
 })();
 </script>
 {# 登录后才需要 Bootstrap JS（弹窗/下拉/折叠等交互）。登录页不需要，省 24KB 加载。#}
-<script src="/vendor/bootstrap/js/bootstrap.bundle.min.js" defer></script>
+<script src="{{ static_url('vendor/bootstrap/js/bootstrap.bundle.min.js') }}" defer></script>
 {% endif %}
 
 {# 子模板的脚本块（登录页用）：放在 authed 外面，登录页才有机会注入登录逻辑 JS #}
