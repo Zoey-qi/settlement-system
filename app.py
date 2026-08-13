@@ -3206,6 +3206,11 @@ def _perf_headers(response):
     if request.path.startswith('/static/'):
         response.headers['Cache-Control'] = 'public, max-age=2592000, immutable'
         return response
+    # /login 未登录页：浏览器不缓存，CDN 共享缓存 60s + SWR 5 分钟
+    # （带 Cookie 的请求 Vercel 自动跳过 CDN 缓存，登录页本身无敏感数据，可共享）
+    if request.path == '/login' and ct == 'text/html':
+        response.headers['Cache-Control'] = 'public, s-maxage=60, stale-while-revalidate=300, max-age=0'
+        return response
     # HTML 页面：浏览器私有缓存 10s
     if ct == 'text/html':
         response.headers.setdefault('Cache-Control', 'private, max-age=10')
