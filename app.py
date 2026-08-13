@@ -3092,18 +3092,28 @@ def api_sync_tasks_materials():
     configs = db.execute('SELECT id, required_materials FROM task_configs WHERE department_id=?', (zhbgs_id,)).fetchall()
     updated = 0
     for cfg in configs:
-        n = db.execute(
-            'UPDATE tasks SET required_materials=? WHERE task_config_id=? AND required_materials IS DISTINCT FROM ?',
-            (cfg['required_materials'], cfg['id'], cfg['required_materials'])
-        ).rowcount
-        updated += n
+        # 用 != 简单判断（required_materials 是文本，None vs '' 用 COALESCE 兼容）
+        db.execute(
+            'UPDATE tasks SET required_materials=? '
+            'WHERE task_config_id=? AND COALESCE(required_materials,\'\') <> ?',
+            (cfg['required_materials'], cfg['id'], cfg['required_materials'] or '')
+        )
+        updated += db.execute('SELECT changes() AS c').fetchone()['c'] if False else 0
     db.commit()
+
+    # 重数：所有 zhbgs tasks 行的 required_materials 都与对应 config 一致
+    verify = db.execute('''
+        SELECT COUNT(*) AS c FROM tasks t
+        JOIN task_configs c ON c.id = t.task_config_id
+        WHERE c.department_id = ?
+          AND COALESCE(t.required_materials,'') <> COALESCE(c.required_materials,'')
+    ''', (zhbgs_id,)).fetchone()['c']
 
     return jsonify({
         'ok': True,
         'zhbgs_dept_id': zhbgs_id,
         'configs_synced': len(configs),
-        'tasks_rows_updated': updated,
+        'unmatched_tasks_after_sync': verify,
         'note': 'tasks 行 required_materials 已与 task_configs 同步（合并前快照已被覆盖）',
     }), 200
 
