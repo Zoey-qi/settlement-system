@@ -2976,12 +2976,19 @@ app.jinja_env.globals['static_url'] = static_url
 #   - HTML：浏览器私有缓存 10s（连切页秒开，CDN 不缓存私有页）
 #   - JSON API：不缓存（数据随时变）
 #   - 文件下载（attachment）：不缓存
-#   - 静态资源（在 /static/ 下）：交给 vercel.json 的 headers 配，这里不动
+#   - /static/ 静态资源：public + 30天 immutable（依赖 static_url 加 hash，
+#     文件更新后 URL 变化 → 旧版继续缓存 30 天不会污染）
 # ===========================================================================
 @app.after_request
 def _perf_headers(response):
     ct = (response.headers.get('Content-Type') or '').split(';')[0].strip().lower()
 
+    # 静态资源：在 Flask 路由层强制加 immutable 头（Vercel vercel.json 的
+    # /static/(.*) headers 段在边缘 CDN 优先级不够，会被 Vercel 默认静态
+    # 缓存策略覆盖）。这里直接覆盖以确保命中。
+    if request.path.startswith('/static/'):
+        response.headers['Cache-Control'] = 'public, max-age=2592000, immutable'
+        return response
     # HTML 页面：浏览器私有缓存 10s
     if ct == 'text/html':
         response.headers.setdefault('Cache-Control', 'private, max-age=10')
@@ -2991,7 +2998,6 @@ def _perf_headers(response):
     # 文件下载（attachment）：不缓存
     elif 'attachment' in (response.headers.get('Content-Disposition') or ''):
         response.headers.setdefault('Cache-Control', 'no-store')
-    # 其他（静态资源）：交给 vercel.json 的 headers 配
 
     return response
 
