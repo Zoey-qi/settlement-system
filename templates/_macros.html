@@ -1,8 +1,13 @@
 <!--
   SVG icon 助手宏：icon(name, cls='', size=16)
   例：ui.icon('list') / ui.icon('search', 'text-primary') / ui.icon('check', '', 14)
-  不依赖图标字体，跨网络代理稳定
+  不依赖图标字体，跨网络代理稳定。
+
+  渲染策略：每个 <use href> 指向同文档 ID（#i-NAME），由 base.html 末尾
+  集中输出当前请求命中的 <symbol> 子集；ui.icon() 同时把 name 收集到
+  g.requested_icons。这样避免下载独立的 icons.svg（1 RTT + 12KB gz），
+  代价是 HTML 多出数 KB inline（gzip 后增量很小）。
 -->
 {% macro icon(name, cls='', size=16) -%}
-<svg class="icon {{ cls }}{% if 'text-' not in cls and 'lead-icon' not in cls %} icon-neutral{% endif %}" width="{{ size }}" height="{{ size }}" viewBox="0 0 16 16" aria-hidden="true"><use href="{{ static_url('icons.svg') }}#i-{{ name }}"/></svg>
+{% set _ = g.requested_icons.add(name) %}<svg class="icon {{ cls }}{% if 'text-' not in cls and 'lead-icon' not in cls %} icon-neutral{% endif %}" width="{{ size }}" height="{{ size }}" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-{{ name }}"/></svg>
 {%- endmacro %}

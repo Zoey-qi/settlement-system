@@ -594,6 +594,8 @@ def enforce_login():
 def inject_current_user():
     """全局注入当前登录用户，供 base.html 导航栏使用。
     未登录时设置一个匿名对象，避免模板出现 UndefinedError。
+    同时初始化 g.requested_icons = set()，模板 ui.icon() 宏会往里加 name，
+    base.html 末尾按需输出 <symbol>——无需每个请求多次 lazy load。
     """
     user = get_current_user()
     if user:
@@ -605,6 +607,9 @@ def inject_current_user():
             display_name = ''
             department = ''
         g.current_user = _Anon()
+    # ui.icon() 宏需要此 set；登录页 block scripts 中也用 <use href="#i-...">，
+    # 那些 icon 名同样会被 ui.icon() 收集到（同一个模板）。
+    g.requested_icons = set()
 
 
 @app.route('/')
@@ -3118,6 +3123,7 @@ def inject_globals():
         'app_title': '帕基尔项目月度结算管理系统',
         'current_month': get_current_month(),
         'static_url': static_url,  # 注册到 Jinja globals，import 出来的 macro 也能用
+        'ICON_SYMBOLS': ICON_SYMBOLS,  # 模板可按需取 <symbol> 字符串
     }
 
 
@@ -3149,6 +3155,37 @@ def static_url(filename):
 
 # 让 {% import %} 出来的宏也能用 static_url（context_processor 不会注入到 imported namespace）
 app.jinja_env.globals['static_url'] = static_url
+
+
+# ===========================================================================
+# SVG 图标 sprite 按需内联（性能优化）
+#   - 模板 ui.icon() 宏收集 name 到 g.requested_icons
+#   - base.html 末尾只输出当前请求命中的 <symbol>，省去 1 个 RTT + 12KB icons.svg
+#   - 解析 templates/_icons.html 在模块加载时一次性完成，预热到 ICON_SYMBOLS dict
+# ===========================================================================
+import re as _re_svg
+
+def _load_icon_symbols():
+    """从 templates/_icons.html 提取 {name: <symbol...>...</symbol>} 字典。
+    返回值仅为 <symbol> 节点字符串（不含外层 <svg> 包装），可拼接到任意 <svg> 容器。
+    """
+    icons_path = os.path.join(BASE_DIR, 'templates', '_icons.html')
+    if not os.path.isfile(icons_path):
+        return {}
+    try:
+        with open(icons_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+    except Exception:
+        return {}
+    # 提取每个 <symbol ... id="i-NAME">...</symbol>，name = NAME
+    pattern = _re_svg.compile(
+        r'<symbol\b[^>]*\bid=["\']i-([a-z0-9-]+)["\'][^>]*>.*?</symbol>',
+        _re_svg.DOTALL | _re_svg.IGNORECASE
+    )
+    return {m.group(1): m.group(0) for m in pattern.finditer(content)}
+
+
+ICON_SYMBOLS = _load_icon_symbols()
 
 
 # ===========================================================================

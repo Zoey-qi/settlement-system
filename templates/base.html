@@ -12,7 +12,8 @@
     <link href="{{ static_url('vendor/bootstrap/css/bootstrap.min.css') }}" rel="stylesheet">
     <link href="{{ static_url('css/style.css') }}" rel="stylesheet">
     {% block extra_css %}{% endblock %}
-    {% block icons %}{% endblock %}
+    {# 注意：原计划在 head 里 inline，但 base.html 的 {% block %} 在子模板之前先渲染——届时
+       子模板 body 内的 ui.icon() 还没机会调用，set 是空的。实际放在 </body> 之前（见文件底部）。 #}
 </head>
 <body>
 {% import '_macros.html' as ui %}
@@ -155,5 +156,14 @@ function toggleCollapse() { const s = document.getElementById('appShell'); if (s
 })();
 </script>
 {% block scripts %}{% endblock %}
+
+{# 按需内联 SVG symbol：放在 </body> 之前，确保子模板（body 内的 ui.icon()）已经渲染完毕。
+   base.html 的 {% block %} 是在子模板之前先渲染的，所以必须放到 body 末尾才能拿到收集到的 names。
+   注意：ICON_SYMBOLS 里的值是 raw SVG 字符串，必须用 |safe 防止 < 被转义为 &lt; #}
+{% if g.requested_icons %}
+<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+    {% for n in g.requested_icons %}{{ ICON_SYMBOLS.get(n, '') | safe }}{% endfor %}
+</defs></svg>
+{% endif %}
 </body>
 </html>
