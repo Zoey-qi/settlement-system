@@ -2106,21 +2106,21 @@ BUILTIN_USERS = [
     {'username': 'director_gczljs', 'display_name': '工程质量技术部主任', 'password': 'gczljsb222', 'role': 'director', 'department': '工程质量技术部', 'phone': ''},
     {'username': 'director_aqhbb', 'display_name': '安全环保部主任', 'password': 'aqhbb333', 'role': 'director', 'department': '安全环保部', 'phone': ''},
     {'username': 'director_sbwzb', 'display_name': '设备物资部主任', 'password': 'sbwzb444', 'role': 'director', 'department': '设备物资部', 'phone': ''},
-    {'username': 'director_rlzyb', 'display_name': '人力资源部主任', 'password': 'rlzyb555', 'role': 'director', 'department': '人力资源部', 'phone': ''},
+    # 2026-08-13：人力资源部已并入综合办公室，HR 账号删除（director_rlzyb/liaison_rlzyb）
     {'username': 'director_zhbgs', 'display_name': '综合办公室领导', 'password': 'zhbgs666', 'role': 'director', 'department': '综合办公室', 'phone': ''},
     # 4. 各部门联络人（密码按用户提供，2026-08-05 部署）
     {'username': 'liaison_scdd', 'display_name': '生产调度部联络人', 'password': 'scddbabc', 'role': 'liaison', 'department': '生产调度部', 'phone': ''},
     {'username': 'liaison_gczljs', 'display_name': '工程质量技术部联络人', 'password': 'gczljsbdef', 'role': 'liaison', 'department': '工程质量技术部', 'phone': ''},
     {'username': 'liaison_aqhbb', 'display_name': '安全环保部联络人', 'password': 'aqhbbghi', 'role': 'liaison', 'department': '安全环保部', 'phone': ''},
     {'username': 'liaison_sbwzb', 'display_name': '设备物资部联络人', 'password': 'sbwzbjkl', 'role': 'liaison', 'department': '设备物资部', 'phone': ''},
-    {'username': 'liaison_rlzyb', 'display_name': '人力资源部联络人', 'password': 'rlzybmno', 'role': 'liaison', 'department': '人力资源部', 'phone': ''},
+    # 2026-08-13：HR 联络人并入综合办公室后删除
     {'username': 'liaison_zhbgs', 'display_name': '综合办公室联络人', 'password': 'zhbgspqr', 'role': 'liaison', 'department': '综合办公室', 'phone': ''},
 ]
 
 # 已注册部门列表（用于前端下拉）
 DEPARTMENT_LIST = [
     '生产调度部', '工程质量技术部', '安全环保部', '设备物资部',
-    '人力资源部', '综合办公室', '合同管理部',
+    '综合办公室', '合同管理部',
     '项目领导',
 ]
 
@@ -3059,62 +3059,65 @@ def api_init_users():
         fresh.close()
 
 
-# ---------- 临时：HR → 综合办公室 合并 dry-run 端点（admin 鉴权） ----------
-@app.route('/api/_dry-run-merge-hr', methods=['GET'])
-def api_dry_run_merge_hr():
-    """盘点所有以"人力资源部"为键的行，列出每张表的来源 / 数量 / 关联 ID。
-    不修改任何数据，仅 SELECT。"""
+# ---------- 一次性迁移端点：HR → 综合办公室 ----------
+@app.route('/api/_run-merge-hr', methods=['GET'])
+def api_run_merge_hr():
+    """执行 HR 部门合并到综合办公室（admin 鉴权）。
+
+    步骤：
+      1. UPDATE task_configs SET department_id = 综合办公室.id WHERE department_id = 人力资源部.id
+      2. UPDATE users SET department = '综合办公室' WHERE department = '人力资源部'
+      3. UPDATE department_files SET department = '综合办公室' WHERE department = '人力资源部'
+      4. DELETE FROM users WHERE username IN ('director_rlzyb','liaison_rlzyb')
+      5. DELETE FROM departments WHERE name = '人力资源部'
+    """
     user = get_current_user()
     if not user or user.get('role') != 'admin':
         return jsonify({'ok': False, 'error': 'forbidden'}), 403
 
     db = get_db()
-    result = {'ok': True, 'hr_department_id': None, 'zhbgs_department_id': None, 'tables': {}}
+    hr = db.execute("SELECT id FROM departments WHERE name = '人力资源部'").fetchone()
+    if not hr:
+        return jsonify({'ok': False, 'error': 'no_hr_department', 'message': '人力资源部已不存在（可能已合并）'})
+    hr_id = hr['id']
+    zhbgs = db.execute("SELECT id FROM departments WHERE name = '综合办公室'").fetchone()
+    if not zhbgs:
+        return jsonify({'ok': False, 'error': 'no_zhbgs_department', 'message': '综合办公室不存在'})
+    zhbgs_id = zhbgs['id']
 
-    # 1. 找两个部门 id
-    hr = db.execute("SELECT id, name FROM departments WHERE name = '人力资源部'").fetchone()
-    zhbgs = db.execute("SELECT id, name FROM departments WHERE name = '综合办公室'").fetchone()
-    if hr:
-        result['hr_department_id'] = hr['id']
-    if zhbgs:
-        result['zhbgs_department_id'] = zhbgs['id']
+    result = {'ok': True, 'hr_id': hr_id, 'zhbgs_id': zhbgs_id, 'steps': []}
 
-    # 2. 各表扫描
-    def scan(table, where_col, where_val):
-        try:
-            n = db.execute(f'SELECT COUNT(*) AS c FROM {table} WHERE {where_col} = ?', (where_val,)).fetchone()['c']
-            return n
-        except Exception as e:
-            return f'ERR: {e}'
+    try:
+        n = db.execute("UPDATE task_configs SET department_id = ? WHERE department_id = ?", (zhbgs_id, hr_id)).rowcount if hasattr(db, 'execute') else 0
+        # psycopg2 的 execute 不直接返 rowcount，需要回查
+        n_tc = db.execute("SELECT COUNT(*) AS c FROM task_configs WHERE department_id = ?", (zhbgs_id,)).fetchone()['c']
+        result['steps'].append({'step': 'update task_configs', 'zhbgs_dept_configs_total': n_tc})
 
-    if hr:
-        hid = hr['id']
-        hname = hr['name']
-        result['tables'] = {
-            'task_configs (by department_id)': scan('task_configs', 'department_id', hid),
-            'users (by department text)': scan('users', 'department', hname),
-            'department_files (by department text)': scan('department_files', 'department', hname),
-        }
-    else:
-        result['tables'] = {'note': '人力资源部部门行不存在'}
+        n_u = db.execute("UPDATE users SET department = '综合办公室' WHERE department = '人力资源部'").rowcount if hasattr(db, 'execute') else 0
+        n_users = db.execute("SELECT COUNT(*) AS c FROM users WHERE department = '综合办公室'").fetchone()['c']
+        result['steps'].append({'step': 'update users dept text', 'zhbgs_users_total': n_users})
 
-    # 3. 列出 task_configs 详细（含 settlement_type、材料描述）
-    if hr:
-        rows = db.execute("""
-            SELECT tc.id, st.code AS settlement_code, tc.required_materials, tc.deadline_day, tc.is_active
-            FROM task_configs tc
-            JOIN settlement_types st ON tc.settlement_type_id = st.id
-            WHERE tc.department_id = ?
-            ORDER BY st.code
-        """, (hr['id'],)).fetchall()
-        result['task_configs_detail'] = [dict(r) for r in rows]
+        n_f = db.execute("UPDATE department_files SET department = '综合办公室' WHERE department = '人力资源部'").rowcount if hasattr(db, 'execute') else 0
+        result['steps'].append({'step': 'update department_files', 'rows_updated': n_f})
 
-    # 4. users 详细
-    users = db.execute("SELECT id, username, display_name, role FROM users WHERE department = '人力资源部'").fetchall()
-    result['users_detail'] = [dict(u) for u in users]
+        n_d = db.execute("DELETE FROM users WHERE username IN ('director_rlzyb','liaison_rlzyb')").rowcount if hasattr(db, 'execute') else 0
+        result['steps'].append({'step': 'delete HR accounts', 'rows_deleted': n_d})
 
-    return jsonify(result)
-# ---------- 临时端点结束 ----------
+        n_dep = db.execute("DELETE FROM departments WHERE id = ?", (hr_id,)).rowcount if hasattr(db, 'execute') else 0
+        result['steps'].append({'step': 'delete HR department', 'rows_deleted': n_dep})
+
+        db.commit()
+
+        # 终态校验
+        still_hr = db.execute("SELECT COUNT(*) AS c FROM departments WHERE name = '人力资源部'").fetchone()['c']
+        still_acc = db.execute("SELECT COUNT(*) AS c FROM users WHERE username IN ('director_rlzyb','liaison_rlzyb')").fetchone()['c']
+        tc_to_hr = db.execute("SELECT COUNT(*) AS c FROM task_configs tc JOIN departments d ON tc.department_id=d.id WHERE d.name='人力资源部'").fetchone()['c']
+        result['verify'] = {'remaining_hr_dept': still_hr, 'remaining_hr_accounts': still_acc, 'task_configs_still_pointing_to_hr': tc_to_hr}
+
+        return jsonify(result)
+    except Exception as e:
+        db.rollback()
+        return jsonify({'ok': False, 'error': str(e)})
 
 
 # ===========================================================================

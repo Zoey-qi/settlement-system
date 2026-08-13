@@ -70,7 +70,6 @@
                   <option value="director_gczljs">工程质量技术部主任</option>
                   <option value="director_aqhbb">安全环保部主任</option>
                   <option value="director_sbwzb">设备物资部主任</option>
-                  <option value="director_rlzyb">人力资源部主任</option>
                   <option value="director_zhbgs">综合办公室主任</option>
                 </optgroup>
                 <optgroup label="部门联络人">
@@ -78,7 +77,6 @@
                   <option value="liaison_gczljs">工程质量技术部联络人</option>
                   <option value="liaison_aqhbb">安全环保部联络人</option>
                   <option value="liaison_sbwzb">设备物资部联络人</option>
-                  <option value="liaison_rlzyb">人力资源部联络人</option>
                   <option value="liaison_zhbgs">综合办公室联络人</option>
                 </optgroup>
               </select>
@@ -92,7 +90,7 @@
               <select class="form-select" id="department">
                 <option value="">— 请选择部门 —</option>
                 <option>生产调度部</option><option>工程质量技术部</option><option>安全环保部</option>
-                <option>设备物资部</option><option>人力资源部</option><option>综合办公室</option>
+                <option>设备物资部</option><option>综合办公室</option>
                 <option>合同管理部</option><option>项目领导</option>
               </select>
             </div>
@@ -124,7 +122,6 @@
             <li>工程质量技术部主任：<code>gczljsb222</code></li>
             <li>安全环保部主任：<code>aqhbb333</code></li>
             <li>设备物资部主任：<code>sbwzb444</code></li>
-            <li>人力资源部主任：<code>rlzyb555</code></li>
             <li>综合办公室主任：<code>zhbgs666</code></li>
             <li>联络人密码：另行发放，暂用占位符</li>
           </ul>
@@ -137,9 +134,9 @@
 <script>
 const USERNAME_TO_DEPT = {
   'director_scdd': '生产调度部', 'director_gczljs': '工程质量技术部', 'director_aqhbb': '安全环保部',
-  'director_sbwzb': '设备物资部', 'director_rlzyb': '人力资源部', 'director_zhbgs': '综合办公室',
+  'director_sbwzb': '设备物资部', 'director_zhbgs': '综合办公室',
   'liaison_scdd': '生产调度部', 'liaison_gczljs': '工程质量技术部', 'liaison_aqhbb': '安全环保部',
-  'liaison_sbwzb': '设备物资部', 'liaison_rlzyb': '人力资源部', 'liaison_zhbgs': '综合办公室',
+  'liaison_sbwzb': '设备物资部', 'liaison_zhbgs': '综合办公室',
 };
 document.getElementById('username').addEventListener('change', function() {
   const u = this.value, deptWrap = document.getElementById('department-wrap'), deptSel = document.getElementById('department');
