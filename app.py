@@ -3059,6 +3059,64 @@ def api_init_users():
         fresh.close()
 
 
+# ---------- 临时：HR → 综合办公室 合并 dry-run 端点（admin 鉴权） ----------
+@app.route('/api/_dry-run-merge-hr', methods=['GET'])
+def api_dry_run_merge_hr():
+    """盘点所有以"人力资源部"为键的行，列出每张表的来源 / 数量 / 关联 ID。
+    不修改任何数据，仅 SELECT。"""
+    user = get_current_user()
+    if not user or user.get('role') != 'admin':
+        return jsonify({'ok': False, 'error': 'forbidden'}), 403
+
+    db = get_db()
+    result = {'ok': True, 'hr_department_id': None, 'zhbgs_department_id': None, 'tables': {}}
+
+    # 1. 找两个部门 id
+    hr = db.execute("SELECT id, name FROM departments WHERE name = '人力资源部'").fetchone()
+    zhbgs = db.execute("SELECT id, name FROM departments WHERE name = '综合办公室'").fetchone()
+    if hr:
+        result['hr_department_id'] = hr['id']
+    if zhbgs:
+        result['zhbgs_department_id'] = zhbgs['id']
+
+    # 2. 各表扫描
+    def scan(table, where_col, where_val):
+        try:
+            n = db.execute(f'SELECT COUNT(*) AS c FROM {table} WHERE {where_col} = ?', (where_val,)).fetchone()['c']
+            return n
+        except Exception as e:
+            return f'ERR: {e}'
+
+    if hr:
+        hid = hr['id']
+        hname = hr['name']
+        result['tables'] = {
+            'task_configs (by department_id)': scan('task_configs', 'department_id', hid),
+            'users (by department text)': scan('users', 'department', hname),
+            'department_files (by department text)': scan('department_files', 'department', hname),
+        }
+    else:
+        result['tables'] = {'note': '人力资源部部门行不存在'}
+
+    # 3. 列出 task_configs 详细（含 settlement_type、材料描述）
+    if hr:
+        rows = db.execute("""
+            SELECT tc.id, st.code AS settlement_code, tc.required_materials, tc.deadline_day, tc.is_active
+            FROM task_configs tc
+            JOIN settlement_types st ON tc.settlement_type_id = st.id
+            WHERE tc.department_id = ?
+            ORDER BY st.code
+        """, (hr['id'],)).fetchall()
+        result['task_configs_detail'] = [dict(r) for r in rows]
+
+    # 4. users 详细
+    users = db.execute("SELECT id, username, display_name, role FROM users WHERE department = '人力资源部'").fetchall()
+    result['users_detail'] = [dict(u) for u in users]
+
+    return jsonify(result)
+# ---------- 临时端点结束 ----------
+
+
 # ===========================================================================
 # 错误处理
 # ===========================================================================
