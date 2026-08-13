@@ -1440,6 +1440,87 @@ def api_add_department():
     })
 
 
+@app.route('/api/config/delete-department', methods=['POST'])
+@require_role('admin')
+def api_delete_department():
+    """删除部门（admin 专用）
+
+    安全策略：
+    - 必须 confirm_delete = 'on'（前端必须勾选二次确认）
+    - 该部门任何 cfg 含 submissions（提交历史）→ 400 拒绝，防止误删数据
+    - 否则事务内删除 task_items → task_configs → departments
+    """
+    db = get_db()
+    department_id = request.form.get('department_id')
+    confirm = request.form.get('confirm_delete', '')
+
+    if confirm != 'on':
+        return jsonify({'error': '请勾选确认删除'}), 400
+
+    try:
+        department_id = int(department_id)
+    except (TypeError, ValueError):
+        return jsonify({'error': '部门参数无效'}), 400
+
+    department = db.execute(
+        'SELECT id, name FROM departments WHERE id = ?', (department_id,)
+    ).fetchone()
+    if not department:
+        return jsonify({'error': '部门不存在'}), 404
+    dept_name = department['name']
+
+    # 安全闸门：有提交历史的部门禁止删除（即使勾选了也拒绝）
+    sub_count = db.execute('''
+        SELECT COUNT(*) AS cnt FROM submissions
+        WHERE task_id IN (SELECT id FROM task_configs WHERE department_id = ?)
+    ''', (department_id,)).fetchone()['cnt']
+    if sub_count > 0:
+        return jsonify({
+            'error': f'部门「{dept_name}」有 {sub_count} 条提交记录，禁止删除（请先在 Neon Console 手动处理）',
+            'submission_count': sub_count,
+        }), 400
+
+    # 统计待删除项（事务前回执用）
+    cfg_ids_rows = db.execute(
+        'SELECT id FROM task_configs WHERE department_id = ?', (department_id,)
+    ).fetchall()
+    cfg_ids = [r['id'] for r in cfg_ids_rows]
+    cfg_cnt = len(cfg_ids)
+    item_cnt = 0
+    if cfg_ids:
+        placeholders = ','.join('?' * len(cfg_ids))
+        item_cnt = db.execute(
+            f'SELECT COUNT(*) AS cnt FROM task_items WHERE task_config_id IN ({placeholders})',
+            cfg_ids
+        ).fetchone()['cnt']
+
+    # 事务内清理
+    try:
+        if cfg_ids:
+            placeholders = ','.join('?' * len(cfg_ids))
+            db.execute(
+                f'DELETE FROM task_items WHERE task_config_id IN ({placeholders})',
+                cfg_ids
+            )
+            db.execute(
+                f'DELETE FROM task_configs WHERE department_id = ?',
+                (department_id,)
+            )
+        db.execute('DELETE FROM departments WHERE id = ?', (department_id,))
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        return jsonify({'error': f'删除失败：{e}'}), 500
+
+    return jsonify({
+        'ok': True,
+        'department_id': department_id,
+        'department_name': dept_name,
+        'deleted_task_configs': cfg_cnt,
+        'deleted_task_items': item_cnt,
+    })
+
+
 @app.route('/api/config/update-materials-remarks', methods=['POST'])
 @require_role('admin')
 def api_update_materials_remarks():

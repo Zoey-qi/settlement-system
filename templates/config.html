@@ -106,6 +106,13 @@
                                 <td class="fw-bold">
                                     {{ c['dept_name'] }}
                                     {% if c['is_active'] == 0 %}<span class="badge bg-secondary ms-1">已停用</span>{% endif %}
+                                    <button type="button" class="btn btn-sm btn-link text-danger p-0 ms-1 delete-dept-btn"
+                                            title="删除该部门"
+                                            data-department-id="{{ c['department_id'] }}"
+                                            data-department-name="{{ c['dept_name'] }}"
+                                            data-task-config-id="{{ c['id'] }}">
+                                        {{ ui.icon('trash', '', 14) }}
+                                    </button>
                                 </td>
                                 <td>
                                     <button type="button" class="btn btn-sm btn-outline-primary contact-edit-btn"
@@ -239,6 +246,40 @@
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
                 <button type="button" class="btn btn-success" id="addDeptSaveBtn">
                     {{ ui.icon('check-lg', '', 16) }} 保存
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 删除部门弹窗 -->
+<div class="modal fade" id="deleteDepartmentModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">{{ ui.icon('trash', '', 16) }} 删除部门</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-danger py-2 px-3 mb-3">
+                    {{ ui.icon('exclamation-triangle-fill', '', 14) }}
+                    此操作<strong>不可逆</strong>。将同时删除该部门的所有任务配置与条目。
+                </div>
+                <p class="mb-3">待删除部门：<strong id="deleteDeptName" class="text-danger fs-5"></strong></p>
+                <div id="deleteDeptSummary" class="bg-light rounded p-2 mb-3 small text-muted">
+                    正在加载关联统计...
+                </div>
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" id="deleteConfirmCheck">
+                    <label class="form-check-label" for="deleteConfirmCheck">
+                        我已确认要删除该部门及其所有任务配置
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-danger" id="deleteDeptConfirmBtn" disabled>
+                    {{ ui.icon('trash', '', 16) }} 永久删除
                 </button>
             </div>
         </div>
@@ -509,6 +550,74 @@
             showToast('网络错误：' + err, 'error');
             saveBtn.disabled = false;
             saveBtn.innerHTML = '✓ 保存';
+        });
+    });
+
+    // ============================================================
+    // 删除部门
+    // ============================================================
+    const deleteModal = document.getElementById('deleteDepartmentModal');
+    const deleteDeptName = document.getElementById('deleteDeptName');
+    const deleteDeptSummary = document.getElementById('deleteDeptSummary');
+    const deleteConfirmCheck = document.getElementById('deleteConfirmCheck');
+    const deleteConfirmBtn = document.getElementById('deleteDeptConfirmBtn');
+    let pendingDeleteDeptId = null;
+    let pendingDeleteDeptName = null;
+
+    deleteModal.addEventListener('show.bs.modal', function(event) {
+        const trigger = event.relatedTarget;
+        if (!trigger) return;
+        pendingDeleteDeptId = trigger.dataset.departmentId;
+        pendingDeleteDeptName = trigger.dataset.departmentName;
+        deleteDeptName.textContent = pendingDeleteDeptName;
+        deleteDeptSummary.innerHTML = '正在加载关联统计...';
+        deleteConfirmCheck.checked = false;
+        deleteConfirmBtn.disabled = true;
+        deleteConfirmBtn.innerHTML = '<span>🗑️</span> 永久删除';
+
+        // 拉统计：调用 view-task-configs 不可行；改用 /api/admin/dept-stats 之类——为了不增加新端点，
+        // 这里简化展示：直接读该部门所有行求 item_count 总和、cfg 计数
+        const rows = Array.from(document.querySelectorAll('tr')).filter(tr => {
+                const btn = tr.querySelector('.delete-dept-btn');
+                return btn && btn.dataset.departmentId === pendingDeleteDeptId;
+            });
+        const cfgCnt = rows.length;
+        const itemCnt = rows.reduce((sum, tr) => {
+            const badge = tr.querySelector('td .badge.bg-info.text-dark');
+            return sum + (badge ? parseInt(badge.textContent, 10) || 0 : 0);
+        }, 0);
+        deleteDeptSummary.innerHTML =
+            '任务配置 <strong>' + cfgCnt + '</strong> 项，条目 <strong>' + itemCnt + '</strong> 条。<br>' +
+            '<span class="text-danger">注：若该部门任一任务已有提交记录，提交后将返回错误并拒绝删除。</span>';
+    });
+
+    deleteConfirmCheck.addEventListener('change', function() {
+        deleteConfirmBtn.disabled = !deleteConfirmCheck.checked;
+    });
+
+    deleteConfirmBtn.addEventListener('click', function() {
+        if (!deleteConfirmCheck.checked || !pendingDeleteDeptId) return;
+        deleteConfirmBtn.disabled = true;
+        deleteConfirmBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 删除中...';
+        const formData = new FormData();
+        formData.append('department_id', pendingDeleteDeptId);
+        formData.append('confirm_delete', 'on');
+        fetch('/api/config/delete-department', {
+            method: 'POST',
+            body: formData
+        })
+        .then(r => r.json().then(b => ({ status: r.status, body: b })))
+        .then(({ status, body }) => {
+            if (!body.ok) throw new Error(body.error || ('HTTP ' + status));
+            bootstrap.Modal.getInstance(deleteModal).hide();
+            showToast('✓ 已删除部门「' + pendingDeleteDeptName + '」及其 ' + body.deleted_cfgs + ' 项任务配置');
+            setTimeout(() => location.reload(), 800);
+        })
+        .catch(err => {
+            showToast('删除失败：' + err.message, 'error');
+            deleteConfirmBtn.disabled = false;
+            deleteConfirmBtn.innerHTML = '<span>🗑️</span> 永久删除';
+            deleteConfirmCheck.checked = false;
         });
     });
 
