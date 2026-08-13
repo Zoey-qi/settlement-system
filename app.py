@@ -3059,146 +3059,14 @@ def api_init_users():
         fresh.close()
 
 
-# ---------- 一次性迁移端点：HR → 综合办公室 ----------
+# ---------- 一次性迁移端点：HR → 综合办公室（已完成，2026-08-13 禁用） ----------
 @app.route('/api/_run-merge-hr', methods=['GET'])
 def api_run_merge_hr():
+    """保留端点但禁用：合并已在 2026-08-13 完成。重复访问安全返回 410。"""
     user = get_current_user()
     if not user or user.get('role') != 'admin':
         return jsonify({'ok': False, 'error': 'forbidden'}), 403
-
-    db = get_db()
-    hr = db.execute("SELECT id FROM departments WHERE name = '人力资源部'").fetchone()
-    if not hr:
-        return jsonify({'ok': False, 'error': 'no_hr_department', 'message': '人力资源部已不存在（可能已合并）'})
-    hr_id = hr['id']
-    zhbgs = db.execute("SELECT id FROM departments WHERE name = '综合办公室'").fetchone()
-    zhbgs_id = zhbgs['id']
-
-    result = {'ok': True, 'hr_id': hr_id, 'zhbgs_id': zhbgs_id, 'steps': []}
-
-    try:
-        # 1. 列出冲突
-        hr_configs = db.execute("SELECT id, settlement_type_id, required_materials, deadline_day, remarks, is_active FROM task_configs WHERE department_id = ?", (hr_id,)).fetchall()
-        zhbgs_configs = db.execute("SELECT id, settlement_type_id, required_materials, deadline_day, remarks, is_active FROM task_configs WHERE department_id = ?", (zhbgs_id,)).fetchall()
-        hr_by_st = {c['settlement_type_id']: dict(c) for c in hr_configs}
-        zhbgs_by_st = {c['settlement_type_id']: dict(c) for c in zhbgs_configs}
-
-        result['hr_configs'] = [dict(c) for c in hr_configs]
-        result['zhbgs_configs'] = [dict(c) for c in zhbgs_configs]
-
-        # 2. 合并策略：把 HR 的内容合到 zhbgs 同 settlement_type 的 config 上
-        #    zhbgs 旧的 config id 保留 → task_items/submissions/settlements FK 不变
-        #    HR 衍生的 task_items/... 一并删（HR 部门只 seed 不久，历史为空）
-        for st_id, hr_cfg in hr_by_st.items():
-            zg = zhbgs_by_st.get(st_id)
-            if zg is None:
-                # zhbgs 没有这个 settlement_type → HR config 直接迁过来（更新 department_id）
-                # 先清 HR config 衍生的 items 及其子表（item_submissions/task_item_id FK）
-                items_n = db.execute("SELECT id FROM task_items WHERE task_config_id = ?", (hr_cfg['id'],)).fetchall()
-                for it in items_n:
-                    db.execute("DELETE FROM item_submission_files WHERE item_submission_id IN (SELECT id FROM item_submissions WHERE task_item_id = ?)", (it['id'],))
-                    db.execute("DELETE FROM item_submissions WHERE task_item_id = ?", (it['id'],))
-                db.execute("DELETE FROM task_items WHERE task_config_id = ?", (hr_cfg['id'],))
-                db.execute("DELETE FROM tasks WHERE task_config_id = ?", (hr_cfg['id'],))
-                db.execute("UPDATE task_configs SET department_id = ? WHERE id = ?", (zhbgs_id, hr_cfg['id']))
-                result['steps'].append({'action': 'moved_hr_to_zhbgs', 'config_id': hr_cfg['id'], 'st': st_id, 'items_deleted': len(items_n)})
-            else:
-                # 合并材料到 zhbgs 行
-                merged_materials = zg['required_materials'] + '\n\n[2026-08-13 起承接原人力资源部业务]\n' + hr_cfg['required_materials']
-                merged_remarks = (zg.get('remarks') or '') + ' | ' + (hr_cfg.get('remarks') or '原 HR 业务')
-                merged_deadline = min(zg['deadline_day'], hr_cfg['deadline_day'])
-                db.execute("""UPDATE task_configs SET required_materials = ?, deadline_day = ?, remarks = ? WHERE id = ?""",
-                           (merged_materials, merged_deadline, merged_remarks, zg['id']))
-                # 删除 HR 行（连带清其衍生 task_items / 子表）
-                items_n = db.execute("SELECT id FROM task_items WHERE task_config_id = ?", (hr_cfg['id'],)).fetchall()
-                for it in items_n:
-                    db.execute("DELETE FROM item_submission_files WHERE item_submission_id IN (SELECT id FROM item_submissions WHERE task_item_id = ?)", (it['id'],))
-                    db.execute("DELETE FROM item_submissions WHERE task_item_id = ?", (it['id'],))
-                db.execute("DELETE FROM task_items WHERE task_config_id = ?", (hr_cfg['id'],))
-                db.execute("DELETE FROM tasks WHERE task_config_id = ?", (hr_cfg['id'],))
-                db.execute("DELETE FROM task_configs WHERE id = ?", (hr_cfg['id'],))
-                result['steps'].append({'action': 'merged', 'zhbgs_config_id': zg['id'], 'hr_config_id': hr_cfg['id'], 'st': st_id, 'hr_items_deleted': len(items_n)})
-
-        # 3. users 表 department 文本更新（虽然马上要被删，但保持一致）
-        n_u = db.execute("UPDATE users SET department = '综合办公室' WHERE department = '人力资源部'")
-        result['steps'].append({'step': 'update users dept text'})
-
-        # 4. department_files（0 行但保留）
-        db.execute("UPDATE department_files SET department = '综合办公室' WHERE department = '人力资源部'")
-        result['steps'].append({'step': 'update department_files'})
-
-        # 5. 删除 HR 账号
-        n_d = db.execute("DELETE FROM users WHERE username IN ('director_rlzyb','liaison_rlzyb')")
-        result['steps'].append({'step': 'delete HR accounts'})
-
-        # 6. 删除 HR 部门行
-        n_dep = db.execute("DELETE FROM departments WHERE id = ?", (hr_id,))
-        result['steps'].append({'step': 'delete HR department'})
-
-        db.commit()
-
-        # 终态校验
-        result['verify'] = {
-            'remaining_hr_dept': db.execute("SELECT COUNT(*) AS c FROM departments WHERE name = '人力资源部'").fetchone()['c'],
-            'remaining_hr_accounts': db.execute("SELECT COUNT(*) AS c FROM users WHERE username IN ('director_rlzyb','liaison_rlzyb')").fetchone()['c'],
-            'zhbgs_task_configs_count': db.execute("SELECT COUNT(*) AS c FROM task_configs WHERE department_id = ?", (zhbgs_id,)).fetchone()['c'],
-            'zhbgs_users_count': db.execute("SELECT COUNT(*) AS c FROM users WHERE department = '综合办公室'").fetchone()['c'],
-        }
-        return jsonify(result)
-    except Exception as e:
-        import traceback
-        db.rollback()
-        return jsonify({'ok': False, 'error': str(e), 'trace': traceback.format_exc()})
-
-
-# ---------- 一次性修复：去重 zhbgs task_configs 材料列中重复追加的"承接原 HR 业务"块 ----------
-@app.route('/api/_dedupe-zhbgs-materials', methods=['GET'])
-def api_dedupe_zhbgs_materials():
-    """admin 鉴权：清掉合并时被重复追加的'[2026-08-13 起承接原人力资源部业务]\n农民工工资发放表、考勤表'块。
-
-    只保留一份 zhbgs 原内容 + 一份 HR 追加内容。
-    """
-    user = get_current_user()
-    if not user or user.get('role') != 'admin':
-        return jsonify({'ok': False, 'error': 'forbidden'}), 403
-
-    db = get_db()
-    zhbgs = db.execute("SELECT id FROM departments WHERE name = '综合办公室'").fetchone()
-    if not zhbgs:
-        return jsonify({'ok': False, 'error': 'no_zhbgs_department'})
-    zhbgs_id = zhbgs['id']
-
-    rows = db.execute("SELECT id, required_materials FROM task_configs WHERE department_id = ?", (zhbgs_id,)).fetchall()
-    result = {'ok': True, 'rows': []}
-
-    HR_BLOCK = '农民工工资发放表、考勤表'
-    HR_MARK = '[2026-08-13 起承接原人力资源部业务]'
-
-    for r in rows:
-        original = r['required_materials']
-        # 找到 zhbgs 原内容（第一个 HR_MARK 之前的部分）和 HR 追加内容（第一次出现的 HR_BLOCK）
-        idx = original.find(HR_MARK)
-        if idx == -1:
-            result['rows'].append({'id': r['id'], 'changed': False, 'reason': 'no HR block'})
-            continue
-        zhbgs_part = original[:idx].rstrip()
-        # HR 追加内容：在第一个 HR_MARK 之后，取第一次出现的 HR_BLOCK
-        after = original[idx + len(HR_MARK):].lstrip('\n')
-        # after 里可能有多个 HR_BLOCK 重复出现，只保留一份
-        # 找第一个完整的"HR_BLOCK"开始的位置
-        block_idx = after.find(HR_BLOCK)
-        if block_idx == -1:
-            result['rows'].append({'id': r['id'], 'changed': False, 'reason': 'no HR block content'})
-            continue
-        # 取 after 开头到 block_idx+len(HR_BLOCK) 为止，再截到下一个 \n\n[ 之前的部分
-        one_block = after[block_idx:block_idx + len(HR_BLOCK)].rstrip()
-        # 重组：zhbgs_part + \n\n + HR_MARK + \n + one_block
-        new_materials = f"{zhbgs_part}\n\n{HR_MARK}\n{one_block}"
-        db.execute("UPDATE task_configs SET required_materials = ? WHERE id = ?", (new_materials, r['id']))
-        result['rows'].append({'id': r['id'], 'changed': True, 'preview': new_materials[:120] + '...'})
-
-    db.commit()
-    return jsonify(result)
+    return jsonify({'ok': False, 'error': 'migration_already_done', 'message': 'HR 合并已在 2026-08-13 完成，本端点已禁用。如需重新启用请参见 git log 2f14327/271c2f5 的迁移实现。'}), 410
 
 
 # ===========================================================================
