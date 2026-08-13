@@ -3062,21 +3062,6 @@ def api_init_users():
 # ---------- 一次性迁移端点：HR → 综合办公室 ----------
 @app.route('/api/_run-merge-hr', methods=['GET'])
 def api_run_merge_hr():
-    """执行 HR 部门合并到综合办公室（admin 鉴权）。
-
-    策略：HR 的 2 个 task_configs 与 zhbgs 的 2 个 task_configs 在
-    (department_id=6, settlement_type_id) 上唯一键冲突。解决方案：
-      1. 找出 HR 的 task_config (id=5,12) 与 zhbgs 冲突的 (id=?)
-         对应的 settlement_type
-      2. 先 DELETE 掉 zhbgs 同 settlement_type 的旧 config（连带删掉其 task_items/settlements）
-      3. UPDATE HR 的 config department_id → 6
-    但这样会丢 zhbgs 旧 config 下的历史 task_items/settlement_records。
-
-    替代策略（更安全）：把 zhbgs 旧 config 改 department_id=其它（废）→ 再迁移 HR。
-    但仍会丢 zhbgs 旧 config 的条目。
-
-    最干净的方案：HR 的两行迁移后用 HR 自己的内容覆盖 zhbgs 旧两行（合二为一）。
-    """
     user = get_current_user()
     if not user or user.get('role') != 'admin':
         return jsonify({'ok': False, 'error': 'forbidden'}), 403
@@ -3164,6 +3149,56 @@ def api_run_merge_hr():
         import traceback
         db.rollback()
         return jsonify({'ok': False, 'error': str(e), 'trace': traceback.format_exc()})
+
+
+# ---------- 一次性修复：去重 zhbgs task_configs 材料列中重复追加的"承接原 HR 业务"块 ----------
+@app.route('/api/_dedupe-zhbgs-materials', methods=['GET'])
+def api_dedupe_zhbgs_materials():
+    """admin 鉴权：清掉合并时被重复追加的'[2026-08-13 起承接原人力资源部业务]\n农民工工资发放表、考勤表'块。
+
+    只保留一份 zhbgs 原内容 + 一份 HR 追加内容。
+    """
+    user = get_current_user()
+    if not user or user.get('role') != 'admin':
+        return jsonify({'ok': False, 'error': 'forbidden'}), 403
+
+    db = get_db()
+    zhbgs = db.execute("SELECT id FROM departments WHERE name = '综合办公室'").fetchone()
+    if not zhbgs:
+        return jsonify({'ok': False, 'error': 'no_zhbgs_department'})
+    zhbgs_id = zhbgs['id']
+
+    rows = db.execute("SELECT id, required_materials FROM task_configs WHERE department_id = ?", (zhbgs_id,)).fetchall()
+    result = {'ok': True, 'rows': []}
+
+    HR_BLOCK = '农民工工资发放表、考勤表'
+    HR_MARK = '[2026-08-13 起承接原人力资源部业务]'
+
+    for r in rows:
+        original = r['required_materials']
+        # 找到 zhbgs 原内容（第一个 HR_MARK 之前的部分）和 HR 追加内容（第一次出现的 HR_BLOCK）
+        idx = original.find(HR_MARK)
+        if idx == -1:
+            result['rows'].append({'id': r['id'], 'changed': False, 'reason': 'no HR block'})
+            continue
+        zhbgs_part = original[:idx].rstrip()
+        # HR 追加内容：在第一个 HR_MARK 之后，取第一次出现的 HR_BLOCK
+        after = original[idx + len(HR_MARK):].lstrip('\n')
+        # after 里可能有多个 HR_BLOCK 重复出现，只保留一份
+        # 找第一个完整的"HR_BLOCK"开始的位置
+        block_idx = after.find(HR_BLOCK)
+        if block_idx == -1:
+            result['rows'].append({'id': r['id'], 'changed': False, 'reason': 'no HR block content'})
+            continue
+        # 取 after 开头到 block_idx+len(HR_BLOCK) 为止，再截到下一个 \n\n[ 之前的部分
+        one_block = after[block_idx:block_idx + len(HR_BLOCK)].rstrip()
+        # 重组：zhbgs_part + \n\n + HR_MARK + \n + one_block
+        new_materials = f"{zhbgs_part}\n\n{HR_MARK}\n{one_block}"
+        db.execute("UPDATE task_configs SET required_materials = ? WHERE id = ?", (new_materials, r['id']))
+        result['rows'].append({'id': r['id'], 'changed': True, 'preview': new_materials[:120] + '...'})
+
+    db.commit()
+    return jsonify(result)
 
 
 # ===========================================================================
