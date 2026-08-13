@@ -3084,7 +3084,7 @@ def api_sync_tasks_materials():
     try:
         db = get_db()
         # 查 zhbgs 部门 id
-        dept = db.execute("SELECT id FROM departments WHERE code='zhbgs' OR name='综合办公室' LIMIT 1").fetchone()
+        dept = db.execute("SELECT id FROM departments WHERE name='综合办公室' LIMIT 1").fetchone()
         if not dept:
             return jsonify({'ok': False, 'error': 'no_zhbgs_dept'}), 500
         zhbgs_id = dept['id']
