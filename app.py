@@ -875,6 +875,19 @@ def submit_task(task_id):
 @require_auth
 def submit_item(item_id):
     """条目级提交 - 上传文件或标记为无"""
+    # === 临时诊断探针（修复后删除）===
+    import traceback as _tb
+    try:
+        return _submit_item_impl(item_id)
+    except Exception as _e:
+        import json as _json
+        app.logger.error(f'[submit_item/{item_id}] {_e}\n{_tb.format_exc()}')
+        return _json.jsonify({'error': str(_e), 'type': type(_e).__name__,
+                              'tb': _tb.format_exc()[:1500]}), 500
+
+
+def _submit_item_impl(item_id):
+    """条目级提交实际实现（提取出来便于 try/except 包裹）"""
     db = get_db()
     month = request.form.get('month', get_current_month())
     submission_type = request.form.get('submission_type')

@@ -1,0 +1,1119 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>提交数据 - 帕基尔项目月度结算管理系统</title>
+    
+    <link rel="icon" href="/static/favicon.svg?v=adf8d448" type="image/svg+xml" sizes="any">
+    <link rel="icon" href="/static/favicon.ico?v=1890bc84" sizes="32x32 48x48" type="image/x-icon">
+    <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png?v=bdfdd657">
+    <link rel="manifest" href="/static/manifest.webmanifest?v=794f5802">
+    <meta name="theme-color" content="#1E40AF">
+    <link href="/static/vendor/bootstrap/css/bootstrap.min.css?v=28198d81" rel="stylesheet">
+    <link href="/static/css/style.css?v=cd886a4c" rel="stylesheet">
+    
+    
+</head>
+<body>
+
+<div class="bg-orbs" aria-hidden="true">
+    <span class="orb orb-1"></span>
+    <span class="orb orb-2"></span>
+    <span class="orb orb-3"></span>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+<div class="app-shell" id="appShell">
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <div class="sidebar-logo"><svg class="icon  icon-neutral" width="22" height="22" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-building-fill-gear"/></svg></div>
+            <div class="sidebar-brand-text"><strong>帕基尔结算</strong><span>月度管理系统</span></div>
+        </div>
+        <nav class="sidebar-nav">
+            
+            
+                
+                
+                    
+                
+                    
+                
+                
+                <div class="nav-section">主导航</div>
+                
+                <a class="side-link " href="/"><svg class="icon  icon-neutral" width="18" height="18" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-speedometer2"/></svg><span>仪表盘</span></a>
+                
+                <a class="side-link " href="/settlement"><svg class="icon  icon-neutral" width="18" height="18" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-cash-stack"/></svg><span>结算金额</span></a>
+                
+                
+            
+                
+                
+                    
+                
+                    
+                
+                    
+                
+                    
+                
+                    
+                
+                
+                <div class="nav-section">业务</div>
+                
+                <a class="side-link " href="/submit"><svg class="icon  icon-neutral" width="18" height="18" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-cloud-arrow-up"/></svg><span>提交数据</span></a>
+                
+                <a class="side-link " href="/summary"><svg class="icon  icon-neutral" width="18" height="18" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-clipboard-data"/></svg><span>汇总视图</span></a>
+                
+                <a class="side-link " href="/templates"><svg class="icon  icon-neutral" width="18" height="18" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-file-earmark-spreadsheet"/></svg><span>模板文件</span></a>
+                
+                <a class="side-link " href="/history"><svg class="icon  icon-neutral" width="18" height="18" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-clock-history"/></svg><span>历史记录</span></a>
+                
+                <a class="side-link " href="/guide"><svg class="icon  icon-neutral" width="18" height="18" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-book"/></svg><span>使用指引</span></a>
+                
+                
+            
+                
+                
+                    
+                
+                    
+                
+                
+                <div class="nav-section">系统</div>
+                
+                <a class="side-link " href="/config"><svg class="icon  icon-neutral" width="18" height="18" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-gear"/></svg><span>配置管理</span></a>
+                
+                <a class="side-link " href="/system-status"><svg class="icon  icon-neutral" width="18" height="18" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-server"/></svg><span>系统状态</span></a>
+                
+                
+            
+        </nav>
+        <div class="sidebar-user">
+            <div class="user-card">
+                <div class="avatar">系</div>
+                <div class="user-meta">
+                    <span class="uname">系统管理员</span>
+                    <span class="urole">系统管理员 · 合同管理部</span>
+                </div>
+            </div>
+            <button class="logout-btn" onclick="doLogout()"><svg class="icon  icon-neutral" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-box-arrow-right"/></svg><span>退出登录</span></button>
+            <form id="logout-form" method="post" action="/api/auth/logout-ui" style="display:none;"></form>
+        </div>
+    </aside>
+    <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+    <div class="app-main">
+        <header class="topbar">
+            <div class="topbar-left">
+                <button class="icon-btn d-lg-none" type="button" onclick="toggleSidebar()" aria-label="菜单"><svg class="icon  icon-neutral" width="20" height="20" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-list"/></svg></button>
+                <button class="icon-btn d-none d-lg-inline-flex" type="button" onclick="toggleCollapse()" aria-label="收起侧边栏"><svg class="icon  icon-neutral" width="20" height="20" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-sidebar"/></svg></button>
+                <span class="topbar-crumb">首页 / <b>仪表盘</b></span>
+            </div>
+            <div class="topbar-right">
+                <span class="live-pill"><span class="live-dot"></span>数据实时 · <span id="live-clock">--:--:--</span></span>
+                <button class="icon-btn" type="button" onclick="location.reload()" aria-label="刷新"><svg class="icon  icon-neutral" width="20" height="20" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-arrow-clockwise"/></svg></button>
+            </div>
+        </header>
+
+        <main class="app-content">
+
+
+        
+        
+        
+
+        
+<!-- 任务信息 -->
+<div class="row mb-3">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center flex-wrap">
+                    <div>
+                        <h5 class="mb-1">
+                            <span class="badge bg-danger">对上结算（总包）</span>
+                            生产调度部
+                        </h5>
+                        <p class="text-muted small mb-0">
+                            结算月份：2026-08 | 截止日期：每月27日前
+                             | 结算基础依据
+                        </p>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <form method="POST" action="/submit/all-none/1" id="markAllNoneForm" onsubmit="return markAllNone(event)">
+                            <input type="hidden" name="month" value="2026-08">
+                            <input type="hidden" name="submitter" value="管理员">
+                            <button type="submit" class="btn btn-sm btn-outline-secondary" id="markAllNoneBtn">
+                                <svg class="icon bi icon-neutral" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-check2-all"/></svg> 全部标记为无
+                            </button>
+                        </form>
+                        <a href="/submit?month=2026-08" class="btn btn-sm btn-outline-primary">
+                            <svg class="icon bi icon-neutral" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-arrow-left"/></svg> 返回列表
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 提交说明 -->
+<div class="row mb-3">
+    <div class="col-12">
+        <div class="alert alert-warning d-flex align-items-center mb-0" role="alert">
+            <svg class="icon bi icon-neutral" width="20" height="20" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-building-fill-check"/></svg>
+            <div class="ms-2">
+                <strong>提交说明：</strong>请先交<strong>部门主任</strong>审核，审核通过后上传 EXCEL/PDF（签字）版本。
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 条目列表 -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><svg class="icon bi icon-neutral" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-list-ul"/></svg> 需提交资料条目（逐条独立提交）</h6>
+                <button class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#addItemModal">
+                    <svg class="icon bi icon-neutral" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-plus-circle"/></svg> 新增条目
+                </button>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0" id="itemsTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width:40px">#</th>
+                                <th>资料名称 <small class="text-muted fw-normal">(点击可编辑)</small></th>
+                                <th style="width:100px">模板下载</th>
+                                <th style="width:80px">状态</th>
+                                <th>提交内容</th>
+                                <th style="width:100px">提交人</th>
+                                <th style="width:130px">提交时间</th>
+                                <th style="width:200px">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            
+                            <tr id="row-2" class="table-warning">
+                                <td class="row-index">1</td>
+                                <!-- 资料名称（可编辑） -->
+                                <td>
+                                    <span class="item-name-display" data-item-id="2"
+                                          onclick="editItemName(2, this)"
+                                          style="cursor: text; padding: 2px 6px; border-radius: 4px; display: inline-block; min-width: 100px;"
+                                          onmouseover="this.style.background='#e3f2fd'"
+                                          onmouseout="this.style.background=''">
+                                        现场签证单
+                                    </span>
+                                </td>
+                                <!-- 模板下载 -->
+                                <td class="text-center" id="tpl-cell-2">
+                                    
+                                        <a href="/download/template/54"
+                                           class="btn btn-sm btn-outline-primary py-0" title="对上-对上签证Pakil抽水蓄能电站项目 计日工套表对上">
+                                            <svg class="icon bi icon-neutral" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-download"/></svg> 下载
+                                        </a>
+                                    
+                                    <br>
+                                    <select class="form-select form-select-sm mt-1 tpl-select" style="width:90px; font-size:0.75rem;"
+                                            onchange="linkTemplate(2, this.value)" title="关联模板">
+                                        <option value="">关联...</option>
+                                        
+                                        <option value="1" >入场报验单</option>
+                                        
+                                        <option value="53" >对上-对上提交罚款 HSE：安</option>
+                                        
+                                        <option value="54" selected>对上-对上签证Pakil抽水蓄</option>
+                                        
+                                        <option value="55" >对上-对上结算附件-设备物资部</option>
+                                        
+                                        <option value="56" >对上-对上设备（设备物资部&amp;生</option>
+                                        
+                                        <option value="57" >对上-对上：住宿费（综合办公室</option>
+                                        
+                                        <option value="58" >对上-对上：水电基础局伙食扣款</option>
+                                        
+                                        <option value="59" >对上-对上：生活用水（综合办公</option>
+                                        
+                                        <option value="60" >对上-对上：生活用电（综合办公</option>
+                                        
+                                        <option value="7" >对上工程量确认单</option>
+                                        
+                                        <option value="61" >对下-代付签证 （若有)</option>
+                                        
+                                        <option value="62" >对下-对下HSE扣款（安全环保</option>
+                                        
+                                        <option value="63" >对下-对下代付工资 (综合办公</option>
+                                        
+                                        <option value="64" >对下-对下住宿费（综合办公室）</option>
+                                        
+                                        <option value="65" >对下-对下借用设备确认单（生产</option>
+                                        
+                                        <option value="66" >对下-对下工程量确认单（工程质</option>
+                                        
+                                        <option value="67" >对下-对下技术质量部扣款（工程</option>
+                                        
+                                        <option value="68" >对下-对下材料扣款（设备物资部</option>
+                                        
+                                        <option value="69" >对下-对下餐费（综合办公室）</option>
+                                        
+                                        <option value="70" >对下-对下：生活用水（综合办公</option>
+                                        
+                                        <option value="71" >对下-对下：生活用电（综合办公</option>
+                                        
+                                        <option value="8" >进场花名册</option>
+                                        
+                                    </select>
+                                </td>
+                                <!-- 状态 -->
+                                <td>
+                                    
+                                        <span class="badge bg-warning text-dark">待提交</span>
+                                    
+                                </td>
+                                <!-- 提交内容 -->
+                                <td class="small">
+                                    
+                                        <span class="text-muted">-</span>
+                                    
+                                    
+                                    
+                                </td>
+                                <!-- 提交人 -->
+                                <td class="small">-</td>
+                                <!-- 提交时间 -->
+                                <td class="small text-muted">-</td>
+                                <!-- 操作 -->
+                                <td>
+                                    <div class="d-flex gap-1 flex-wrap">
+                                        
+                                        <!-- 待提交：显示上传和无按钮 -->
+                                        <button class="btn btn-sm btn-primary py-0" onclick="openUploadModal(2, '现场签证单')">
+                                            <svg class="icon bi icon-neutral" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-upload"/></svg> 上传
+                                        </button>
+                                        <form method="POST" action="/submit/item/2" class="d-inline"
+                                              onsubmit="return submitNone(event, 2, '2026-08')">
+                                            <input type="hidden" name="month" value="2026-08">
+                                            <input type="hidden" name="submission_type" value="none">
+                                            <input type="hidden" name="submitter" value="管理员">
+                                            <input type="hidden" name="task_id" value="1">
+                                            <button type="submit" class="btn btn-sm btn-outline-secondary py-0">
+                                                <svg class="icon bi icon-neutral" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-dash-circle"/></svg> 无
+                                            </button>
+                                        </form>
+                                        
+                                        <button class="btn btn-sm btn-outline-danger py-0" onclick="deleteItem(2)">
+                                            <svg class="icon bi icon-neutral" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-trash"/></svg>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            
+                            <tr id="row-60" class="table-warning">
+                                <td class="row-index">2</td>
+                                <!-- 资料名称（可编辑） -->
+                                <td>
+                                    <span class="item-name-display" data-item-id="60"
+                                          onclick="editItemName(60, this)"
+                                          style="cursor: text; padding: 2px 6px; border-radius: 4px; display: inline-block; min-width: 100px;"
+                                          onmouseover="this.style.background='#e3f2fd'"
+                                          onmouseout="this.style.background=''">
+                                        借用设备确认单（与物资部确认是否有使用联营体零星机械）
+                                    </span>
+                                </td>
+                                <!-- 模板下载 -->
+                                <td class="text-center" id="tpl-cell-60">
+                                    
+                                        <a href="/download/template/56"
+                                           class="btn btn-sm btn-outline-primary py-0" title="对上-对上设备（设备物资部&amp;生产调度部）">
+                                            <svg class="icon bi icon-neutral" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-download"/></svg> 下载
+                                        </a>
+                                    
+                                    <br>
+                                    <select class="form-select form-select-sm mt-1 tpl-select" style="width:90px; font-size:0.75rem;"
+                                            onchange="linkTemplate(60, this.value)" title="关联模板">
+                                        <option value="">关联...</option>
+                                        
+                                        <option value="1" >入场报验单</option>
+                                        
+                                        <option value="53" >对上-对上提交罚款 HSE：安</option>
+                                        
+                                        <option value="54" >对上-对上签证Pakil抽水蓄</option>
+                                        
+                                        <option value="55" >对上-对上结算附件-设备物资部</option>
+                                        
+                                        <option value="56" selected>对上-对上设备（设备物资部&amp;生</option>
+                                        
+                                        <option value="57" >对上-对上：住宿费（综合办公室</option>
+                                        
+                                        <option value="58" >对上-对上：水电基础局伙食扣款</option>
+                                        
+                                        <option value="59" >对上-对上：生活用水（综合办公</option>
+                                        
+                                        <option value="60" >对上-对上：生活用电（综合办公</option>
+                                        
+                                        <option value="7" >对上工程量确认单</option>
+                                        
+                                        <option value="61" >对下-代付签证 （若有)</option>
+                                        
+                                        <option value="62" >对下-对下HSE扣款（安全环保</option>
+                                        
+                                        <option value="63" >对下-对下代付工资 (综合办公</option>
+                                        
+                                        <option value="64" >对下-对下住宿费（综合办公室）</option>
+                                        
+                                        <option value="65" >对下-对下借用设备确认单（生产</option>
+                                        
+                                        <option value="66" >对下-对下工程量确认单（工程质</option>
+                                        
+                                        <option value="67" >对下-对下技术质量部扣款（工程</option>
+                                        
+                                        <option value="68" >对下-对下材料扣款（设备物资部</option>
+                                        
+                                        <option value="69" >对下-对下餐费（综合办公室）</option>
+                                        
+                                        <option value="70" >对下-对下：生活用水（综合办公</option>
+                                        
+                                        <option value="71" >对下-对下：生活用电（综合办公</option>
+                                        
+                                        <option value="8" >进场花名册</option>
+                                        
+                                    </select>
+                                </td>
+                                <!-- 状态 -->
+                                <td>
+                                    
+                                        <span class="badge bg-warning text-dark">待提交</span>
+                                    
+                                </td>
+                                <!-- 提交内容 -->
+                                <td class="small">
+                                    
+                                        <span class="text-muted">-</span>
+                                    
+                                    
+                                    
+                                </td>
+                                <!-- 提交人 -->
+                                <td class="small">-</td>
+                                <!-- 提交时间 -->
+                                <td class="small text-muted">-</td>
+                                <!-- 操作 -->
+                                <td>
+                                    <div class="d-flex gap-1 flex-wrap">
+                                        
+                                        <!-- 待提交：显示上传和无按钮 -->
+                                        <button class="btn btn-sm btn-primary py-0" onclick="openUploadModal(60, '借用设备确认单（与物资部确认是否有使用联营体零星机械）')">
+                                            <svg class="icon bi icon-neutral" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-upload"/></svg> 上传
+                                        </button>
+                                        <form method="POST" action="/submit/item/60" class="d-inline"
+                                              onsubmit="return submitNone(event, 60, '2026-08')">
+                                            <input type="hidden" name="month" value="2026-08">
+                                            <input type="hidden" name="submission_type" value="none">
+                                            <input type="hidden" name="submitter" value="管理员">
+                                            <input type="hidden" name="task_id" value="1">
+                                            <button type="submit" class="btn btn-sm btn-outline-secondary py-0">
+                                                <svg class="icon bi icon-neutral" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-dash-circle"/></svg> 无
+                                            </button>
+                                        </form>
+                                        
+                                        <button class="btn btn-sm btn-outline-danger py-0" onclick="deleteItem(60)">
+                                            <svg class="icon bi icon-neutral" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-trash"/></svg>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            
+                            
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 文件上传模态框 -->
+<div class="modal fade" id="uploadModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" enctype="multipart/form-data" id="uploadForm" action="" onsubmit="return uploadSubmit(event)">
+                <div class="modal-header">
+                    <h5 class="modal-title"><svg class="icon bi icon-neutral" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-cloud-arrow-up"/></svg> 上传文件</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small">正在上传：<strong id="uploadItemName"></strong></p>
+                    <input type="hidden" name="month" value="2026-08">
+                    <input type="hidden" name="submission_type" value="file">
+                    <input type="hidden" name="task_id" value="1">
+                    <input type="hidden" name="item_id" id="uploadItemId">
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">提交人姓名 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="submitter" required placeholder="请输入您的姓名">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">选择文件 <span class="text-danger">*</span></label>
+                        <input type="file" class="form-control" name="files" id="uploadFiles" required multiple
+                               accept=".xlsx,.xls,.csv,.doc,.docx,.pdf,.jpg,.jpeg,.png,.zip,.rar,.ppt,.pptx,.txt"
+                               onchange="previewUploadFiles(this)">
+                        <div class="form-text">支持 Excel、Word、PDF、图片、压缩包等格式（最大100MB），可同时选择多份文件</div>
+                        <div id="uploadFileList" class="small text-muted mt-2"></div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">备注（选填）</label>
+                        <textarea class="form-control" name="remarks" rows="2" placeholder="如有需要说明的情况请填写"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary"><svg class="icon bi icon-neutral" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-check-lg"/></svg> 确认上传</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 新增条目模态框 -->
+<div class="modal fade" id="addItemModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><svg class="icon bi icon-neutral" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-plus-circle"/></svg> 新增资料条目</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">资料名称 <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="newItemName" placeholder="例如：当月完成工程量报表">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">关联模板（选填）</label>
+                    <select class="form-select" id="newItemTemplate">
+                        <option value="">不关联模板</option>
+                        
+                        <option value="1">入场报验单</option>
+                        
+                        <option value="53">对上-对上提交罚款 HSE：安全环保部</option>
+                        
+                        <option value="54">对上-对上签证Pakil抽水蓄能电站项目 计日工套表对上</option>
+                        
+                        <option value="55">对上-对上结算附件-设备物资部 </option>
+                        
+                        <option value="56">对上-对上设备（设备物资部&amp;生产调度部）</option>
+                        
+                        <option value="57">对上-对上：住宿费（综合办公室）</option>
+                        
+                        <option value="58">对上-对上：水电基础局伙食扣款单截至7月23日（综合办公室）</option>
+                        
+                        <option value="59">对上-对上：生活用水（综合办公室）</option>
+                        
+                        <option value="60">对上-对上：生活用电（综合办公室）</option>
+                        
+                        <option value="7">对上工程量确认单</option>
+                        
+                        <option value="61">对下-代付签证 （若有)</option>
+                        
+                        <option value="62">对下-对下HSE扣款（安全环保部）</option>
+                        
+                        <option value="63">对下-对下代付工资 (综合办公室)</option>
+                        
+                        <option value="64">对下-对下住宿费（综合办公室）</option>
+                        
+                        <option value="65">对下-对下借用设备确认单（生产调度部&amp;设备物资部）</option>
+                        
+                        <option value="66">对下-对下工程量确认单（工程质量技术部）</option>
+                        
+                        <option value="67">对下-对下技术质量部扣款（工程质量技术部）</option>
+                        
+                        <option value="68">对下-对下材料扣款（设备物资部）</option>
+                        
+                        <option value="69">对下-对下餐费（综合办公室）</option>
+                        
+                        <option value="70">对下-对下：生活用水（综合办公室）</option>
+                        
+                        <option value="71">对下-对下：生活用电（综合办公室）</option>
+                        
+                        <option value="8">进场花名册</option>
+                        
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-success" onclick="addItem()">
+                    <svg class="icon bi icon-neutral" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-check-lg"/></svg> 添加
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 编辑条目备注模态框（仅合同管理部） -->
+<div class="modal fade" id="remarksModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-light">
+                <h5 class="modal-title"><svg class="icon bi icon-neutral" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-pencil-square"/></svg> 修改部门提交备注</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info py-2 small">
+                    <svg class="icon bi icon-neutral" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-info-circle"/></svg>
+                    您正在以合同管理部身份修改部门提交备注。
+                    本操作仅修改备注文字，不会变更文件或"无"标记状态。
+                </div>
+                <p class="small text-muted mb-1">条目：<strong id="remarksItemName"></strong></p>
+                <p class="small text-muted mb-3">月份：<strong id="remarksMonth"></strong></p>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">备注内容 <small class="text-muted">(最多 500 字)</small></label>
+                    <textarea class="form-control" id="remarksContent" rows="4" maxlength="500" placeholder="请输入新的备注内容"></textarea>
+                    <div class="d-flex justify-content-between mt-1">
+                        <small class="text-muted">提交人：<span id="remarksOriginalSubmitter"></span></small>
+                        <small class="text-muted"><span id="remarksCharCount">0</span>/500</small>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="saveRemarks()">
+                    <svg class="icon bi icon-neutral" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-check-lg"/></svg> 保存修改
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+        </main>
+        <footer class="app-footer">
+            菲律宾帕基尔抽蓄基础处理工程项目 · 合同管理部 · 月度结算管理系统
+        </footer>
+    </div>
+</div>
+
+
+
+<script>
+function doLogout() {
+  try { localStorage.removeItem('auth_token'); localStorage.removeItem('current_user'); document.cookie = 'auth_token=; path=/; max-age=0'; } catch (e) {}
+  document.getElementById('logout-form').submit();
+}
+function toggleSidebar() { const s = document.getElementById('appShell'); if (s) s.classList.toggle('sidebar-open'); }
+function toggleCollapse() { const s = document.getElementById('appShell'); if (s) s.classList.toggle('sidebar-collapsed'); }
+(function () {
+  const el = document.getElementById('live-clock');
+  if (!el) return;
+  const pad = n => (n < 10 ? '0' + n : '' + n);
+  function tick() { const d = new Date(); el.textContent = pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()); }
+  tick(); setInterval(tick, 1000);
+})();
+</script>
+
+<script src="/static/vendor/bootstrap/js/bootstrap.bundle.min.js?v=e548f726" defer></script>
+
+
+
+
+<script>
+const taskConfigId = 1;
+const TASK_ID = '1';
+const MONTH = '2026-08';
+const CURRENT_ROLE = 'admin';
+const CURRENT_DEPT = '合同管理部';
+// 预渲染图标（服务端 Jinja 渲染为内联 SVG），供 JS 原地重建行时使用
+const ICON_FILE = '<svg class="icon bi icon-neutral" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-file-earmark"/></svg>';
+const ICON_NONE = '<svg class="icon bi icon-neutral" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-dash-circle"/></svg>';
+const ICON_UNSUB = '<svg class="icon bi icon-neutral" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-arrow-counterclockwise"/></svg>';
+const ICON_TRASH = '<svg class="icon bi icon-neutral" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-trash"/></svg>';
+const ICON_REMARKS = '<svg class="icon bi icon-neutral" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-pencil-square"/></svg>';
+const ICON_UPLOAD = '<svg class="icon bi icon-neutral" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-upload"/></svg>';
+const ICON_DOWNLOAD = '<svg class="icon bi icon-neutral" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-download"/></svg>';
+
+function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => (
+        {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]
+    ));
+}
+
+// 异步提交（上传文件 / 标记为无）成功后，原地刷新对应行，避免整页重载
+function updateRowAfterSubmit(d) {
+    const row = document.getElementById('row-' + d.item_id);
+    if (!row) { location.reload(); return; }
+    const cells = row.querySelectorAll('td');
+    const itemName = (cells[1] ? cells[1].textContent.trim() : '');
+    row.className = 'table-success';
+
+    // 状态徽章
+    cells[3].innerHTML = d.submission_type === 'file'
+        ? '<span class="badge bg-success">已上传</span>'
+        : '<span class="badge bg-secondary">无</span>';
+
+    // 提交内容
+    let contentHtml;
+    if (d.submission_type === 'file') {
+        if (d.files && d.files.length) {
+            const canWrite = (CURRENT_ROLE === 'admin' || CURRENT_ROLE === 'liaison');
+            contentHtml = d.files.map(f =>
+                '<div class="sub-file-item d-flex align-items-center justify-content-between border rounded px-2 py-1 mb-1">' +
+                '<a href="' + f.download_url + '" class="text-decoration-none text-truncate me-2" style="max-width:78%" title="' + escapeHtml(f.file_name) + '">' + ICON_FILE + ' ' + escapeHtml(f.file_name) + '</a>' +
+                (canWrite ? '<button type="button" class="btn btn-sm btn-outline-danger" title="删除附件" onclick="deleteItemSubmissionFile(' + f.id + ', this)">' + ICON_TRASH + '</button>' : '') +
+                '</div>'
+            ).join('');
+        } else if (d.file_name) {
+            contentHtml = '<a href="' + d.download_url + '" class="text-decoration-none">' + ICON_FILE + ' ' + escapeHtml(d.file_name) + '</a>';
+        } else {
+            contentHtml = ICON_FILE + ' 已上传';
+        }
+        if (CURRENT_ROLE === 'admin' && CURRENT_DEPT === '合同管理部') {
+            contentHtml += '<br><button class="btn btn-sm btn-outline-secondary py-0 mt-1" onclick="openRemarksModal('
+                + d.item_id + ', ' + d.sub_id + ", '', '"
+                + escapeHtml(itemName) + "', '" + d.month + "')\">" + ICON_REMARKS + ' 编辑备注</button>';
+        }
+    } else {
+        contentHtml = '<span class="text-muted">' + ICON_NONE + ' 无</span>';
+    }
+    cells[4].innerHTML = contentHtml;
+
+    // 提交人 / 提交时间
+    cells[5].textContent = d.submitter || '-';
+    cells[6].textContent = d.submitted_at || '-';
+
+    // 操作按钮：撤销 + 删除（已提交态）
+    cells[7].innerHTML = '<div class="d-flex gap-1 flex-wrap">'
+        + '<button class="btn btn-sm btn-outline-warning py-0" onclick="unsubmitItem(' + d.item_id + ", '" + d.month + "')\">" + ICON_UNSUB + ' 撤销</button>'
+        + '<button class="btn btn-sm btn-outline-danger py-0" onclick="deleteItem(' + d.item_id + ')">' + ICON_TRASH + '</button>'
+        + '</div>';
+}
+
+// 删除条目提交的单个附件（多附件模式）
+async function deleteItemSubmissionFile(fileId, btn) {
+    if (!confirm('确认删除该附件？')) return;
+    const item = btn.closest('.sub-file-item');
+    const container = item ? item.parentElement : null;
+    try {
+        const resp = await fetch('/api/item-submission-file/' + fileId, {
+            method: 'DELETE',
+            headers: {'X-Requested-With': 'XMLHttpRequest'}
+        });
+        const r = await resp.json().catch(() => ({}));
+        if (!resp.ok) { alert((r && r.error) ? r.error : '删除失败'); return; }
+        if (item) item.remove();
+        if (container && !container.querySelector('.sub-file-item')) {
+            container.innerHTML = ICON_FILE + ' 已上传（无附件）';
+        }
+    } catch (err) {
+        alert('删除失败：' + err);
+    }
+}
+
+// 上传文件：异步提交 + 加载态（spinner / 防重），成功后原地刷新行
+function uploadSubmit(e) {
+    e.preventDefault();
+    const form = document.getElementById('uploadForm');
+    const btn = form.querySelector('button[type="submit"]');
+    const fileInput = form.querySelector('input[name="files"]');
+    const files = fileInput.files;
+    if (!files || files.length === 0) { alert('请选择要上传的文件'); return; }
+    // 任一文件超过 50MB 时提示
+    let totalMB = 0;
+    for (let i = 0; i < files.length; i++) {
+        if (files[i].size > 50 * 1024 * 1024) {
+            totalMB = files[i].size / 1024 / 1024;
+            if (!confirm('有文件较大（' + totalMB.toFixed(1) + ' MB），上传可能需要较长时间，确定继续吗？')) return;
+            break;
+        }
+    }
+    const fd = new FormData(form);
+    const orig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 上传中...';
+    fetch(form.action, {
+        method: 'POST',
+        headers: {'X-Requested-With': 'XMLHttpRequest'},
+        body: fd
+    })
+    .then(r => r.json().then(d => ({status: r.status, d})))
+    .then(({status, d}) => {
+        if (d && d.ok) {
+            updateRowAfterSubmit(d);
+            bootstrap.Modal.getInstance(document.getElementById('uploadModal')).hide();
+            form.reset();
+            const fl = document.getElementById('uploadFileList');
+            if (fl) fl.innerHTML = '';
+        } else {
+            alert('上传失败：' + (d && d.error ? d.error : ('HTTP ' + status)));
+        }
+    })
+    .catch(err => alert('上传失败：' + err))
+    .finally(() => { btn.disabled = false; btn.innerHTML = orig; });
+}
+
+// 全部标记为无：异步提交（带 loading / 防重），成功后整页刷新
+function markAllNone(e) {
+    e.preventDefault();
+    if (!confirm('确定将所有未提交条目标记为"无"吗？')) return false;
+    const btn = document.getElementById('markAllNoneBtn');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 处理中...'; }
+    const fd = new FormData(document.getElementById('markAllNoneForm'));
+    fetch(document.getElementById('markAllNoneForm').action, {
+        method: 'POST',
+        headers: {'X-Requested-With': 'XMLHttpRequest'},
+        body: fd
+    })
+    .then(r => r.json().then(d => ({status: r.status, d})))
+    .then(({status, d}) => {
+        if (d && d.ok) {
+            location.reload();
+        } else {
+            alert('操作失败：' + (d && d.error ? d.error : ('HTTP ' + status)));
+            if (btn) { btn.disabled = false; btn.innerHTML = '<svg class="icon bi icon-neutral" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-check2-all"/></svg> 全部标记为无'; }
+        }
+    })
+    .catch(err => {
+        alert('请求失败：' + err);
+        if (btn) { btn.disabled = false; btn.innerHTML = '<svg class="icon bi icon-neutral" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-check2-all"/></svg> 全部标记为无'; }
+    });
+    return false;
+}
+
+// 标记为"无"：异步提交（同一端点），成功后原地刷新行
+function submitNone(e, itemId, month) {
+    e.preventDefault();
+    if (!confirm('确定标记为"无"吗？')) return false;
+    const btn = e.target.querySelector('button[type="submit"]');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 提交中...'; }
+    const fd = new FormData();
+    fd.append('month', month);
+    fd.append('submission_type', 'none');
+    fd.append('submitter', '管理员');
+    fd.append('task_id', TASK_ID);
+    fetch('/submit/item/' + itemId, {
+        method: 'POST',
+        headers: {'X-Requested-With': 'XMLHttpRequest'},
+        body: fd
+    })
+    .then(r => r.json().then(d => ({status: r.status, d})))
+    .then(({status, d}) => {
+        if (d && d.ok) {
+            updateRowAfterSubmit(d);
+        } else {
+            alert('操作失败：' + (d && d.error ? d.error : ('HTTP ' + status)));
+            if (btn) { btn.disabled = false; btn.innerHTML = '<svg class="icon bi icon-neutral" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-dash-circle"/></svg> 无'; }
+        }
+    })
+    .catch(err => {
+        alert('请求失败：' + err);
+        if (btn) { btn.disabled = false; btn.innerHTML = '<svg class="icon bi icon-neutral" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-dash-circle"/></svg> 无'; }
+    });
+    return false;
+}
+
+
+// 编辑条目名称
+function editItemName(itemId, span) {
+    const oldName = span.textContent.trim();
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'form-control form-control-sm';
+    input.value = oldName;
+    input.style.width = '100%';
+    span.style.display = 'none';
+    span.parentNode.appendChild(input);
+    input.focus();
+    input.select();
+
+    function save() {
+        const newName = input.value.trim();
+        if (newName && newName !== oldName) {
+            fetch('/api/item/edit', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: `item_id=${itemId}&item_name=${encodeURIComponent(newName)}`
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.ok) {
+                    span.textContent = newName;
+                } else {
+                    alert('保存失败: ' + (data.error || ''));
+                    span.textContent = oldName;
+                }
+            })
+            .catch(() => { span.textContent = oldName; });
+        } else {
+            span.textContent = oldName;
+        }
+        span.style.display = '';
+        if (input.parentNode) input.parentNode.removeChild(input);
+    }
+
+    input.addEventListener('blur', save);
+    input.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+        if (e.key === 'Escape') { span.textContent = oldName; span.style.display = ''; input.parentNode.removeChild(input); }
+    });
+}
+
+// 关联模板
+function linkTemplate(itemId, tplId) {
+    fetch('/api/item/link-template', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: `item_id=${itemId}&template_file_id=${tplId}`
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.ok) {
+            location.reload();
+        } else {
+            alert('关联失败: ' + (data.error || ''));
+        }
+    });
+}
+
+// 上传弹窗预览已选文件列表
+function previewUploadFiles(input) {
+    const box = document.getElementById('uploadFileList');
+    if (!box) return;
+    if (!input.files || !input.files.length) { box.innerHTML = ''; return; }
+    let html = '已选择 ' + input.files.length + ' 个文件：<ul class="mb-0 ps-3">';
+    for (let i = 0; i < input.files.length; i++) {
+        const f = input.files[i];
+        const mb = (f.size / 1024 / 1024).toFixed(1);
+        html += '<li>' + escapeHtml(f.name) + ' <span class="text-muted">(' + mb + ' MB)</span></li>';
+    }
+    html += '</ul>';
+    box.innerHTML = html;
+}
+
+// 打开上传模态框
+function openUploadModal(itemId, itemName) {
+    document.getElementById('uploadItemId').value = itemId;
+    document.getElementById('uploadItemName').textContent = itemName;
+    document.getElementById('uploadForm').action = `/submit/item/${itemId}`;
+    const fl = document.getElementById('uploadFileList');
+    if (fl) fl.innerHTML = '';
+    new bootstrap.Modal(document.getElementById('uploadModal')).show();
+}
+
+// 带 loading 的 fetch 辅助（用于撤销/删除等会整页刷新的操作，防止重复点击）
+function fetchWithReload(url, body, confirmMsg) {
+    if (confirmMsg && !confirm(confirmMsg)) return;
+    const caller = document.activeElement;
+    const orig = caller ? caller.innerHTML : '';
+    if (caller && caller.tagName === 'BUTTON') { caller.disabled = true; caller.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 处理中...'; }
+    fetch(url, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: body
+    })
+    .then(r => r.json().then(d => ({status: r.status, d})))
+    .then(({status, d}) => {
+        if (d && d.ok) {
+            location.reload();
+        } else {
+            alert('操作失败：' + (d && d.error ? d.error : ('HTTP ' + status)));
+            if (caller) { caller.disabled = false; caller.innerHTML = orig; }
+        }
+    })
+    .catch(err => {
+        alert('请求失败：' + err);
+        if (caller) { caller.disabled = false; caller.innerHTML = orig; }
+    });
+}
+
+// 撤销提交
+function unsubmitItem(itemId, month) {
+    fetchWithReload('/api/item/unsubmit', `item_id=${itemId}&month=${month}`, '确定撤销该条目的提交吗？已上传的文件将被删除。');
+}
+
+// 删除条目
+function deleteItem(itemId) {
+    fetchWithReload('/api/item/delete', `item_id=${itemId}`, '确定删除该条目吗？相关的提交记录也将被删除。');
+}
+
+// 生成待提交状态的新条目行 HTML（新增后不刷新，原地插入）
+function renderNewItemRow(item) {
+    const itemId = item.id;
+    const itemName = escapeHtml(item.item_name);
+    const tplId = item.template_file_id || '';
+    const tplName = item.template_name || '';
+    let tplCell = '<span class="text-muted small">未关联</span>';
+    if (tplId) {
+        tplCell = '<a href="/templates/download/' + tplId + '" class="btn btn-sm btn-outline-primary py-0" title="' + escapeHtml(tplName) + '">' + ICON_DOWNLOAD + ' 下载</a>';
+    }
+    // 关联模板下拉（复用所有模板选项）
+    const tplSelect = document.getElementById('newItemTemplate');
+    let options = '<option value="">关联...</option>';
+    if (tplSelect) {
+        Array.from(tplSelect.options).forEach(opt => {
+            if (!opt.value) return;
+            options += '<option value="' + opt.value + '"' + (opt.value === String(tplId) ? ' selected' : '') + '>' + escapeHtml(opt.textContent) + '</option>';
+        });
+    }
+    tplCell += '<br><select class="form-select form-select-sm mt-1 tpl-select" style="width:90px; font-size:0.75rem;" onchange="linkTemplate(' + itemId + ', this.value)" title="关联模板">' + options + '</select>';
+
+    return '<tr id="row-' + itemId + '" class="table-warning">'
+        + '<td class="row-index">0</td>'
+        + '<td><span class="item-name-display" data-item-id="' + itemId + '" onclick="editItemName(' + itemId + ', this)" style="cursor: text; padding: 2px 6px; border-radius: 4px; display: inline-block; min-width: 100px;" onmouseover="this.style.background=\'#e3f2fd\'" onmouseout="this.style.background=\'\">' + itemName + '</span></td>'
+        + '<td class="text-center" id="tpl-cell-' + itemId + '">' + tplCell + '</td>'
+        + '<td><span class="badge bg-warning text-dark">待提交</span></td>'
+        + '<td class="small"><span class="text-muted">-</span></td>'
+        + '<td class="small">-</td>'
+        + '<td class="small text-muted">-</td>'
+        + '<td><div class="d-flex gap-1 flex-wrap">'
+        + '<button class="btn btn-sm btn-primary py-0" onclick="openUploadModal(' + itemId + ', \'' + itemName.replace(/\\/g, '\\\\').replace(/\'/g, "\\'") + '\')">' + ICON_UPLOAD + ' 上传</button>'
+        + '<form method="POST" action="/submit/item/' + itemId + '" class="d-inline" onsubmit="return submitNone(event, ' + itemId + ', \'' + MONTH + '\')">'
+        + '<input type="hidden" name="month" value="' + MONTH + '">'
+        + '<input type="hidden" name="submission_type" value="none">'
+        + '<input type="hidden" name="submitter" value="管理员">'
+        + '<input type="hidden" name="task_id" value="' + TASK_ID + '">'
+        + '<button type="submit" class="btn btn-sm btn-outline-secondary py-0">' + ICON_NONE + ' 无</button>'
+        + '</form>'
+        + '<button class="btn btn-sm btn-outline-danger py-0" onclick="deleteItem(' + itemId + ')">' + ICON_TRASH + '</button>'
+        + '</div></td>'
+        + '</tr>';
+}
+
+// 重新编号表格行
+function renumberRows() {
+    const rows = document.querySelectorAll('#itemsTable tbody tr');
+    let idx = 1;
+    rows.forEach(row => {
+        const cell = row.querySelector('td.row-index');
+        if (cell) { cell.textContent = idx; idx++; }
+    });
+}
+
+// 新增条目
+function addItem() {
+    const nameInput = document.getElementById('newItemName');
+    const tplSelect = document.getElementById('newItemTemplate');
+    const btn = document.querySelector('#addItemModal button[onclick="addItem()"]');
+    const name = nameInput.value.trim();
+    const tplId = tplSelect.value;
+    if (!name) { alert('请输入资料名称'); return; }
+    if (!btn) return;
+
+    const orig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 添加中...';
+
+    fetch('/api/item/add', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: `task_config_id=${taskConfigId}&item_name=${encodeURIComponent(name)}&template_file_id=${tplId}`
+    })
+    .then(r => r.json().then(d => ({status: r.status, d})))
+    .then(({status, d}) => {
+        if (d && d.ok) {
+            const tbody = document.querySelector('#itemsTable tbody');
+            // 移除"暂无条目"占位行
+            const emptyRow = tbody.querySelector('tr td[colspan]');
+            if (emptyRow) emptyRow.parentNode.remove();
+            // 插入新行
+            const temp = document.createElement('tbody');
+            temp.innerHTML = renderNewItemRow(d);
+            tbody.appendChild(temp.firstElementChild);
+            renumberRows();
+            // 关闭弹窗并重置
+            bootstrap.Modal.getInstance(document.getElementById('addItemModal')).hide();
+            nameInput.value = '';
+            tplSelect.value = '';
+        } else {
+            alert('添加失败：' + (d && d.error ? d.error : ('HTTP ' + status)));
+        }
+    })
+    .catch(err => alert('请求失败：' + err))
+    .finally(() => { btn.disabled = false; btn.innerHTML = orig; });
+}
+
+// 编辑条目备注（合同管理部专用）
+let _editingRemarksItemId = null;
+function openRemarksModal(itemId, subId, currentRemarks, itemName, month) {
+    _editingRemarksItemId = itemId;
+    document.getElementById('remarksItemName').textContent = itemName;
+    document.getElementById('remarksMonth').textContent = month;
+    document.getElementById('remarksContent').value = currentRemarks || '';
+    updateRemarksCharCount();
+    // 抓取提交人
+    const row = document.getElementById('row-' + itemId);
+    if (row) {
+        // 提交人是第 6 列（0-based 5）
+        const cells = row.querySelectorAll('td');
+        const submitter = cells[5] ? cells[5].textContent.trim() : '-';
+        document.getElementById('remarksOriginalSubmitter').textContent = submitter || '-';
+    }
+    new bootstrap.Modal(document.getElementById('remarksModal')).show();
+}
+
+function updateRemarksCharCount() {
+    const v = document.getElementById('remarksContent').value;
+    document.getElementById('remarksCharCount').textContent = v.length;
+}
+
+function saveRemarks() {
+    if (!_editingRemarksItemId) return;
+    const month = document.getElementById('remarksMonth').textContent;
+    const remarks = document.getElementById('remarksContent').value.trim();
+    if (remarks.length > 500) {
+        alert('备注不能超过 500 个字符');
+        return;
+    }
+    const btn = document.querySelector('#remarksModal button[onclick="saveRemarks()"]');
+    const orig = btn ? btn.innerHTML : '保存修改';
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 保存中...'; }
+    fetch('/api/item/edit-remarks', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: `item_id=${_editingRemarksItemId}&month=${encodeURIComponent(month)}&remarks=${encodeURIComponent(remarks)}`
+    })
+    .then(r => r.json().then(d => ({status: r.status, d})))
+    .then(({status, d}) => {
+        if (d && d.ok) {
+            bootstrap.Modal.getInstance(document.getElementById('remarksModal')).hide();
+            location.reload();
+        } else {
+            alert('保存失败：' + (d && d.error ? d.error : ('HTTP ' + status)));
+        }
+    })
+    .catch(err => alert('请求失败：' + err))
+    .finally(() => { if (btn) { btn.disabled = false; btn.innerHTML = orig; } });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const ta = document.getElementById('remarksContent');
+    if (ta) ta.addEventListener('input', updateRemarksCharCount);
+});
+</script>
+
+
+
+
+<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+    <symbol class="bi bi-check-lg" viewBox="0 0 16 16" id="i-check-lg"><path d="M12.736 3.97a.733.733 0 0 1 1.047 0c.286.289.29.756.01 1.05L7.88 12.01a.733.733 0 0 1-1.065.02L3.217 8.384a.757.757 0 0 1 0-1.06.733.733 0 0 1 1.047 0l3.052 3.093 5.4-6.425z"/></symbol><symbol class="bi bi-dash-circle" viewBox="0 0 16 16" id="i-dash-circle"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/><path d="M4 8a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7A.5.5 0 0 1 4 8"/></symbol><symbol class="bi bi-trash" viewBox="0 0 16 16" id="i-trash"><path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/><path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/></symbol><symbol class="bi bi-pencil-square" viewBox="0 0 16 16" id="i-pencil-square"><path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.814z"/><path fill-rule="evenodd" d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5H9a.5.5 0 0 0 0-1H2.5A1.5 1.5 0 0 0 1 2.5z"/></symbol><symbol class="bi bi-server" viewBox="0 0 16 16" id="i-server"><path d="M1.333 2.667C1.333 1.194 4.318 0 8 0s6.667 1.194 6.667 2.667V4c0 1.473-2.985 2.667-6.667 2.667S1.333 5.473 1.333 4z"/><path d="M1.333 6.334v3C1.333 10.805 4.318 12 8 12s6.667-1.194 6.667-2.667V6.334a6.5 6.5 0 0 1-1.458.79C11.81 7.684 9.967 8 8 8s-3.809-.317-5.208-.876a6.5 6.5 0 0 1-1.458-.79z"/><path d="M14.667 11.668a6.5 6.5 0 0 1-1.458.789c-1.4.56-3.242.876-5.21.876-1.966 0-3.809-.316-5.208-.876a6.5 6.5 0 0 1-1.458-.79v1.666C1.333 14.806 4.318 16 8 16s6.667-1.194 6.667-2.667z"/></symbol><symbol class="bi bi-list-ul" viewBox="0 0 16 16" id="i-list-ul"><path fill-rule="evenodd" d="M5 11.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5m-3 1a1 1 0 1 0 0-2 1 1 0 0 0 0 2m0 4a1 1 0 1 0 0-2 1 1 0 0 0 0 2m0 4a1 1 0 1 0 0-2 1 1 0 0 0 0 2"/></symbol><symbol class="bi bi-plus-circle" viewBox="0 0 16 16" id="i-plus-circle"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/><path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4"/></symbol><symbol class="bi bi-clock-history" viewBox="0 0 16 16" id="i-clock-history"><path d="M8.515 1.019A7 7 0 0 0 8 1V0a8 8 0 0 1 .589.022zm2.004.45a7 7 0 0 0-.985-.299l.219-.976q.576.129 1.126.342zm1.37.71a7 7 0 0 0-.439-.27l.493-.87a8 8 0 0 1 .979.654l-.615.789a7 7 0 0 0-.418-.302zm1.834 1.79a7 7 0 0 0-.653-.796l.724-.69q.406.429.747.91zm.744 1.352a7 7 0 0 0-.214-.468l.893-.45a8 8 0 0 1 .45 1.088l-.95.313a7 7 0 0 0-.179-.483m.53 2.507a7 7 0 0 0-.1-1.025l.985-.17q.1.58.116 1.17zm-.131 1.538q.05-.254.081-.51l.993.123a8 8 0 0 1-.23 1.155l-.964-.267q.069-.247.12-.501m-.952 2.379q.276-.436.486-.908l.914.405q-.24.54-.555 1.038zm-.964 1.205q.183-.183.35-.378l.758.653a8 8 0 0 1-.401.432z"/><path d="M8 1a7 7 0 1 0 4.95 11.95l.707.707A8.001 8.001 0 1 1 8 0z"/><path d="M7.5 3a.5.5 0 0 1 .5.5v5.21l3.248 1.856a.5.5 0 0 1-.496.868l-3.5-2A.5.5 0 0 1 7 9V3.5a.5.5 0 0 1 .5-.5"/></symbol><symbol class="bi bi-file-earmark" viewBox="0 0 16 16" id="i-file-earmark"><path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5zm-3 0A1.5 1.5 0 0 1 9.5 3V1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5z"/></symbol><symbol class="bi bi-book" viewBox="0 0 16 16" id="i-book"><path d="M1 2.828c.885-.37 2.154-.769 3.388-.893 1.33-.134 2.458.063 3.112.752v9.746c-.935-.53-2.12-.603-3.213-.493-1.18.12-2.37.461-3.287.811zm7.5-.141c.654-.689 1.782-.886 3.112-.752 1.234.124 2.503.523 3.388.893v9.923c-.918-.35-2.107-.692-3.287-.81-1.094-.111-2.278-.039-3.213.492zM8 1.783C7.015.936 5.587.81 4.287.94c-1.514.153-3.042.672-3.994 1.105A.5.5 0 0 0 0 2.5v11a.5.5 0 0 0 .707.455c.882-.4 2.303-.881 3.68-1.02 1.409-.142 2.59.087 3.223.877a.5.5 0 0 0 .78 0c.633-.79 1.814-1.019 3.222-.877 1.378.139 2.8.62 3.681 1.02A.5.5 0 0 0 16 13.5v-11a.5.5 0 0 0-.293-.455c-.952-.433-2.48-.952-3.994-1.105C10.413.809 8.985.936 8 1.783"/></symbol><symbol class="bi bi-arrow-left" viewBox="0 0 16 16" id="i-arrow-left"><path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8"/></symbol><symbol class="bi bi-cash-stack" viewBox="0 0 16 16" id="i-cash-stack"><path d="M1 3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1zm7 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4"/><path d="M0 5a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H1a1 1 0 0 1-1-1zm3 0a2 2 0 0 1-2 2v4a2 2 0 0 1 2 2h10a2 2 0 0 1 2-2V7a2 2 0 0 1-2-2z"/></symbol><symbol class="bi bi-info-circle" viewBox="0 0 16 16" id="i-info-circle"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/><path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"/></symbol><symbol class="bi bi-building-fill-check" viewBox="0 0 16 16" id="i-building-fill-check"><path d="M12.5 16a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7m1.679-4.493-1.335 2.226a.75.75 0 0 1-1.174.144l-.774-.773a.5.5 0 0 1 .708-.708l.547.548 1.17-1.951a.5.5 0 1 1 .858.514"/><path d="M2 1a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v7.256A4.5 4.5 0 0 0 12.5 8a4.5 4.5 0 0 0-3.59 1.787A.5.5 0 0 0 9 9.5v-1a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .39-.187A4.5 4.5 0 0 0 8.027 12H6.5a.5.5 0 0 0-.5.5V16H3a1 1 0 0 1-1-1zm2 1.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5m3 0v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5m3.5-.5a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5zM4 5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5M7.5 5a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5zm2.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5M4.5 8a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5z"/></symbol><symbol class="bi bi-cloud-arrow-up" viewBox="0 0 16 16" id="i-cloud-arrow-up"><path fill-rule="evenodd" d="M7.646 5.146a.5.5 0 0 1 .708 0l2 2a.5.5 0 0 1-.708.708L8.5 6.707V10.5a.5.5 0 0 1-1 0V6.707L6.354 7.854a.5.5 0 1 1-.708-.708z"/><path d="M4.406 3.342A5.53 5.53 0 0 1 8 2c2.69 0 4.923 2 5.166 4.579C14.758 6.804 16 8.137 16 9.773 16 11.569 14.502 13 12.687 13H3.781C1.708 13 0 11.366 0 9.318c0-1.763 1.266-3.223 2.942-3.593.143-.863.698-1.723 1.464-2.383m.653.757c-.757.653-1.153 1.44-1.153 2.056v.448l-.445.049C2.064 6.805 1 7.952 1 9.318 1 10.785 2.23 12 3.781 12h8.906C13.98 12 15 10.988 15 9.773c0-1.216-1.02-2.228-2.313-2.228h-.5v-.5C12.188 4.825 10.328 3 8 3a4.53 4.53 0 0 0-2.941 1.1z"/></symbol><symbol class="bi bi-download" viewBox="0 0 16 16" id="i-download"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708z"/></symbol><symbol class="bi bi-list" viewBox="0 0 16 16" id="i-list"><path fill-rule="evenodd" d="M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5"/></symbol><symbol class="bi bi-building-fill-gear" viewBox="0 0 16 16" id="i-building-fill-gear"><path d="M2 1a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v7.256A4.5 4.5 0 0 0 12.5 8a4.5 4.5 0 0 0-3.59 1.787A.5.5 0 0 0 9 9.5v-1a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .39-.187A4.5 4.5 0 0 0 8.027 12H6.5a.5.5 0 0 0-.5.5V16H3a1 1 0 0 1-1-1zm2 1.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5m3 0v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5m3.5-.5a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5zM4 5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5M7.5 5a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5zm2.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5M4.5 8a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5z"/><path d="M11.886 9.46c.18-.613 1.048-.613 1.229 0l.043.148a.64.64 0 0 0 .921.382l.136-.074c.561-.306 1.175.308.87.869l-.075.136a.64.64 0 0 0 .382.92l.149.045c.612.18.612 1.048 0 1.229l-.15.043a.64.64 0 0 0-.38.921l.074.136c.305.561-.309 1.175-.87.87l-.136-.075a.64.64 0 0 0-.92.382l-.045.149c-.18.612-1.048.612-1.229 0l-.043-.15a.64.64 0 0 0-.921-.38l-.136.074c-.561.305-1.175-.309-.87-.87l.075-.136a.64.64 0 0 0-.382-.92l-.148-.045c-.613-.18-.613-1.048 0-1.229l.148-.043a.64.64 0 0 0 .382-.921l-.074-.136c-.306-.561.308-1.175.869-.87l.136.075a.64.64 0 0 0 .92-.382zM14 12.5a1.5 1.5 0 1 0-3 0 1.5 1.5 0 0 0 3 0"/></symbol><symbol class="bi bi-arrow-clockwise" viewBox="0 0 16 16" id="i-arrow-clockwise"><path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/><path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/></symbol><symbol class="bi bi-check2-all" viewBox="0 0 16 16" id="i-check2-all"><path d="M12.354 4.354a.5.5 0 0 0-.708-.708L5 10.293 1.854 7.146a.5.5 0 1 0-.708.708l3.5 3.5a.5.5 0 0 0 .708 0zm-4.208 7-.896-.897.707-.707.543.543 6.646-6.647a.5.5 0 0 1 .708.708l-7 7a.5.5 0 0 1-.708 0"/><path d="m5.354 7.146.896.897-.707.707-.897-.896a.5.5 0 1 1 .708-.708"/></symbol><symbol class="bi bi-gear" viewBox="0 0 16 16" id="i-gear"><path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492M5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0"/><path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52zm-2.633.283c.246-.835 1.428-.835 1.674 0l.094.319a1.873 1.873 0 0 0 2.693 1.115l.291-.16c.764-.415 1.6.42 1.184 1.185l-.159.292a1.873 1.873 0 0 0 1.116 2.692l.318.094c.835.246.835 1.428 0 1.674l-.319.094a1.873 1.873 0 0 0-1.115 2.693l.16.291c.415.764-.42 1.6-1.185 1.184l-.291-.159a1.873 1.873 0 0 0-2.693 1.116l-.094.318c-.246.835-1.428.835-1.674 0l-.094-.319a1.873 1.873 0 0 0-2.692-1.115l-.292.16c-.764.415-1.6-.42-1.184-1.185l.159-.291A1.873 1.873 0 0 0 1.945 8.93l-.319-.094c-.835-.246-.835-1.428 0-1.674l.319-.094A1.873 1.873 0 0 0 3.06 4.377l-.16-.292c-.415-.764.42-1.6 1.185-1.184l.292.159a1.873 1.873 0 0 0 2.692-1.115z"/></symbol><symbol class="bi bi-arrow-counterclockwise" viewBox="0 0 16 16" id="i-arrow-counterclockwise"><path fill-rule="evenodd" d="M8 3a5 5 0 1 1-4.546 2.914.5.5 0 0 0-.908-.417A6 6 0 1 0 8 2z"/><path d="M8 4.466V.534a.25.25 0 0 0-.41-.192L5.23 2.308a.25.25 0 0 0 0 .384l2.36 1.966A.25.25 0 0 0 8 4.466"/></symbol><symbol id="i-sidebar" viewBox="0 0 16 16"><path d="M3 2h10a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1m6 1v10h4V3z"/></symbol><symbol class="bi bi-speedometer2" viewBox="0 0 16 16" id="i-speedometer2"><path d="M8 4a.5.5 0 0 1 .5.5V6a.5.5 0 0 1-1 0V4.5A.5.5 0 0 1 8 4M3.732 5.732a.5.5 0 0 1 .707 0l.915.914a.5.5 0 1 1-.708.708l-.914-.915a.5.5 0 0 1 0-.707M2 10a.5.5 0 0 1 .5-.5h1.586a.5.5 0 0 1 0 1H2.5A.5.5 0 0 1 2 10m9.5 0a.5.5 0 0 1 .5-.5h1.5a.5.5 0 0 1 0 1H12a.5.5 0 0 1-.5-.5m.754-4.246a.39.39 0 0 0-.527-.02L7.547 9.31a.91.91 0 1 0 1.302 1.258l3.434-4.297a.39.39 0 0 0-.029-.518z"/><path fill-rule="evenodd" d="M0 10a8 8 0 1 1 15.547 2.661c-.442 1.253-1.845 1.602-2.932 1.25C11.309 13.488 9.475 13 8 13c-1.474 0-3.31.488-4.615.911-1.087.352-2.49.003-2.932-1.25A8 8 0 0 1 0 10m8-7a7 7 0 0 0-6.603 9.329c.203.575.923.876 1.68.63C4.397 12.533 6.358 12 8 12s3.604.532 4.923.96c.757.245 1.477-.056 1.68-.631A7 7 0 0 0 8 3"/></symbol><symbol class="bi bi-upload" viewBox="0 0 16 16" id="i-upload"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5"/><path d="M7.646 1.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 2.707V11.5a.5.5 0 0 1-1 0V2.707L5.354 4.854a.5.5 0 1 1-.708-.708z"/></symbol><symbol class="bi bi-box-arrow-right" viewBox="0 0 16 16" id="i-box-arrow-right"><path fill-rule="evenodd" d="M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0z"/><path fill-rule="evenodd" d="M15.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L14.293 7.5H5.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708z"/></symbol><symbol class="bi bi-clipboard-data" viewBox="0 0 16 16" id="i-clipboard-data"><path d="M4 11a1 1 0 1 1 2 0v1a1 1 0 1 1-2 0zm6-4a1 1 0 1 1 2 0v5a1 1 0 1 1-2 0zM7 9a1 1 0 0 1 2 0v3a1 1 0 1 1-2 0z"/><path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1z"/><path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0z"/></symbol><symbol class="bi bi-file-earmark-spreadsheet" viewBox="0 0 16 16" id="i-file-earmark-spreadsheet"><path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2M9.5 3A1.5 1.5 0 0 0 11 4.5h2V9H3V2a1 1 0 0 1 1-1h5.5zM3 12v-2h2v2zm0 1h2v2H4a1 1 0 0 1-1-1zm3 2v-2h3v2zm4 0v-2h3v1a1 1 0 0 1-1 1zm3-3h-3v-2h3zm-7 0v-2h3v2z"/></symbol>
+</defs></svg>
+
+</body>
+</html>
