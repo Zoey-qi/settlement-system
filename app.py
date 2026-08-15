@@ -85,8 +85,14 @@ BLOB_TOKEN = (os.environ.get('BLOB_READ_WRITE_TOKEN')
               or os.environ.get('SETTLEMENT_BLOB_READ_WRITE_TOKEN'))
 BLOB_STORE_ID_ENV = (os.environ.get('BLOB_STORE_ID')
                     or os.environ.get('SETTLEMENT_BLOB_STORE_ID'))
-BLOB_ACCESS = os.environ.get('BLOB_ACCESS',
-                            os.environ.get('SETTLEMENT_BLOB_ACCESS', 'public'))
+# Access 模式：默认 'private'。Vercel Connect Project 时并不一定自动注入
+# BLOB_ACCESS/SETTLEMENT_BLOB_ACCESS 环境变量，而 store 在 UI 里一旦设为
+# Private 就会永久保持，公开写入会被服务端拒绝并报
+# "Cannot use public access on a private store"。覆盖优先级：BLOB_ACCESS
+# > SETTLEMENT_BLOB_ACCESS > 'private'。
+BLOB_ACCESS = (os.environ.get('BLOB_ACCESS')
+               or os.environ.get('SETTLEMENT_BLOB_ACCESS')
+               or 'private')
 
 
 def blob_enabled():
