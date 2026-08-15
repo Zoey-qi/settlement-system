@@ -159,8 +159,15 @@ def api_blob_status():
     if not user or user.get('role') != 'admin':
         return jsonify({'error': '权限不足'}), 403
     if not blob_enabled():
+        # 调试：列出运行时所有 BLOB_* env 实际取值（仅值前 10 字符，避免泄露 token）
+        env_keys = ['BLOB_READ_WRITE_TOKEN', 'SETTLEMENT_BLOB_READ_WRITE_TOKEN',
+                    'BLOB_STORE_ID', 'SETTLEMENT_BLOB_STORE_ID',
+                    'BLOB_ACCESS', 'SETTLEMENT_BLOB_ACCESS']
+        env_state = {k: (os.environ.get(k, '')[:10] + '...') if os.environ.get(k) else None
+                     for k in env_keys}
         return jsonify({'enabled': False,
-                        'reason': 'BLOB_READ_WRITE_TOKEN 未设置，当前走原存储回退'})
+                        'reason': 'BLOB_READ_WRITE_TOKEN 未设置，当前走原存储回退',
+                        'debug_env': env_state})
     store_id = _blob_store_id()
     result = {'enabled': True, 'store_id': store_id, 'access': BLOB_ACCESS}
     try:
