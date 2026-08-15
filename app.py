@@ -1673,8 +1673,10 @@ def download_item_submission_file(file_id):
                              as_attachment=True, download_name=row['file_name'])
         except Exception as e:
             import traceback
-            current_app.logger.warning('Blob download failed: %s\n%s', e, traceback.format_exc())
-            abort(500)
+            tb = traceback.format_exc()
+            current_app.logger.warning('Blob download failed: %s\n%s', e, tb)
+            # 临时回写到 response 便于线上排查
+            return f'Blob download failed: {type(e).__name__}: {e}\n\n{tb}', 500
     if USE_POSTGRES:
         if not row['file_data']:
             abort(404)
@@ -1732,8 +1734,10 @@ def download_template_by_id(tid):
                              as_attachment=True, download_name=tpl['file_name'])
         except Exception as e:
             import traceback
-            current_app.logger.warning('Blob download failed: %s\n%s', e, traceback.format_exc())
-            abort(500)
+            tb = traceback.format_exc()
+            current_app.logger.warning('Blob download failed: %s\n%s', e, tb)
+            # 临时回写到 response 便于线上排查
+            return f'Blob download failed: {type(e).__name__}: {e}\n\n{tb}', 500
     if USE_POSTGRES:
         if not tpl['file_data']:
             abort(404)
@@ -3106,8 +3110,10 @@ def download_settlement_attachment(aid):
                              as_attachment=True, download_name=row['file_name'])
         except Exception as e:
             import traceback
-            current_app.logger.warning('Blob download failed: %s\n%s', e, traceback.format_exc())
-            abort(500)
+            tb = traceback.format_exc()
+            current_app.logger.warning('Blob download failed: %s\n%s', e, tb)
+            # 临时回写到 response 便于线上排查
+            return f'Blob download failed: {type(e).__name__}: {e}\n\n{tb}', 500
     if USE_POSTGRES:
         if not row['file_data']:
             abort(404)
