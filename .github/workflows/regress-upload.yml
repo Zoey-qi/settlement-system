@@ -51,6 +51,8 @@ jobs:
           grep -q "upload: ok=True" regress.log || (echo "❌ Upload failed" && exit 1)
           grep -q "download: size=" regress.log || (echo "❌ Download failed" && exit 1)
           grep -q "match=OK" regress.log || (echo "❌ Bytes mismatch" && exit 1)
+          # 隔离模式（默认开启）：确认 cleanup 也成功，否则数据库会有测试残留
+          grep -q "cleanup: ok=True" regress.log || (echo "⚠️ Cleanup failed; production may have stray test submission" && exit 1)
 
           echo "✅ All assertions passed"
 

@@ -19,6 +19,9 @@ PASSWORD = os.environ.get('TEST_PASSWORD', 'htglb888')
 ITEM_ID = int(os.environ.get('TEST_ITEM_ID', '2'))
 MONTH = os.environ.get('TEST_MONTH', '2026-08')
 PAYLOAD = b'PK\x03\x04test data'  # 13 字节，模拟极简 xlsx
+# 隔离模式：开启后上传完成后自动 unsubmit，不在生产数据里残留测试条目。
+# CI 默认开启；本地手动跑也可设 ISOLATED=0 保留提交用于人工查看。
+ISOLATED = os.environ.get('TEST_ISOLATED', '1') != '0'
 
 print(f'=== regress_upload against {BASE_URL} (user={USERNAME}, item={ITEM_ID}, month={MONTH}) ===')
 
@@ -121,5 +124,26 @@ match = 'OK' if dl_data == PAYLOAD else 'MISMATCH'
 print(f'3. download: size={len(dl_data)}, match={match}')
 if match != 'OK':
     sys.exit(1)
+
+# 4. 隔离清理：开启 ISOLATED 时撤销本次提交，避免生产数据库残留测试条目。
+if ISOLATED:
+    try:
+        req4 = urllib.request.Request(
+            f'{BASE_URL}/api/item/unsubmit',
+            data=urllib.parse.urlencode({'item_id': ITEM_ID, 'month': MONTH}).encode(),
+            headers={
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-Requested-With': 'XMLHttpRequest',
+                'Cookie': 'auth_token=' + token,
+            },
+        )
+        r4 = opener.open(req4, timeout=30)
+        cleanup_resp = json.loads(r4.read().decode())
+        print(f'4. cleanup: ok={cleanup_resp.get("ok")} (ISOLATED=1, 测试条目已自动撤销)')
+    except Exception as e:
+        # 清理失败不阻塞测试断言通过（已确认 upload/download OK），只警告
+        print(f'4. cleanup: WARN ({type(e).__name__}: {e}); 残留数据请手动 /api/item/unsubmit')
+else:
+    print('4. cleanup: SKIP (ISOLATED=0, 保留提交供人工查看)')
 
 print('=== ALL OK ===')
