@@ -1665,7 +1665,9 @@ def download_item_submission_file(file_id):
     row = db.execute('SELECT * FROM item_submission_files WHERE id = ?', (file_id,)).fetchone()
     if not row:
         abort(404)
-    # 启用 Blob 时由后端代理下载（Private store 不能直接 redirect 到 blob_url）
+    from flask import Response
+    return Response(f'file_id={file_id}, blob_pathname={row["blob_pathname"]}, blob_url={row["blob_url"]}, blob_enabled={blob_enabled()}',
+                    status=200, content_type='text/plain; charset=utf-8')
     if row['blob_pathname'] and blob_enabled():
         try:
             data, ctype = blob_get_bytes(row['blob_pathname'])
