@@ -1672,7 +1672,8 @@ def download_item_submission_file(file_id):
             return send_file(io.BytesIO(data), mimetype=ctype,
                              as_attachment=True, download_name=row['file_name'])
         except Exception as e:
-            current_app.logger.warning('Blob download failed: %s', e)
+            import traceback
+            current_app.logger.warning('Blob download failed: %s\n%s', e, traceback.format_exc())
             abort(500)
     if USE_POSTGRES:
         if not row['file_data']:
@@ -1730,7 +1731,8 @@ def download_template_by_id(tid):
             return send_file(io.BytesIO(data), mimetype=ctype,
                              as_attachment=True, download_name=tpl['file_name'])
         except Exception as e:
-            current_app.logger.warning('Blob download failed: %s', e)
+            import traceback
+            current_app.logger.warning('Blob download failed: %s\n%s', e, traceback.format_exc())
             abort(500)
     if USE_POSTGRES:
         if not tpl['file_data']:
@@ -3103,7 +3105,8 @@ def download_settlement_attachment(aid):
             return send_file(io.BytesIO(data), mimetype=ctype,
                              as_attachment=True, download_name=row['file_name'])
         except Exception as e:
-            current_app.logger.warning('Blob download failed: %s', e)
+            import traceback
+            current_app.logger.warning('Blob download failed: %s\n%s', e, traceback.format_exc())
             abort(500)
     if USE_POSTGRES:
         if not row['file_data']:
