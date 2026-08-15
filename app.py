@@ -160,6 +160,26 @@ def blob_put_bytes(file_bytes, filename, folder):
             body.get('pathname') or pathname)
 
 
+def blob_get_bytes(pathname):
+    """从 Vercel Blob 下载字节。Private store 不能直接重定向到 blob_url，
+    必须由后端代理下载（带 Bearer token 走 .blob.vercel-storage.com
+    下载域名）。失败抛异常，由调用方决定如何处理。
+
+    pathname 应为上传时返回的 blob_pathname（如 'item_submissions/2026...x.xlsx'）。
+    """
+    store_id = _blob_store_id()
+    if not store_id:
+        raise ValueError('无法解析 BLOB store id')
+    # 下载 URL = https://<storeId>.<access>.blob.vercel-storage.com/<pathname>
+    download_url = f"https://{store_id}.{BLOB_ACCESS}.blob.vercel-storage.com/{pathname}"
+    req = urllib.request.Request(download_url, method='GET')
+    req.add_header('authorization', f'Bearer {BLOB_TOKEN}')
+    req.add_header('x-vercel-blob-store-id', store_id)
+    req.add_header('x-api-version', '12')
+    with urllib.request.urlopen(req, timeout=60) as resp:
+        return resp.read(), resp.headers.get('content-type', 'application/octet-stream')
+
+
 @app.route('/api/blob-status')
 def api_blob_status():
     """诊断 Vercel Blob 是否真正可用：做真实上传 + 删除往返。
@@ -1645,9 +1665,15 @@ def download_item_submission_file(file_id):
     row = db.execute('SELECT * FROM item_submission_files WHERE id = ?', (file_id,)).fetchone()
     if not row:
         abort(404)
-    # 启用 Blob 时直接重定向到对象存储 URL（鉴权已在路由层完成）
-    if row['blob_pathname'] and row['blob_url']:
-        return redirect(row['blob_url'])
+    # 启用 Blob 时由后端代理下载（Private store 不能直接 redirect 到 blob_url）
+    if row['blob_pathname'] and blob_enabled():
+        try:
+            data, ctype = blob_get_bytes(row['blob_pathname'])
+            return send_file(io.BytesIO(data), mimetype=ctype,
+                             as_attachment=True, download_name=row['file_name'])
+        except Exception as e:
+            current_app.logger.warning('Blob download failed: %s', e)
+            abort(500)
     if USE_POSTGRES:
         if not row['file_data']:
             abort(404)
@@ -1697,9 +1723,15 @@ def download_template_by_id(tid):
     tpl = db.execute('SELECT * FROM template_files WHERE id = ?', (tid,)).fetchone()
     if not tpl:
         abort(404)
-    # 启用 Blob 时直接重定向到对象存储 URL（鉴权已在路由层完成）
-    if tpl['blob_pathname'] and tpl['blob_url']:
-        return redirect(tpl['blob_url'])
+    # 启用 Blob 时由后端代理下载（Private store 不能直接 redirect 到 blob_url）
+    if tpl['blob_pathname'] and blob_enabled():
+        try:
+            data, ctype = blob_get_bytes(tpl['blob_pathname'])
+            return send_file(io.BytesIO(data), mimetype=ctype,
+                             as_attachment=True, download_name=tpl['file_name'])
+        except Exception as e:
+            current_app.logger.warning('Blob download failed: %s', e)
+            abort(500)
     if USE_POSTGRES:
         if not tpl['file_data']:
             abort(404)
@@ -3064,9 +3096,15 @@ def download_settlement_attachment(aid):
     row = db.execute('SELECT * FROM settlement_attachments WHERE id = ?', (aid,)).fetchone()
     if not row:
         abort(404)
-    # 启用 Blob 时直接重定向到对象存储 URL（鉴权已在路由层完成）
-    if row['blob_pathname'] and row['blob_url']:
-        return redirect(row['blob_url'])
+    # 启用 Blob 时由后端代理下载（Private store 不能直接 redirect 到 blob_url）
+    if row['blob_pathname'] and blob_enabled():
+        try:
+            data, ctype = blob_get_bytes(row['blob_pathname'])
+            return send_file(io.BytesIO(data), mimetype=ctype,
+                             as_attachment=True, download_name=row['file_name'])
+        except Exception as e:
+            current_app.logger.warning('Blob download failed: %s', e)
+            abort(500)
     if USE_POSTGRES:
         if not row['file_data']:
             abort(404)
