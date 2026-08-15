@@ -1676,7 +1676,9 @@ def download_item_submission_file(file_id):
             tb = traceback.format_exc()
             current_app.logger.warning('Blob download failed: %s\n%s', e, tb)
             # 临时回写到 response 便于线上排查
-            return f'Blob download failed: {type(e).__name__}: {e}\n\n{tb}', 500
+            from flask import Response
+            return Response(f'Blob download failed: {type(e).__name__}: {e}\n\n{tb}',
+                            status=500, content_type='text/plain; charset=utf-8')
     if USE_POSTGRES:
         if not row['file_data']:
             abort(404)
@@ -1737,7 +1739,9 @@ def download_template_by_id(tid):
             tb = traceback.format_exc()
             current_app.logger.warning('Blob download failed: %s\n%s', e, tb)
             # 临时回写到 response 便于线上排查
-            return f'Blob download failed: {type(e).__name__}: {e}\n\n{tb}', 500
+            from flask import Response
+            return Response(f'Blob download failed: {type(e).__name__}: {e}\n\n{tb}',
+                            status=500, content_type='text/plain; charset=utf-8')
     if USE_POSTGRES:
         if not tpl['file_data']:
             abort(404)
@@ -3113,7 +3117,9 @@ def download_settlement_attachment(aid):
             tb = traceback.format_exc()
             current_app.logger.warning('Blob download failed: %s\n%s', e, tb)
             # 临时回写到 response 便于线上排查
-            return f'Blob download failed: {type(e).__name__}: {e}\n\n{tb}', 500
+            from flask import Response
+            return Response(f'Blob download failed: {type(e).__name__}: {e}\n\n{tb}',
+                            status=500, content_type='text/plain; charset=utf-8')
     if USE_POSTGRES:
         if not row['file_data']:
             abort(404)
