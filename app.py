@@ -160,19 +160,17 @@ def blob_put_bytes(file_bytes, filename, folder):
             body.get('pathname') or pathname)
 
 
-def blob_get_bytes(pathname):
+def blob_get_bytes(blob_url):
     """从 Vercel Blob 下载字节。Private store 不能直接重定向到 blob_url，
     必须由后端代理下载（带 Bearer token 走 .blob.vercel-storage.com
     下载域名）。失败抛异常，由调用方决定如何处理。
 
-    pathname 应为上传时返回的 blob_pathname（如 'item_submissions/2026...x.xlsx'）。
+    blob_url 应为上传时返回的完整 URL（包含正确的随机 host）。
     """
     store_id = _blob_store_id()
     if not store_id:
         raise ValueError('无法解析 BLOB store id')
-    # 下载 URL = https://<storeId>.<access>.blob.vercel-storage.com/<pathname>
-    download_url = f"https://{store_id}.{BLOB_ACCESS}.blob.vercel-storage.com/{pathname}"
-    req = urllib.request.Request(download_url, method='GET')
+    req = urllib.request.Request(blob_url, method='GET')
     req.add_header('authorization', f'Bearer {BLOB_TOKEN}')
     req.add_header('x-vercel-blob-store-id', store_id)
     req.add_header('x-api-version', '12')
@@ -1665,22 +1663,16 @@ def download_item_submission_file(file_id):
     row = db.execute('SELECT * FROM item_submission_files WHERE id = ?', (file_id,)).fetchone()
     if not row:
         abort(404)
-    from flask import Response
-    return Response(f'file_id={file_id}, blob_pathname={row["blob_pathname"]}, blob_url={row["blob_url"]}, blob_enabled={blob_enabled()}',
-                    status=200, content_type='text/plain; charset=utf-8')
-    if row['blob_pathname'] and blob_enabled():
+    # 启用 Blob 时由后端代理下载（Private store 不能直接 redirect 到 blob_url）
+    if row['blob_pathname'] and row['blob_url'] and blob_enabled():
         try:
-            data, ctype = blob_get_bytes(row['blob_pathname'])
+            data, ctype = blob_get_bytes(row['blob_url'])
             return send_file(io.BytesIO(data), mimetype=ctype,
                              as_attachment=True, download_name=row['file_name'])
         except Exception as e:
             import traceback
-            tb = traceback.format_exc()
-            current_app.logger.warning('Blob download failed: %s\n%s', e, tb)
-            # 临时回写到 response 便于线上排查
-            from flask import Response
-            return Response(f'Blob download failed: {type(e).__name__}: {e}\n\n{tb}',
-                            status=500, content_type='text/plain; charset=utf-8')
+            current_app.logger.warning('Blob download failed: %s\n%s', e, traceback.format_exc())
+            abort(500)
     if USE_POSTGRES:
         if not row['file_data']:
             abort(404)
@@ -1731,19 +1723,15 @@ def download_template_by_id(tid):
     if not tpl:
         abort(404)
     # 启用 Blob 时由后端代理下载（Private store 不能直接 redirect 到 blob_url）
-    if tpl['blob_pathname'] and blob_enabled():
+    if tpl['blob_pathname'] and tpl['blob_url'] and blob_enabled():
         try:
-            data, ctype = blob_get_bytes(tpl['blob_pathname'])
+            data, ctype = blob_get_bytes(tpl['blob_url'])
             return send_file(io.BytesIO(data), mimetype=ctype,
                              as_attachment=True, download_name=tpl['file_name'])
         except Exception as e:
             import traceback
-            tb = traceback.format_exc()
-            current_app.logger.warning('Blob download failed: %s\n%s', e, tb)
-            # 临时回写到 response 便于线上排查
-            from flask import Response
-            return Response(f'Blob download failed: {type(e).__name__}: {e}\n\n{tb}',
-                            status=500, content_type='text/plain; charset=utf-8')
+            current_app.logger.warning('Blob download failed: %s\n%s', e, traceback.format_exc())
+            abort(500)
     if USE_POSTGRES:
         if not tpl['file_data']:
             abort(404)
@@ -3109,19 +3097,15 @@ def download_settlement_attachment(aid):
     if not row:
         abort(404)
     # 启用 Blob 时由后端代理下载（Private store 不能直接 redirect 到 blob_url）
-    if row['blob_pathname'] and blob_enabled():
+    if row['blob_pathname'] and row['blob_url'] and blob_enabled():
         try:
-            data, ctype = blob_get_bytes(row['blob_pathname'])
+            data, ctype = blob_get_bytes(row['blob_url'])
             return send_file(io.BytesIO(data), mimetype=ctype,
                              as_attachment=True, download_name=row['file_name'])
         except Exception as e:
             import traceback
-            tb = traceback.format_exc()
-            current_app.logger.warning('Blob download failed: %s\n%s', e, tb)
-            # 临时回写到 response 便于线上排查
-            from flask import Response
-            return Response(f'Blob download failed: {type(e).__name__}: {e}\n\n{tb}',
-                            status=500, content_type='text/plain; charset=utf-8')
+            current_app.logger.warning('Blob download failed: %s\n%s', e, traceback.format_exc())
+            abort(500)
     if USE_POSTGRES:
         if not row['file_data']:
             abort(404)
