@@ -140,8 +140,16 @@ def blob_put_bytes(file_bytes, filename, folder):
     req.add_header('x-add-random-suffix', '0')
     req.add_header('x-api-blob-request-id',
                   f"{store_id}:{int(time.time())}:{os.urandom(4).hex()}")
-    with urllib.request.urlopen(req, timeout=60) as resp:
-        body = json.loads(resp.read().decode('utf-8'))
+    try:
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            body = json.loads(resp.read().decode('utf-8'))
+    except urllib.error.HTTPError as e:
+        err_body = ''
+        try:
+            err_body = e.read().decode('utf-8', errors='replace')[:500]
+        except Exception:
+            pass
+        raise RuntimeError(f'Vercel Blob PUT {e.code} {e.reason}: {err_body}') from e
     return (body.get('url') or f"https://{store_id}.{BLOB_ACCESS}.blob.vercel-storage.com/{pathname}",
             body.get('pathname') or pathname)
 
@@ -162,7 +170,9 @@ def api_blob_status():
         return jsonify({'enabled': False,
                         'reason': '未检测到 BLOB_READ_WRITE_TOKEN 或 SETTLEMENT_BLOB_READ_WRITE_TOKEN 环境变量，当前走原存储回退'})
     store_id = _blob_store_id()
-    result = {'enabled': True, 'store_id': store_id, 'access': BLOB_ACCESS}
+    result = {'enabled': True, 'store_id': store_id, 'access': BLOB_ACCESS,
+              'token_prefix': (BLOB_TOKEN[:20] + '...') if BLOB_TOKEN else None,
+              'env_store_id': BLOB_STORE_ID_ENV}
     try:
         url, pathname = blob_put_bytes(b'vercel-blob-self-test', 'self_test.txt', 'blob-test')
         result['upload'] = {'ok': True, 'url': url, 'pathname': pathname}
