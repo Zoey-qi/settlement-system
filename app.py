@@ -194,9 +194,7 @@ def api_blob_status():
         return jsonify({'enabled': False,
                         'reason': '未检测到 BLOB_READ_WRITE_TOKEN 或 SETTLEMENT_BLOB_READ_WRITE_TOKEN 环境变量，当前走原存储回退'})
     store_id = _blob_store_id()
-    result = {'enabled': True, 'store_id': store_id, 'access': BLOB_ACCESS,
-              'token_prefix': (BLOB_TOKEN[:20] + '...') if BLOB_TOKEN else None,
-              'env_store_id': BLOB_STORE_ID_ENV}
+    result = {'enabled': True, 'store_id': store_id, 'access': BLOB_ACCESS}
     try:
         url, pathname = blob_put_bytes(b'vercel-blob-self-test', 'self_test.txt', 'blob-test')
         result['upload'] = {'ok': True, 'url': url, 'pathname': pathname}
@@ -1670,8 +1668,7 @@ def download_item_submission_file(file_id):
             return send_file(io.BytesIO(data), mimetype=ctype,
                              as_attachment=True, download_name=row['file_name'])
         except Exception as e:
-            import traceback
-            current_app.logger.warning('Blob download failed: %s\n%s', e, traceback.format_exc())
+            current_app.logger.warning('Blob download failed: %s', e)
             abort(500)
     if USE_POSTGRES:
         if not row['file_data']:
@@ -1729,8 +1726,7 @@ def download_template_by_id(tid):
             return send_file(io.BytesIO(data), mimetype=ctype,
                              as_attachment=True, download_name=tpl['file_name'])
         except Exception as e:
-            import traceback
-            current_app.logger.warning('Blob download failed: %s\n%s', e, traceback.format_exc())
+            current_app.logger.warning('Blob download failed: %s', e)
             abort(500)
     if USE_POSTGRES:
         if not tpl['file_data']:
@@ -3103,8 +3099,7 @@ def download_settlement_attachment(aid):
             return send_file(io.BytesIO(data), mimetype=ctype,
                              as_attachment=True, download_name=row['file_name'])
         except Exception as e:
-            import traceback
-            current_app.logger.warning('Blob download failed: %s\n%s', e, traceback.format_exc())
+            current_app.logger.warning('Blob download failed: %s', e)
             abort(500)
     if USE_POSTGRES:
         if not row['file_data']:
