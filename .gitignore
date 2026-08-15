@@ -76,3 +76,5 @@ _minify_css.py
 icon_preview.html
 # 国内部署草稿（不进版本）
 国内部署指南.md
+_ctmp/
+_clone_tmp/

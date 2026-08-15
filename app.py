@@ -875,19 +875,6 @@ def submit_task(task_id):
 @require_auth
 def submit_item(item_id):
     """条目级提交 - 上传文件或标记为无"""
-    # === 临时诊断探针（修复后删除）===
-    import traceback as _tb
-    try:
-        return _submit_item_impl(item_id)
-    except Exception as _e:
-        import json as _json
-        app.logger.error(f'[submit_item/{item_id}] {_e}\n{_tb.format_exc()}')
-        return _json.jsonify({'error': str(_e), 'type': type(_e).__name__,
-                              'tb': _tb.format_exc()[:1500]}), 500
-
-
-def _submit_item_impl(item_id):
-    """条目级提交实际实现（提取出来便于 try/except 包裹）"""
     db = get_db()
     month = request.form.get('month', get_current_month())
     submission_type = request.form.get('submission_type')
@@ -949,8 +936,9 @@ def _submit_item_impl(item_id):
         # 先删除旧提交再插入（级联删除旧附件）
         db.execute('DELETE FROM item_submissions WHERE task_item_id = ? AND month = ?', (item_id, month))
         # 每个文件仅保存一次；主记录保留首个文件名（兼容旧逻辑），子表存全部
+        # save_upload_file 返回 6 元组: (stored_name, file_size, original, file_data, blob_url, blob_pathname)
         saved = [save_upload_file(f) for f in files]
-        primary_stored, primary_size, primary_name, primary_data = saved[0]
+        primary_stored, primary_size, primary_name, primary_data, _blob_url, _blob_pathname = saved[0]
         if USE_POSTGRES:
             db.execute('''
                 INSERT INTO item_submissions (task_item_id, month, submission_type, file_name, stored_name, file_data, file_size, submitter, remarks)
