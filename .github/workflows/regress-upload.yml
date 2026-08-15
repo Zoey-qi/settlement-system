@@ -1,0 +1,63 @@
+name: Regression - Upload Pipeline
+
+# 触发条件：
+# 1. push 到 main 时（每次部署自动验证）
+# 2. workflow_dispatch 手动触发（排查问题时）
+#
+# 测试流程：登录 → 上传 .xlsx → 下载 → 对比字节
+# 任何一步失败 → 立即告警（Slack/邮件/GitHub Issue 都可扩展）
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'app.py'
+      - 'templates/submit_task.html'
+      - 'db.py'
+      - '.github/workflows/regress-upload.yml'
+      - 'scripts/regress_upload.py'
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: '要测试的环境 URL（默认线上生产）'
+        default: 'https://settlementsystem.vercel.app'
+        required: false
+
+jobs:
+  regress:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Run regression test
+        env:
+          BASE_URL: ${{ github.event.inputs.base_url || 'https://settlementsystem.vercel.app' }}
+          TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+        run: |
+          set -e
+          echo "=== Regression test against $BASE_URL ==="
+          # 脚本内部对 ADMIN 账号硬编码？改成读取 env 更好——本版先支持默认 admin/htglb888
+          python scripts/regress_upload.py 2>&1 | tee regress.log
+
+          # 断言：必须看到 3 个 OK 标记
+          grep -q "upload: ok=True" regress.log || (echo "❌ Upload failed" && exit 1)
+          grep -q "download: size=" regress.log || (echo "❌ Download failed" && exit 1)
+          grep -q "match=OK" regress.log || (echo "❌ Bytes mismatch" && exit 1)
+
+          echo "✅ All assertions passed"
+
+      - name: Upload log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: regress-log
+          path: regress.log
+          retention-days: 7
