@@ -75,10 +75,18 @@ ALLOWED_EXTENSIONS = {
 
 # ===========================================================================
 # Vercel Blob 对象存储（可选，启用后附件上传绕开 Neon BYTEA，显著提升上传速度）
-# 仅在环境变量 BLOB_READ_WRITE_TOKEN 存在时启用；缺失则自动回退到原 DB/磁盘存储。
+# 仅在环境变量存在时启用；缺失则自动回退到原 DB/磁盘存储。
+# 兼容两种 prefix：
+#   1. BLOB_READ_WRITE_TOKEN / BLOB_STORE_ID （默认推荐 prefix="BLOB"）
+#   2. SETTLEMENT_BLOB_READ_WRITE_TOKEN / SETTLEMENT_BLOB_STORE_ID
+#      （Vercel Connect Project 时若 prefix 包含连字符，会用下划线代替）
 # ===========================================================================
-BLOB_TOKEN = os.environ.get('BLOB_READ_WRITE_TOKEN')
-BLOB_ACCESS = os.environ.get('BLOB_ACCESS', 'public')  # public 或 private
+BLOB_TOKEN = (os.environ.get('BLOB_READ_WRITE_TOKEN')
+              or os.environ.get('SETTLEMENT_BLOB_READ_WRITE_TOKEN'))
+BLOB_STORE_ID_ENV = (os.environ.get('BLOB_STORE_ID')
+                    or os.environ.get('SETTLEMENT_BLOB_STORE_ID'))
+BLOB_ACCESS = os.environ.get('BLOB_ACCESS',
+                            os.environ.get('SETTLEMENT_BLOB_ACCESS', 'public'))
 
 
 def blob_enabled():
@@ -87,12 +95,16 @@ def blob_enabled():
 
 
 def _blob_store_id():
-    """从 BLOB_READ_WRITE_TOKEN 解析 store id。
+    """获取 Blob store id。
 
+    优先用显式环境变量 BLOB_STORE_ID / SETTLEMENT_BLOB_STORE_ID（连接项目
+    时 Vercel 自动注入）；缺失时从 BLOB_READ_WRITE_TOKEN 解析：
     真实令牌格式为 vercel_blob_rw_<storeId>（4 段），storeId 取
     token.split('_')[3]，与官方 @vercel/blob SDK 的
     parseStoreIdFromReadWriteToken 完全一致。
     """
+    if BLOB_STORE_ID_ENV:
+        return BLOB_STORE_ID_ENV
     if not BLOB_TOKEN:
         return None
     parts = BLOB_TOKEN.split('_')
