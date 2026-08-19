@@ -539,6 +539,98 @@ def init_schema(db):
     except Exception as e:
         print(f'[init_schema] items_initialized backfill skipped: {e}')
 
+    # 兼容已有数据库：把 status='completed' 的结算单按金额行各补 1 条"已结清"付款。
+    # 幂等：NOT EXISTS 守护，避免冷启动重复补登。
+    # payment_date 取 settle_date（如缺失则取 settle_month 第一天，最后兜底 today）。
+    try:
+        if USE_POSTGRES:
+            migrated_pay = db.execute('''
+                INSERT INTO settlement_payments
+                    (settlement_record_id, settlement_amount_id, currency, amount,
+                     payment_date, payment_method, reference_no, status, notes, created_by)
+                SELECT
+                    sa.settlement_record_id, sa.id, sa.currency, sa.amount,
+                    COALESCE(sr.settle_date,
+                             TO_DATE(COALESCE(sr.settle_month, TO_CHAR(CURRENT_DATE, 'YYYY-MM')) || '-01', 'YYYY-MM-DD'),
+                             CURRENT_DATE),
+                    'historical', NULL, 'confirmed',
+                    '历史已结清记录自动补登', 'system'
+                FROM settlement_amounts sa
+                JOIN settlement_records sr ON sr.id = sa.settlement_record_id
+                WHERE sr.status = 'completed'
+                  AND NOT EXISTS (
+                      SELECT 1 FROM settlement_payments sp
+                      WHERE sp.settlement_amount_id = sa.id AND sp.status = 'confirmed'
+                  )
+            ''')
+        else:
+            migrated_pay = db.execute('''
+                INSERT INTO settlement_payments
+                    (settlement_record_id, settlement_amount_id, currency, amount,
+                     payment_date, payment_method, reference_no, status, notes, created_by)
+                SELECT
+                    sa.settlement_record_id, sa.id, sa.currency, sa.amount,
+                    COALESCE(sr.settle_date,
+                             date(COALESCE(sr.settle_month || '-01', CURRENT_DATE)),
+                             CURRENT_DATE),
+                    'historical', NULL, 'confirmed',
+                    '历史已结清记录自动补登', 'system'
+                FROM settlement_amounts sa
+                JOIN settlement_records sr ON sr.id = sa.settlement_record_id
+                WHERE sr.status = 'completed'
+                  AND NOT EXISTS (
+                      SELECT 1 FROM settlement_payments sp
+                      WHERE sp.settlement_amount_id = sa.id AND sp.status = 'confirmed'
+                  )
+            ''')
+        print(f'[init_schema] backfilled {migrated_pay.rowcount} historical payments from completed records')
+    except Exception as e:
+        print(f'[init_schema] settlement_payments backfill skipped: {e}')
+
+    # 回填 paid_at / paid_by：取每条记录最后一笔 confirmed 付款的时间/操作人。
+    # 幂等：只在 paid_at IS NULL 时执行，避免冷启动反复 UPDATE。
+    try:
+        if USE_POSTGRES:
+            db.execute('''
+                UPDATE settlement_records sr
+                SET paid_at = sub.last_paid_at,
+                    paid_by = sub.last_paid_by
+                FROM (
+                    SELECT settlement_record_id,
+                           MAX(payment_date) AS last_paid_at,
+                           (SELECT created_by FROM settlement_payments sp2
+                            WHERE sp2.settlement_record_id = sp.settlement_record_id
+                              AND sp2.status = 'confirmed'
+                            ORDER BY sp2.payment_date DESC, sp2.id DESC LIMIT 1) AS last_paid_by
+                    FROM settlement_payments sp
+                    WHERE status = 'confirmed'
+                    GROUP BY settlement_record_id
+                ) sub
+                WHERE sr.id = sub.settlement_record_id
+                  AND sr.paid_at IS NULL
+            ''')
+        else:
+            db.execute('''
+                UPDATE settlement_records
+                SET paid_at = (
+                    SELECT MAX(payment_date) FROM settlement_payments sp
+                    WHERE sp.settlement_record_id = settlement_records.id AND sp.status = 'confirmed'
+                ),
+                paid_by = (
+                    SELECT created_by FROM settlement_payments sp
+                    WHERE sp.settlement_record_id = settlement_records.id AND sp.status = 'confirmed'
+                    ORDER BY payment_date DESC, id DESC LIMIT 1
+                )
+                WHERE paid_at IS NULL
+                  AND EXISTS (
+                      SELECT 1 FROM settlement_payments sp
+                      WHERE sp.settlement_record_id = settlement_records.id AND sp.status = 'confirmed'
+                  )
+            ''')
+        print('[init_schema] settlement_records.paid_at/paid_by backfilled')
+    except Exception as e:
+        print(f'[init_schema] paid_at/paid_by backfill skipped: {e}')
+
     db.commit()
 
 
