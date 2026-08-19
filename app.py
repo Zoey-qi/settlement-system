@@ -3084,6 +3084,226 @@ def api_delete_settlement_record(rid):
     return jsonify({'ok': True})
 
 
+# =================================================================
+# 多币种付款追踪：每笔金额行独立多次付款
+# =================================================================
+
+def _sum_paid_for_amount(db, amount_id):
+    """计算某条金额行已收付款合计（仅 confirmed 状态）。"""
+    row = db.execute('''
+        SELECT COALESCE(SUM(amount), 0) AS paid
+        FROM settlement_payments
+        WHERE settlement_amount_id = ? AND status = 'confirmed'
+    ''', (amount_id,)).fetchone()
+    return float(row['paid'] or 0) if row else 0.0
+
+
+def _recompute_record_payment_state(db, record_id):
+    """付款变更后，重算主表 paid_at/paid_by + status。
+
+    规则：
+    - 若所有金额行都 Σ已付=amount 且至少 1 条金额行 → status='completed'
+    - 否则若至少 1 笔 confirmed 付款 → status='processing'
+    - 否则 → status='unpaid'（不动其他状态，如 'pending'/'rejected' 由 admin 手动控制）
+    """
+    amounts = db.execute('''
+        SELECT id, currency, amount FROM settlement_amounts WHERE settlement_record_id = ?
+    ''', (record_id,)).fetchall()
+    if not amounts:
+        return  # 没金额行不重算
+
+    all_paid = True
+    any_paid = False
+    for a in amounts:
+        paid = _sum_paid_for_amount(db, a['id'])
+        if paid > 0:
+            any_paid = True
+        # 用极小容差（0.01）规避浮点
+        if paid < float(a['amount']) - 0.01:
+            all_paid = False
+
+    last = db.execute('''
+        SELECT MAX(payment_date) AS last_paid_at,
+               (SELECT created_by FROM settlement_payments sp2
+                WHERE sp2.settlement_record_id = ? AND sp2.status = 'confirmed'
+                ORDER BY sp2.payment_date DESC, sp2.id DESC LIMIT 1) AS last_paid_by
+        FROM settlement_payments
+        WHERE settlement_record_id = ? AND status = 'confirmed'
+    ''', (record_id, record_id)).fetchone()
+
+    new_paid_at = last['last_paid_at'] if last else None
+    new_paid_by = last['last_paid_by'] if last else None
+
+    new_status = None
+    if all_paid:
+        new_status = 'completed'
+    elif any_paid:
+        new_status = 'processing'
+
+    # 更新 paid_at/paid_by（任何付款变更后都要刷）
+    db.execute('UPDATE settlement_records SET paid_at = ?, paid_by = ? WHERE id = ?',
+               (new_paid_at, new_paid_by, record_id))
+
+    # 仅在能推导时改 status；admin 手动设的 pending/rejected 不覆盖
+    if new_status:
+        cur = db.execute('SELECT status FROM settlement_records WHERE id = ?', (record_id,)).fetchone()
+        cur_status = cur['status'] if cur else None
+        if cur_status in ('pending', 'processing', 'completed', 'unpaid'):
+            if new_status != cur_status:
+                db.execute('UPDATE settlement_records SET status = ? WHERE id = ?', (new_status, record_id))
+
+
+@app.route('/api/settlement-records/<int:rid>/payments', methods=['GET'])
+@require_role('leader', 'admin')
+def api_list_settlement_payments(rid):
+    """列出某条结算记录的全部付款（含 voided），同时返回每币种的已付/未付汇总。"""
+    db = get_db()
+    rec = db.execute('SELECT id FROM settlement_records WHERE id = ?', (rid,)).fetchone()
+    if not rec:
+        return jsonify({'error': '记录不存在'}), 404
+
+    rows = db.execute('''
+        SELECT id, settlement_amount_id, currency, amount, payment_date,
+               payment_method, reference_no, status, notes, created_by, created_at
+        FROM settlement_payments
+        WHERE settlement_record_id = ?
+        ORDER BY payment_date DESC, id DESC
+    ''', (rid,)).fetchall()
+
+    payments = []
+    for r in rows:
+        payments.append({
+            'id': r['id'],
+            'settlement_amount_id': r['settlement_amount_id'],
+            'currency': r['currency'],
+            'amount': float(r['amount']) if r['amount'] is not None else 0.0,
+            'payment_date': r['payment_date'].isoformat() if r['payment_date'] else None,
+            'payment_method': r['payment_method'],
+            'reference_no': r['reference_no'],
+            'status': r['status'],
+            'notes': r['notes'],
+            'created_by': r['created_by'],
+            'created_at': r['created_at'].isoformat() if r['created_at'] else None,
+        })
+
+    # 按币种汇总（仅 confirmed）
+    amounts = db.execute('''
+        SELECT id, currency, amount FROM settlement_amounts WHERE settlement_record_id = ? ORDER BY sort_order
+    ''', (rid,)).fetchall()
+    per_currency = []
+    for a in amounts:
+        paid = _sum_paid_for_amount(db, a['id'])
+        amt = float(a['amount'] or 0)
+        per_currency.append({
+            'settlement_amount_id': a['id'],
+            'currency': a['currency'],
+            'total': amt,
+            'paid': paid,
+            'unpaid': max(0.0, amt - paid),
+            'is_paid_in_full': paid >= amt - 0.01,
+        })
+
+    return jsonify({'ok': True, 'payments': payments, 'per_currency': per_currency})
+
+
+@app.route('/api/settlement-records/<int:rid>/payments', methods=['POST'])
+@require_role('admin')
+def api_create_settlement_payment(rid):
+    """新增付款（仅管理员）。
+
+    入参（form）：amount_id / amount / payment_date / payment_method / reference_no / notes
+    校验：Σ已付 + 新.amount <= amount + 0.01
+    """
+    db = get_db()
+    user = g.current_user
+
+    rec = db.execute('SELECT id, status FROM settlement_records WHERE id = ?', (rid,)).fetchone()
+    if not rec:
+        return jsonify({'error': '记录不存在'}), 404
+
+    amount_id_raw = (request.form.get('amount_id') or '').strip()
+    if not amount_id_raw:
+        return jsonify({'error': '请选择金额行（amount_id）'}), 400
+    try:
+        amount_id = int(amount_id_raw)
+    except ValueError:
+        return jsonify({'error': 'amount_id 必须是数字'}), 400
+
+    amt_row = db.execute('''
+        SELECT id, currency, amount FROM settlement_amounts
+        WHERE id = ? AND settlement_record_id = ?
+    ''', (amount_id, rid)).fetchone()
+    if not amt_row:
+        return jsonify({'error': '金额行不存在或不属于本记录'}), 400
+
+    amount_raw = (request.form.get('amount') or '').strip()
+    try:
+        amount = float(amount_raw)
+    except (ValueError, TypeError):
+        return jsonify({'error': '付款金额必须是数字'}), 400
+    if amount <= 0:
+        return jsonify({'error': '付款金额必须大于 0'}), 400
+
+    payment_date_raw = (request.form.get('payment_date') or '').strip()
+    if not payment_date_raw:
+        return jsonify({'error': '请填写付款日期'}), 400
+
+    payment_method = (request.form.get('payment_method') or '').strip() or None
+    reference_no = (request.form.get('reference_no') or '').strip() or None
+    notes = (request.form.get('notes') or '').strip() or None
+
+    # 超额校验
+    already_paid = _sum_paid_for_amount(db, amount_id)
+    total_amount = float(amt_row['amount'] or 0)
+    if already_paid + amount > total_amount + 0.01:
+        return jsonify({
+            'error': f'超出待付金额（已付 {already_paid:.2f}，本次 {amount}，总额 {total_amount:.2f}）',
+            'already_paid': already_paid,
+            'total': total_amount,
+        }), 400
+
+    created_by = f"{user['display_name']}({user['role']})"
+
+    if USE_POSTGRES:
+        new_id = insert_returning_id(db, '''
+            INSERT INTO settlement_payments
+                (settlement_record_id, settlement_amount_id, currency, amount,
+                 payment_date, payment_method, reference_no, status, notes, created_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'confirmed', ?, ?)
+        ''', (rid, amount_id, amt_row['currency'], amount,
+              payment_date_raw, payment_method, reference_no, notes, created_by))
+    else:
+        db.execute('''
+            INSERT INTO settlement_payments
+                (settlement_record_id, settlement_amount_id, currency, amount,
+                 payment_date, payment_method, reference_no, status, notes, created_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'confirmed', ?, ?)
+        ''', (rid, amount_id, amt_row['currency'], amount,
+              payment_date_raw, payment_method, reference_no, notes, created_by))
+        new_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
+
+    _recompute_record_payment_state(db, rid)
+    db.commit()
+    return jsonify({'ok': True, 'id': new_id})
+
+
+@app.route('/api/settlement-payments/<int:pid>', methods=['DELETE'])
+@require_role('admin')
+def api_void_settlement_payment(pid):
+    """撤销付款（软删：status=voided，保留审计）。仅管理员。"""
+    db = get_db()
+    row = db.execute('SELECT id, settlement_record_id, status FROM settlement_payments WHERE id = ?', (pid,)).fetchone()
+    if not row:
+        return jsonify({'error': '付款记录不存在'}), 404
+    if row['status'] == 'voided':
+        return jsonify({'error': '该付款已撤销'}), 400
+
+    db.execute("UPDATE settlement_payments SET status = 'voided' WHERE id = ?", (pid,))
+    _recompute_record_payment_state(db, row['settlement_record_id'])
+    db.commit()
+    return jsonify({'ok': True})
+
+
 @app.route('/download/settlement-attachment/<int:aid>')
 @require_role('leader', 'admin')
 def download_settlement_attachment(aid):
