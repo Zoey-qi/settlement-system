@@ -358,6 +358,27 @@ def init_schema(db):
             uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (settlement_record_id) REFERENCES settlement_records(id) ON DELETE CASCADE
         )''',
+        # 多币种付款追踪：每笔金额行可独立多次付款（部分付款/分期）
+        # status: confirmed（生效）/ voided（撤销，保留审计）
+        f'''CREATE TABLE IF NOT EXISTS settlement_payments (
+            id {ai},
+            settlement_record_id INTEGER NOT NULL,
+            settlement_amount_id INTEGER,
+            currency TEXT NOT NULL,
+            amount NUMERIC NOT NULL DEFAULT 0,
+            payment_date DATE NOT NULL,
+            payment_method TEXT,
+            reference_no TEXT,
+            status TEXT NOT NULL DEFAULT 'confirmed',
+            notes TEXT,
+            created_by TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (settlement_record_id) REFERENCES settlement_records(id) ON DELETE CASCADE,
+            FOREIGN KEY (settlement_amount_id) REFERENCES settlement_amounts(id) ON DELETE SET NULL
+        )''',
+        f'''CREATE INDEX IF NOT EXISTS idx_sp_record ON settlement_payments(settlement_record_id)''',
+        f'''CREATE INDEX IF NOT EXISTS idx_sp_amount ON settlement_payments(settlement_amount_id)''',
+        f'''CREATE INDEX IF NOT EXISTS idx_sp_currency ON settlement_payments(currency)''',
         # department_files 表已于 2026-08-13 随 /department-files 模块下线而移除（用户要求"不用再加部门文件模块"）。
         # 历史实现参见 git log 8e3f9af 等提交。
         # 用户登录会话表（持久化，跨 Serverless 冷启动）
@@ -471,6 +492,14 @@ def init_schema(db):
         db.execute('ALTER TABLE settlement_records ADD COLUMN settle_month TEXT')
     except Exception:
         pass
+
+    # 兼容已有数据库：结算单加 paid_at / paid_by（最后一笔付款的时间/操作人）
+    # 用于报表排序/筛选；具体每笔付款明细在 settlement_payments 表里。
+    for _c in ('paid_at TIMESTAMP', 'paid_by TEXT'):
+        try:
+            db.execute(f'ALTER TABLE settlement_records ADD COLUMN {_c}')
+        except Exception:
+            pass
     try:
         if USE_POSTGRES:
             db.execute("""
