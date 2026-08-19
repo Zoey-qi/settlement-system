@@ -147,16 +147,9 @@
               <label class="form-label">结算月份</label>
               <input type="month" class="form-control" id="settle_month">
             </div>
-            <div class="col-md-6">
-              <label class="form-label">状态</label>
-              <select class="form-select" id="status">
-                <option value="pending">办理中</option>
-                <option value="processing">审核中</option>
-                <option value="completed">已完成</option>
-                <option value="unpaid">未付款</option>
-                <option value="rejected">已驳回</option>
-              </select>
-            </div>
+            <!-- 主表 record.status 字段仍保留（list 排序/筛选 + 付款自动重算使用），
+                 但 UI 不再展示——由金额明细里的 payment_status 聚合驱动状态列。 -->
+            <input type="hidden" id="status" value="pending">
             <div class="col-12">
               <label class="form-label">备注</label>
               <textarea class="form-control" id="notes" rows="2" placeholder="说明本次结算的具体内容"></textarea>
