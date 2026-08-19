@@ -2781,7 +2781,7 @@ def api_list_settlement_records():
 @app.route('/api/settlement-records/summary')
 @require_role('leader', 'admin')
 def api_settlement_summary():
-    """汇总统计卡（对上/对下 按币种分组：累计金额、已完成、办理中、本月新增）
+    """汇总统计卡（对上/对下 按币种分组：累计金额、已完成、办理中、本月新增、已付款、未付款）
     访问角色：仅 leader + admin（按 @require_role 拦截），不再追加部门过滤。
     """
     db = get_db()
@@ -2832,23 +2832,64 @@ def api_settlement_summary():
             [direction, month_prefix, f'{month_prefix}%']
         )
 
+    def query_paid(direction):
+        """按币种返回已付金额合计（基于 settlement_payments.confirmed）。"""
+        try:
+            rows = db.execute('''
+                SELECT sp.currency AS currency,
+                       COALESCE(SUM(sp.amount), 0) AS total,
+                       COUNT(*) AS cnt
+                FROM settlement_payments sp
+                JOIN settlement_records sr ON sr.id = sp.settlement_record_id
+                WHERE sr.direction = ? AND sp.status = 'confirmed'
+                GROUP BY sp.currency
+            ''', (direction,)).fetchall()
+        except Exception:
+            # 表不存在（如冷启动尚未 init_schema 的极端情况）兜底空
+            rows = []
+        out = {}
+        for r in rows:
+            cur = r['currency'] or 'PHP'
+            out[cur] = {'amount': float(r['total']), 'count': r['cnt']}
+        return out
+
     # 未付款(unpaid) 也视为办理中口径
     pending_statuses = ('pending', 'processing', 'unpaid')
 
+    def build_side(direction):
+        total = query_total(direction)
+        completed = query_status(direction, 'completed')
+        pending = query_status(direction, *pending_statuses)
+        month = query_month(direction)
+        paid = query_paid(direction)
+
+        # 按币种合并：每币种一份 { amount, count, paid, unpaid }
+        currencies = set(total.keys()) | set(paid.keys())
+        per_currency = []
+        for cur in sorted(currencies):
+            t = total.get(cur, {'amount': 0.0, 'count': 0})
+            p = paid.get(cur, {'amount': 0.0, 'count': 0})
+            per_currency.append({
+                'currency': cur,
+                'total': t['amount'],
+                'count': t['count'],
+                'paid': p['amount'],
+                'unpaid': max(0.0, t['amount'] - p['amount']),
+                'paid_payment_count': p['count'],
+            })
+        return {
+            'total': total,
+            'completed': completed,
+            'pending': pending,
+            'month': month,
+            'paid': paid,
+            'per_currency': per_currency,
+        }
+
     return jsonify({
         'ok': True,
-        'upstream': {
-            'total': query_total('up'),
-            'completed': query_status('up', 'completed'),
-            'pending': query_status('up', *pending_statuses),
-            'month': query_month('up'),
-        },
-        'downstream': {
-            'total': query_total('down'),
-            'completed': query_status('down', 'completed'),
-            'pending': query_status('down', *pending_statuses),
-            'month': query_month('down'),
-        },
+        'upstream': build_side('up'),
+        'downstream': build_side('down'),
     })
 
 
