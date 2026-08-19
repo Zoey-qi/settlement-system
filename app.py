@@ -2817,7 +2817,16 @@ def api_list_settlement_records():
         d['paid_summary'] = paid_summary
         # 整单已付完则记 paid_at = 最后一次付款日期（字符串 YYYY-MM-DD 或 None）
         last_dates = [p['last_paid_date'] for p in paid_by_cur.values() if p.get('last_paid_date')]
-        d['paid_at'] = max(last_dates) if last_dates else None
+        last_date = max(last_dates) if last_dates else None
+        if last_date is None:
+            d['paid_at'] = None
+        elif hasattr(last_date, 'isoformat'):
+            d['paid_at'] = last_date.isoformat()
+        else:
+            # 兼容字符串（pg 默认返回 datetime/HTTP-date；sqlite 返回 'YYYY-MM-DD'）
+            s = str(last_date)
+            # 截掉可能的星期/时区后缀
+            d['paid_at'] = s[:10] if len(s) >= 10 else s
         records.append(d)
     return jsonify({'ok': True, 'records': records})
 
