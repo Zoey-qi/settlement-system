@@ -2697,7 +2697,7 @@ def api_list_settlement_records():
         SELECT sr.id, sr.direction, sr.project_name, sr.counterparty, sr.contract_no,
                sr.amount, sr.currency, sr.settle_date, sr.settle_month, sr.status, sr.notes,
                sr.attachment_name, sr.attachment_size, sr.created_by, sr.created_at, sr.updated_at,
-               sa.currency as amt_currency, sa.amount as amt_amount, sa.sort_order
+               sa.id as amt_id, sa.currency as amt_currency, sa.amount as amt_amount, sa.sort_order
         FROM settlement_records sr
         LEFT JOIN settlement_amounts sa ON sr.id = sa.settlement_record_id
         WHERE 1=1
@@ -2749,11 +2749,13 @@ def api_list_settlement_records():
             records_map[rid] = d
         if r['amt_currency'] is not None:
             records_map[rid]['amounts'].append({
+                'id': r['amt_id'],
                 'currency': r['amt_currency'],
                 'amount': float(r['amt_amount']) if r['amt_amount'] is not None else 0.0,
             })
 
     # 批量查询附件
+    paid_map = {}  # 初始化为空，确保 records_map 为空时也不会 UnboundLocalError
     if records_map:
         placeholders = ','.join('?' * len(records_map))
         att_rows = db.execute(
@@ -2769,11 +2771,53 @@ def api_list_settlement_records():
                     'file_size': ar['file_size'],
                 })
 
+        # 批量查询付款：一次 GROUP BY 算每币种 paid（confirmed）和最近付款时间
+        # 不存在 settlement_payments 表时兜底空（向后兼容老 DB）
+        try:
+            paid_rows = db.execute(f'''
+                SELECT sp.settlement_record_id AS rid,
+                       sp.currency AS cur,
+                       COALESCE(SUM(sp.amount), 0) AS paid,
+                       COUNT(*) AS cnt,
+                       MAX(sp.payment_date) AS last_paid_date
+                FROM settlement_payments sp
+                WHERE sp.settlement_record_id IN ({placeholders})
+                  AND sp.status = 'confirmed'
+                GROUP BY sp.settlement_record_id, sp.currency
+            ''', list(records_map.keys())).fetchall()
+            for pr in paid_rows:
+                rid = pr['rid']
+                paid_map.setdefault(rid, {})[pr['cur']] = {
+                    'paid': float(pr['paid'] or 0),
+                    'cnt': int(pr['cnt'] or 0),
+                    'last_paid_date': pr['last_paid_date'],
+                }
+        except Exception:
+            paid_map = {}
+
     # 兼容无子表金额的旧数据：退回到主表 amount/currency
     records = []
     for d in records_map.values():
         if not d['amounts']:
             d['amounts'] = [{'currency': d['currency'], 'amount': d['amount']}]
+        # 计算付款摘要：per-currency paid/cnt/剩余
+        paid_by_cur = (paid_map if records_map else {}).get(d['id'], {})
+        paid_summary = []
+        for a in d['amounts']:
+            cur = a['currency']
+            paid = paid_by_cur.get(cur, {'paid': 0.0, 'cnt': 0, 'last_paid_date': None})
+            remaining = max(0.0, (a['amount'] or 0) - paid['paid'])
+            paid_summary.append({
+                'currency': cur,
+                'paid': paid['paid'],
+                'paid_payment_count': paid['cnt'],
+                'remaining': remaining,
+                'fully_paid': remaining <= 0.005,
+            })
+        d['paid_summary'] = paid_summary
+        # 整单已付完则记 paid_at = 最后一次付款日期（字符串 YYYY-MM-DD 或 None）
+        last_dates = [p['last_paid_date'] for p in paid_by_cur.values() if p.get('last_paid_date')]
+        d['paid_at'] = max(last_dates) if last_dates else None
         records.append(d)
     return jsonify({'ok': True, 'records': records})
 
@@ -3139,6 +3183,15 @@ def _sum_paid_for_amount(db, amount_id):
     return float(row['paid'] or 0) if row else 0.0
 
 
+def _isoformat(val):
+    """兼容 datetime/date 对象（Postgres）与字符串（SQLite）的 ISO 格式化。"""
+    if val is None:
+        return None
+    if hasattr(val, 'isoformat'):
+        return val.isoformat()
+    return str(val)
+
+
 def _recompute_record_payment_state(db, record_id):
     """付款变更后，重算主表 paid_at/paid_by + status。
 
@@ -3218,13 +3271,13 @@ def api_list_settlement_payments(rid):
             'settlement_amount_id': r['settlement_amount_id'],
             'currency': r['currency'],
             'amount': float(r['amount']) if r['amount'] is not None else 0.0,
-            'payment_date': r['payment_date'].isoformat() if r['payment_date'] else None,
+            'payment_date': _isoformat(r['payment_date']),
             'payment_method': r['payment_method'],
             'reference_no': r['reference_no'],
             'status': r['status'],
             'notes': r['notes'],
             'created_by': r['created_by'],
-            'created_at': r['created_at'].isoformat() if r['created_at'] else None,
+            'created_at': _isoformat(r['created_at']),
         })
 
     # 按币种汇总（仅 confirmed）

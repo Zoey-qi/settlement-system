@@ -237,9 +237,25 @@ function statusBadge(s) {
   return { pending:'bg-warning text-dark', processing:'bg-info text-dark', completed:'bg-success', unpaid:'bg-danger', rejected:'bg-secondary' }[s] || 'bg-secondary';
 }
 function statusText(s) { return { pending:'办理中', processing:'审核中', completed:'已完成', unpaid:'未付款', rejected:'已驳回' }[s] || s; }
-function renderAmountsCell(amounts) {
+function renderAmountsCell(amounts, paidSummary) {
   if (!amounts || !amounts.length) return '—';
-  return amounts.map(a => `<div class="amount-row"><span class="amount-num">${fmt(a.amount)}</span><span class="amount-cur">${esc(a.currency)}</span></div>`).join('');
+  // paidSummary 是可选的；如未传则按空 paid 渲染（兼容旧调用）
+  const lookup = {};
+  if (Array.isArray(paidSummary)) {
+    paidSummary.forEach(p => { lookup[p.currency] = p; });
+  }
+  return amounts.map(a => {
+    const p = lookup[a.currency] || { paid: 0, paid_payment_count: 0, fully_paid: false };
+    const pct = a.amount > 0 ? Math.min(100, Math.round((p.paid / a.amount) * 100)) : 0;
+    const badge = p.fully_paid
+      ? `<span class="badge bg-success ms-1" title="已付清">已付</span>`
+      : (p.paid > 0
+          ? `<span class="badge bg-warning text-dark ms-1" title="部分付款">${pct}%</span>`
+          : `<span class="badge bg-light text-muted border ms-1" title="未付款">未付</span>`);
+    return `<div class="amount-row">
+      <span class="amount-num">${fmt(a.amount)}</span><span class="amount-cur">${esc(a.currency)}</span>${badge}
+    </div>`;
+  }).join('');
 }
 function renderAttachmentsCell(attachments) {
   if (!attachments || !attachments.length) return '—';
@@ -524,8 +540,8 @@ async function loadSummary() {
           ${renderCurrencyRows(s.completed, 'text-success')}
         </div>
         <div class="ss-cell">
-          <span class="ss-label">付款中金额</span>
-          ${renderCurrencyRows(s.pending, 'text-warning')}
+          <span class="ss-label">已付款 / 未付款</span>
+          ${renderPaidRows(s.per_currency || [])}
         </div>
         <div class="ss-cell">
           <span class="ss-label">本月新增金额</span>
@@ -534,6 +550,23 @@ async function loadSummary() {
       </div>
     `;
   });
+}
+
+function renderPaidRows(perCurrency) {
+  // perCurrency: [{ currency, total, paid, unpaid, paid_payment_count }]
+  if (!perCurrency || !perCurrency.length) {
+    return '<span class="ss-sub">无付款记录</span>';
+  }
+  return perCurrency.map(p => {
+    const pct = p.total > 0 ? Math.min(100, Math.round((p.paid / p.total) * 100)) : 0;
+    return `<div class="ss-paid-row" title="${fmt(p.paid)}/${fmt(p.total)} ${p.currency}">
+      <span class="ss-currency-badge">${esc(p.currency)}</span>
+      <span class="ss-value text-success">${fmtCompact(p.paid)}</span>
+      <span class="ss-paid-sep">/</span>
+      <span class="ss-value text-muted">${fmtCompact(p.total)}</span>
+      <span class="ss-paid-pct">${pct}%</span>
+    </div>`;
+  }).join('');
 }
 
 function renderTable(dir) {
@@ -548,7 +581,7 @@ function renderTable(dir) {
       <td class="project-cell">${esc(r.project_name)}</td>
       <td class="counterparty-cell">${esc(r.counterparty)}</td>
       <td><code>${esc(r.contract_no)}</code></td>
-      <td class="text-end fw-bold amount-cell">${renderAmountsCell(r.amounts)}</td>
+      <td class="text-end fw-bold amount-cell">${renderAmountsCell(r.amounts, r.paid_summary)}</td>
       <td class="settle-month">${esc(r.settle_month || fmtDate(r.settle_date).slice(0,7))}</td>
       <td><span class="badge ${statusBadge(r.status)}">${statusText(r.status)}</span></td>
       <td class="notes-cell" title="${esc(r.notes)}">${esc(r.notes || '—')}</td>
