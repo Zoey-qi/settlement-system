@@ -600,10 +600,13 @@ function renderTable(dir) {
       <td class="text-end fw-bold amount-cell">${renderAmountsCell(r.amounts)}</td>
       <td class="settle-month">${esc(r.settle_month || fmtDate(r.settle_date).slice(0,7))}</td>
       <td>
-        <div class="status-stack">
-          <span class="badge ${statusBadge(r.status)}">${statusText(r.status)}</span>
-          ${(() => { const ps = aggregatePaymentStatus(r.amounts); return ps ? `<span class="badge ${ps.cls}" title="按各币种付款状态聚合">${ps.label}</span>` : ''; })()}
-        </div>
+        ${(() => {
+          const ps = aggregatePaymentStatus(r.amounts);
+          // 有付款状态时，状态列只显示付款状态（不再叠加 record.status，
+          // 避免"已完成 + 未付款"这种语义冲突）。无金额行时回落到 record.status。
+          if (ps) return `<span class="badge ${ps.cls}" title="按各币种付款状态聚合">${ps.label}</span>`;
+          return `<span class="badge ${statusBadge(r.status)}">${statusText(r.status)}</span>`;
+        })()}
       </td>
       <td class="notes-cell" title="${esc(r.notes)}">${esc(r.notes || '—')}</td>
       <td class="attach-cell">${renderAttachmentsCell(r.attachments)}</td>
@@ -670,6 +673,7 @@ document.getElementById('record-form').addEventListener('submit', async function
   amounts.forEach((a, i) => {
     fd.append(`amounts[${i}][currency]`, a.currency);
     fd.append(`amounts[${i}][amount]`, a.amount);
+    fd.append(`amounts[${i}][payment_status]`, a.payment_status || 'unpaid');
   });
   fd.append('settle_month', document.getElementById('settle_month').value);
   fd.append('status', document.getElementById('status').value);
