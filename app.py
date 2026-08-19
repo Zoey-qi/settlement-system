@@ -3083,9 +3083,9 @@ def api_create_settlement_record():
 
 
 @app.route('/api/settlement-records/<int:rid>', methods=['PUT'])
-@require_role('admin')
+@require_role('admin', 'leader')
 def api_update_settlement_record(rid):
-    """更新结算金额记录（仅管理员）"""
+    """更新结算金额记录（admin 或项目领导班子）"""
     db = get_db()
     user = g.current_user
 

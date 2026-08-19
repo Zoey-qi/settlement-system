@@ -184,9 +184,10 @@
 <script>
 const TOKEN = localStorage.getItem('auth_token') || getCookie('auth_token');
 const USER = JSON.parse(localStorage.getItem('current_user') || '{}');
-// 权限细化：仅管理员可新建/修改/删除结算单
+// 权限细化：admin + leader 可新建/修改/删除结算单；director/liaison 走 /submit 录入
 const IS_ADMIN = USER.role === 'admin';
-const CAN_EDIT = IS_ADMIN;
+const IS_LEADER = USER.role === 'leader';
+const CAN_EDIT = IS_ADMIN || IS_LEADER;
 const CAN_DELETE = IS_ADMIN;
 
 function getCookie(name) {
@@ -238,21 +239,26 @@ function statusBadge(s) {
 }
 function statusText(s) { return { pending:'办理中', processing:'审核中', completed:'已完成', unpaid:'未付款', rejected:'已驳回' }[s] || s; }
 
-// 付款状态：根据 paidSummary（按币种）聚合判断
-// 返回 { key:'none'|'partial'|'full', label:'未付款'|'部分付款'|'已付款', cls:'badge class' }
-function paymentStatus(paidSummary, amounts) {
-  // 没有金额行 → 无付款概念
-  if (!amounts || !amounts.length) return null;
-  // 没有付款汇总 → 未付款
-  const list = Array.isArray(paidSummary) ? paidSummary : [];
-  if (!list.length) return { key:'none', label:'未付款', cls:'bg-danger' };
-  // 全部币种都 fully_paid → 已付款
-  const allFull = list.length > 0 && list.every(p => p.fully_paid);
-  if (allFull) return { key:'full', label:'已付款', cls:'bg-success' };
-  // 有任一币种 paid > 0 → 部分付款
-  const anyPaid = list.some(p => (p.paid || 0) > 0);
-  if (anyPaid) return { key:'partial', label:'部分付款', cls:'bg-warning text-dark' };
-  return { key:'none', label:'未付款', cls:'bg-danger' };
+// 付款状态：按币种独立计算
+// 返回 [{currency, key:'none'|'partial'|'full', label, cls}]，每个金额行一条
+function paymentStatusPerCurrency(paidSummary, amounts) {
+  if (!amounts || !amounts.length) return [];
+  const lookup = {};
+  if (Array.isArray(paidSummary)) {
+    paidSummary.forEach(p => { lookup[p.currency] = p; });
+  }
+  return amounts.map(a => {
+    const p = lookup[a.currency] || { paid: 0, paid_payment_count: 0, fully_paid: false };
+    let key, label, cls;
+    if (p.fully_paid) {
+      key = 'full'; label = '已付款'; cls = 'bg-success';
+    } else if ((p.paid || 0) > 0) {
+      key = 'partial'; label = '部分付款'; cls = 'bg-warning text-dark';
+    } else {
+      key = 'none'; label = '未付款'; cls = 'bg-danger';
+    }
+    return { currency: a.currency, key, label, cls };
+  });
 }
 function renderAmountsCell(amounts) {
   if (!amounts || !amounts.length) return '—';
@@ -595,7 +601,9 @@ function renderTable(dir) {
       <td>
         <div class="status-stack">
           <span class="badge ${statusBadge(r.status)}">${statusText(r.status)}</span>
-          ${(() => { const ps = paymentStatus(r.paid_summary, r.amounts); return ps ? `<span class="badge ${ps.cls}" title="付款状态">${ps.label}</span>` : ''; })()}
+          ${paymentStatusPerCurrency(r.paid_summary, r.amounts).map(p =>
+            `<span class="badge ${p.cls} status-per-cur" data-cur="${esc(p.currency)}" title="${esc(p.currency)} ${p.label}">${p.label}</span>`
+          ).join('')}
         </div>
       </td>
       <td class="notes-cell" title="${esc(r.notes)}">${esc(r.notes || '—')}</td>
