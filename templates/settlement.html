@@ -519,12 +519,19 @@ function fmtCompact(n) {
   return num.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 const SUMMARY_CURRENCIES = ['PHP', 'USD', 'CNY'];
-function renderCurrencyRows(group, valueClass) {
+function renderCurrencyRows(group, valueClass, showCount = false) {
+  // 当 showCount=true 时，在每个币种金额后面内联显示该币种的笔数（避免把多币种笔数相加后只显示一个汇总数，
+  // 否则像 USD=1 笔 + PHP=3 笔=4 笔时，用户看到 4 笔会误以为是 PHP 的笔数）。
   return SUMMARY_CURRENCIES.map(c => {
     const data = (group && group[c]) || { amount: 0, count: 0 };
-    return `<div class="ss-currency-row" title="${fmt(data.amount)} ${c}">
+    const cnt = (data && data.count) || 0;
+    const countTag = (showCount && cnt > 0)
+      ? `<span class="ss-value-sub">${cnt} 笔明细</span>`
+      : '';
+    return `<div class="ss-currency-row" title="${fmt(data.amount)} ${c} · ${cnt} 笔明细">
       <span class="ss-currency-badge">${c}</span>
       <span class="ss-value ${valueClass || ''}">${fmtCompact(data.amount)}</span>
+      ${countTag}
     </div>`;
   }).join('');
 }
@@ -536,19 +543,15 @@ async function loadSummary() {
     const el = document.getElementById('summary-' + dir);
     const loading = document.getElementById(dir === 'up' ? 'up-loading' : 'down-loading');
     if (loading) loading.innerHTML = '';
-    const totalCount = Object.values(s.total || {}).reduce((a, b) => a + ((b && b.count) || 0), 0);
-    const monthCount = Object.values(s.month || {}).reduce((a, b) => a + ((b && b.count) || 0), 0);
     el.innerHTML = `
       <div class="ss-grid ss-grid-4">
         <div class="ss-cell accent">
           <span class="ss-label">累计金额</span>
-          ${renderCurrencyRows(s.total, '')}
-          <span class="ss-sub">${totalCount} 笔明细</span>
+          ${renderCurrencyRows(s.total, '', true)}
         </div>
         <div class="ss-cell">
           <span class="ss-label">本月结算金额</span>
-          ${renderCurrencyRows(s.month, '')}
-          <span class="ss-sub">${monthCount} 笔明细</span>
+          ${renderCurrencyRows(s.month, '', true)}
         </div>
         <div class="ss-cell">
           <span class="ss-label">已付款</span>
