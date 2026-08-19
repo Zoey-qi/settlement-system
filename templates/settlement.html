@@ -237,25 +237,28 @@ function statusBadge(s) {
   return { pending:'bg-warning text-dark', processing:'bg-info text-dark', completed:'bg-success', unpaid:'bg-danger', rejected:'bg-secondary' }[s] || 'bg-secondary';
 }
 function statusText(s) { return { pending:'办理中', processing:'审核中', completed:'已完成', unpaid:'未付款', rejected:'已驳回' }[s] || s; }
-function renderAmountsCell(amounts, paidSummary) {
+
+// 付款状态：根据 paidSummary（按币种）聚合判断
+// 返回 { key:'none'|'partial'|'full', label:'未付款'|'部分付款'|'已付款', cls:'badge class' }
+function paymentStatus(paidSummary, amounts) {
+  // 没有金额行 → 无付款概念
+  if (!amounts || !amounts.length) return null;
+  // 没有付款汇总 → 未付款
+  const list = Array.isArray(paidSummary) ? paidSummary : [];
+  if (!list.length) return { key:'none', label:'未付款', cls:'bg-danger' };
+  // 全部币种都 fully_paid → 已付款
+  const allFull = list.length > 0 && list.every(p => p.fully_paid);
+  if (allFull) return { key:'full', label:'已付款', cls:'bg-success' };
+  // 有任一币种 paid > 0 → 部分付款
+  const anyPaid = list.some(p => (p.paid || 0) > 0);
+  if (anyPaid) return { key:'partial', label:'部分付款', cls:'bg-warning text-dark' };
+  return { key:'none', label:'未付款', cls:'bg-danger' };
+}
+function renderAmountsCell(amounts) {
   if (!amounts || !amounts.length) return '—';
-  // paidSummary 是可选的；如未传则按空 paid 渲染（兼容旧调用）
-  const lookup = {};
-  if (Array.isArray(paidSummary)) {
-    paidSummary.forEach(p => { lookup[p.currency] = p; });
-  }
-  return amounts.map(a => {
-    const p = lookup[a.currency] || { paid: 0, paid_payment_count: 0, fully_paid: false };
-    const pct = a.amount > 0 ? Math.min(100, Math.round((p.paid / a.amount) * 100)) : 0;
-    const badge = p.fully_paid
-      ? `<span class="badge bg-success ms-1" title="已付清">已付</span>`
-      : (p.paid > 0
-          ? `<span class="badge bg-warning text-dark ms-1" title="部分付款">${pct}%</span>`
-          : `<span class="badge bg-light text-muted border ms-1" title="未付款">未付</span>`);
-    return `<div class="amount-row">
-      <span class="amount-num">${fmt(a.amount)}</span><span class="amount-cur">${esc(a.currency)}</span>${badge}
-    </div>`;
-  }).join('');
+  return amounts.map(a => `<div class="amount-row">
+    <span class="amount-num">${fmt(a.amount)}</span><span class="amount-cur">${esc(a.currency)}</span>
+  </div>`).join('');
 }
 function renderAttachmentsCell(attachments) {
   if (!attachments || !attachments.length) return '—';
@@ -587,9 +590,14 @@ function renderTable(dir) {
       <td class="project-cell">${esc(r.project_name)}</td>
       <td class="counterparty-cell">${esc(r.counterparty)}</td>
       <td><code>${esc(r.contract_no)}</code></td>
-      <td class="text-end fw-bold amount-cell">${renderAmountsCell(r.amounts, r.paid_summary)}</td>
+      <td class="text-end fw-bold amount-cell">${renderAmountsCell(r.amounts)}</td>
       <td class="settle-month">${esc(r.settle_month || fmtDate(r.settle_date).slice(0,7))}</td>
-      <td><span class="badge ${statusBadge(r.status)}">${statusText(r.status)}</span></td>
+      <td>
+        <div class="status-stack">
+          <span class="badge ${statusBadge(r.status)}">${statusText(r.status)}</span>
+          ${(() => { const ps = paymentStatus(r.paid_summary, r.amounts); return ps ? `<span class="badge ${ps.cls}" title="付款状态">${ps.label}</span>` : ''; })()}
+        </div>
+      </td>
       <td class="notes-cell" title="${esc(r.notes)}">${esc(r.notes || '—')}</td>
       <td class="attach-cell">${renderAttachmentsCell(r.attachments)}</td>
       <td>
