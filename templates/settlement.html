@@ -345,7 +345,13 @@ async function loadPaymentPanel(recordId) {
 
 function renderPaymentPanel(data) {
   const panel = document.getElementById('payment-panel');
-  const { payments, per_currency } = data;
+  // 防御：api() 不抛错，非 ok 也返回 {ok:false, data:{error}}
+  if (!data || data.ok === false) {
+    panel.innerHTML = `<div class="alert alert-warning small">付款数据不可用：${esc(data?.data?.error || '接口返回为空')}</div>`;
+    return;
+  }
+  const payments = (data.payments || []);
+  const per_currency = (data.per_currency || []);
   currentAmountsMeta = per_currency;
 
   if (!per_currency.length) {
