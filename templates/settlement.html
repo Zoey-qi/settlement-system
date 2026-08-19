@@ -142,6 +142,7 @@
               </button>
               <div class="form-text">一笔结算可包含多种币种金额，例如 PHP + USD。</div>
             </div>
+            <div class="col-12 d-none" id="payment-panel"></div>
             <div class="col-md-6">
               <label class="form-label">结算月份</label>
               <input type="month" class="form-control" id="settle_month">
@@ -303,6 +304,177 @@ function collectAmounts() {
   return out;
 }
 
+// ========== 付款追踪 ==========
+let currentRecordId = null;
+let currentAmountsMeta = [];  // [{id, total, paid, unpaid, currency}]
+
+async function loadPaymentPanel(recordId) {
+  currentRecordId = recordId;
+  const panel = document.getElementById('payment-panel');
+  if (!recordId) {
+    panel.innerHTML = '';
+    panel.classList.add('d-none');
+    return;
+  }
+  try {
+    const data = await api(`/api/settlement-records/${recordId}/payments`);
+    renderPaymentPanel(data);
+    panel.classList.remove('d-none');
+  } catch (err) {
+    console.error('loadPaymentPanel failed', err);
+    panel.innerHTML = `<div class="alert alert-danger small">付款数据加载失败：${esc(err.message || err)}</div>`;
+    panel.classList.remove('d-none');
+  }
+}
+
+function renderPaymentPanel(data) {
+  const panel = document.getElementById('payment-panel');
+  const { payments, per_currency } = data;
+  currentAmountsMeta = per_currency;
+
+  if (!per_currency.length) {
+    panel.innerHTML = '<div class="text-muted small">无金额行，无法追踪付款</div>';
+    return;
+  }
+
+  // 每个币种一张卡片：已付/未付 + 付款列表 + 录入表单
+  const canEdit = CAN_EDIT;  // 全局常量：admin 才能录入/撤销
+  const cards = per_currency.map(amt => {
+    const paidPct = amt.total > 0 ? Math.round(amt.paid / amt.total * 100) : 0;
+    const fullPaid = amt.is_paid_in_full;
+    const myPayments = payments.filter(p => p.settlement_amount_id === amt.settlement_amount_id);
+
+    return `
+      <div class="card border mb-2">
+        <div class="card-body p-3">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <div>
+              <span class="badge bg-primary me-2">${esc(amt.currency)}</span>
+              <strong>${fmt(amt.total)}</strong>
+              <span class="ms-2 small ${fullPaid ? 'text-success' : 'text-warning'}">
+                已付 ${fmt(amt.paid)} · 未付 ${fmt(amt.unpaid)}
+              </span>
+            </div>
+            <span class="small text-muted">${paidPct}%</span>
+          </div>
+          <div class="progress mb-3" style="height: 6px">
+            <div class="progress-bar ${fullPaid ? 'bg-success' : 'bg-info'}" role="progressbar"
+                 style="width: ${paidPct}%"></div>
+          </div>
+          ${myPayments.length ? `
+            <div class="mb-2">
+              ${myPayments.map(p => `
+                <div class="d-flex align-items-center justify-content-between border-bottom py-1 small">
+                  <div>
+                    {{ ui.icon('cash', 'bi', 14) }}
+                    <strong>${fmt(p.amount)} ${esc(p.currency)}</strong>
+                    <span class="text-muted ms-2">${esc(p.payment_date || '')}</span>
+                    ${p.payment_method ? `<span class="text-muted ms-1">· ${esc(p.payment_method)}</span>` : ''}
+                    ${p.reference_no ? `<span class="text-muted ms-1">· ${esc(p.reference_no)}</span>` : ''}
+                    ${p.status === 'voided' ? '<span class="badge bg-secondary ms-2">已撤销</span>' : ''}
+                    ${p.notes ? `<div class="text-muted ms-4">${esc(p.notes)}</div>` : ''}
+                  </div>
+                  ${canEdit && p.status !== 'voided' ? `
+                    <button type="button" class="btn btn-sm btn-outline-danger"
+                            onclick="voidPayment(${p.id}, this)" title="撤销付款">
+                      {{ ui.icon('trash', 'bi', 12) }}
+                    </button>
+                  ` : ''}
+                </div>
+              `).join('')}
+            </div>
+          ` : '<div class="text-muted small mb-2">暂无付款记录</div>'}
+          ${canEdit && !fullPaid ? `
+            <div class="row g-2 align-items-end">
+              <div class="col-md-3">
+                <label class="form-label small mb-1">付款日期 *</label>
+                <input type="date" class="form-control form-control-sm"
+                       id="pay-date-${amt.settlement_amount_id}" required>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label small mb-1">金额 *</label>
+                <input type="number" step="0.01" min="0.01" max="${amt.unpaid.toFixed(2)}"
+                       class="form-control form-control-sm"
+                       id="pay-amount-${amt.settlement_amount_id}"
+                       placeholder="≤ ${fmt(amt.unpaid)}" required>
+              </div>
+              <div class="col-md-2">
+                <label class="form-label small mb-1">方式</label>
+                <select class="form-select form-select-sm" id="pay-method-${amt.settlement_amount_id}">
+                  <option value="wire">电汇</option>
+                  <option value="cheque">支票</option>
+                  <option value="cash">现金</option>
+                  <option value="other">其他</option>
+                </select>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label small mb-1">流水号</label>
+                <input type="text" class="form-control form-control-sm"
+                       id="pay-ref-${amt.settlement_amount_id}" placeholder="可选">
+              </div>
+              <div class="col-md-1">
+                <button type="button" class="btn btn-sm btn-primary w-100"
+                        onclick="recordPayment(${amt.settlement_amount_id})" title="记录付款">
+                  {{ ui.icon('check-lg', 'bi', 14) }}
+                </button>
+              </div>
+            </div>
+          ` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  panel.innerHTML = `
+    <hr>
+    <h6 class="mb-3 d-flex align-items-center">
+      {{ ui.icon('cash-coin', 'bi', 16) }}
+      <span class="ms-2">付款追踪</span>
+      <small class="text-muted ms-2">每笔金额独立追踪，支持部分付款与撤销</small>
+    </h6>
+    ${cards}
+  `;
+}
+
+async function recordPayment(amountId) {
+  if (!currentRecordId) return;
+  const dateEl = document.getElementById(`pay-date-${amountId}`);
+  const amtEl = document.getElementById(`pay-amount-${amountId}`);
+  const methodEl = document.getElementById(`pay-method-${amountId}`);
+  const refEl = document.getElementById(`pay-ref-${amountId}`);
+  if (!dateEl.value || !amtEl.value) {
+    alert('请填写付款日期和金额');
+    return;
+  }
+  const fd = new FormData();
+  fd.append('amount_id', amountId);
+  fd.append('amount', amtEl.value);
+  fd.append('payment_date', dateEl.value);
+  fd.append('payment_method', methodEl.value);
+  if (refEl.value) fd.append('reference_no', refEl.value);
+  try {
+    await api(`/api/settlement-records/${currentRecordId}/payments`, { method: 'POST', body: fd });
+    await loadPaymentPanel(currentRecordId);
+    // 刷新列表和 summary
+    loadAll();
+  } catch (err) {
+    alert('记录付款失败：' + (err.message || err));
+  }
+}
+
+async function voidPayment(paymentId, btn) {
+  if (!confirm('确定撤销这笔付款？\n撤销后将从已付合计中扣除。')) return;
+  btn.disabled = true;
+  try {
+    await api(`/api/settlement-payments/${paymentId}`, { method: 'DELETE' });
+    await loadPaymentPanel(currentRecordId);
+    loadAll();
+  } catch (err) {
+    alert('撤销失败：' + (err.message || err));
+    btn.disabled = false;
+  }
+}
+
 let records = { up: [], down: [] };
 
 async function loadAll() {
@@ -397,6 +569,8 @@ function openCreate() {
   document.getElementById('attachments').value = '';
   document.getElementById('file-preview').innerHTML = '';
   addAmountRow([{ currency: 'PHP', amount: '' }]);
+  // 新建时无记录 ID，清空付款面板
+  loadPaymentPanel(null);
 }
 function openEdit(r) {
   document.getElementById('modal-title').textContent = '编辑结算单 #' + r.id;
@@ -422,6 +596,8 @@ function openEdit(r) {
     : '';
   const amounts = (r.amounts && r.amounts.length) ? r.amounts : [{ currency: r.currency || 'PHP', amount: r.amount || 0 }];
   amounts.forEach((a, i) => addAmountRow(amounts));
+  // 加载付款追踪面板（仅编辑现有记录时显示）
+  loadPaymentPanel(r.id);
   new bootstrap.Modal(document.getElementById('recordModal')).show();
 }
 
