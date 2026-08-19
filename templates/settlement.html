@@ -537,12 +537,18 @@ async function loadSummary() {
     const loading = document.getElementById(dir === 'up' ? 'up-loading' : 'down-loading');
     if (loading) loading.innerHTML = '';
     const totalCount = Object.values(s.total || {}).reduce((a, b) => a + ((b && b.count) || 0), 0);
+    const monthCount = Object.values(s.month || {}).reduce((a, b) => a + ((b && b.count) || 0), 0);
     el.innerHTML = `
-      <div class="ss-grid ss-grid-3">
+      <div class="ss-grid ss-grid-4">
         <div class="ss-cell accent">
           <span class="ss-label">累计金额</span>
           ${renderCurrencyRows(s.total, '')}
-          <span class="ss-sub">${totalCount} 笔</span>
+          <span class="ss-sub">${totalCount} 笔明细</span>
+        </div>
+        <div class="ss-cell">
+          <span class="ss-label">本月结算金额</span>
+          ${renderCurrencyRows(s.month, '')}
+          <span class="ss-sub">${monthCount} 笔明细</span>
         </div>
         <div class="ss-cell">
           <span class="ss-label">已付款</span>

@@ -2866,11 +2866,12 @@ def api_settlement_summary():
         return out
 
     def query_total(direction):
+        # 笔数按金额行(settlement_amounts)计，与"结算明细笔数"对齐
         return sum_by_currency(
             "SELECT COALESCE(sa.currency, 'PHP') as currency, COALESCE(SUM(sa.amount), 0) as total, "
-            "COUNT(DISTINCT sr.id) as cnt "
+            "COUNT(*) as cnt "
             "FROM settlement_records sr "
-            "LEFT JOIN settlement_amounts sa ON sr.id = sa.settlement_record_id "
+            "JOIN settlement_amounts sa ON sr.id = sa.settlement_record_id "
             "WHERE sr.direction = ? "
             "GROUP BY COALESCE(sa.currency, 'PHP')",
             [direction]
@@ -2894,11 +2895,12 @@ def api_settlement_summary():
         )
 
     def query_month(direction):
+        # 本月新增：按金额行数计笔数（与"结算明细笔数"对齐）
         return sum_by_currency(
             "SELECT COALESCE(sa.currency, 'PHP') as currency, COALESCE(SUM(sa.amount), 0) as total, "
-            "COUNT(DISTINCT sr.id) as cnt "
+            "COUNT(*) as cnt "
             "FROM settlement_records sr "
-            "LEFT JOIN settlement_amounts sa ON sr.id = sa.settlement_record_id "
+            "JOIN settlement_amounts sa ON sr.id = sa.settlement_record_id "
             "WHERE sr.direction = ? AND (sr.settle_month = ? OR sr.settle_date LIKE ?) "
             "GROUP BY COALESCE(sa.currency, 'PHP')",
             [direction, month_prefix, f'{month_prefix}%']
