@@ -538,42 +538,49 @@ async function loadSummary() {
     if (loading) loading.innerHTML = '';
     const totalCount = Object.values(s.total || {}).reduce((a, b) => a + ((b && b.count) || 0), 0);
     el.innerHTML = `
-      <div class="ss-grid ss-grid-4">
+      <div class="ss-grid ss-grid-3">
         <div class="ss-cell accent">
           <span class="ss-label">累计金额</span>
           ${renderCurrencyRows(s.total, '')}
           <span class="ss-sub">${totalCount} 笔</span>
         </div>
         <div class="ss-cell">
-          <span class="ss-label">已完成金额</span>
-          ${renderCurrencyRows(s.completed, 'text-success')}
+          <span class="ss-label">已付款</span>
+          ${renderPaidColumn(s.per_currency || [])}
         </div>
         <div class="ss-cell">
-          <span class="ss-label">已付款 / 未付款</span>
-          ${renderPaidRows(s.per_currency || [])}
-        </div>
-        <div class="ss-cell">
-          <span class="ss-label">本月新增金额</span>
-          ${renderCurrencyRows(s.month, '')}
+          <span class="ss-label">未付款</span>
+          ${renderUnpaidColumn(s.per_currency || [])}
         </div>
       </div>
     `;
   });
 }
 
-function renderPaidRows(perCurrency) {
-  // perCurrency: [{ currency, total, paid, unpaid, paid_payment_count }]
+function renderPaidColumn(perCurrency) {
+  // 只显示金额明细里 payment_status='paid' 的金额合计（绿色）
   if (!perCurrency || !perCurrency.length) {
-    return '<span class="ss-sub">无付款记录</span>';
+    return '<span class="ss-sub">无</span>';
   }
-  return perCurrency.map(p => {
-    const pct = p.total > 0 ? Math.min(100, Math.round((p.paid / p.total) * 100)) : 0;
-    return `<div class="ss-paid-row" title="${fmt(p.paid)}/${fmt(p.total)} ${p.currency}">
-      <span class="ss-currency-badge">${esc(p.currency)}</span>
+  return SUMMARY_CURRENCIES.map(c => {
+    const p = perCurrency.find(x => x.currency === c) || { paid: 0 };
+    return `<div class="ss-currency-row" title="已付款 ${fmt(p.paid)} ${c}">
+      <span class="ss-currency-badge">${c}</span>
       <span class="ss-value text-success">${fmtCompact(p.paid)}</span>
-      <span class="ss-paid-sep">/</span>
-      <span class="ss-value text-muted">${fmtCompact(p.total)}</span>
-      <span class="ss-paid-pct">${pct}%</span>
+    </div>`;
+  }).join('');
+}
+
+function renderUnpaidColumn(perCurrency) {
+  // 只显示金额明细里 payment_status='unpaid' 的金额合计（灰色）
+  if (!perCurrency || !perCurrency.length) {
+    return '<span class="ss-sub">无</span>';
+  }
+  return SUMMARY_CURRENCIES.map(c => {
+    const p = perCurrency.find(x => x.currency === c) || { unpaid: 0 };
+    return `<div class="ss-currency-row" title="未付款 ${fmt(p.unpaid)} ${c}">
+      <span class="ss-currency-badge">${c}</span>
+      <span class="ss-value text-muted">${fmtCompact(p.unpaid)}</span>
     </div>`;
   }).join('');
 }
