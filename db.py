@@ -344,6 +344,7 @@ def init_schema(db):
             currency TEXT NOT NULL DEFAULT 'PHP',
             amount NUMERIC DEFAULT 0,
             sort_order INTEGER DEFAULT 0,
+            payment_status TEXT NOT NULL DEFAULT 'unpaid',
             FOREIGN KEY (settlement_record_id) REFERENCES settlement_records(id) ON DELETE CASCADE
         )''',
         f'''CREATE TABLE IF NOT EXISTS settlement_attachments (
@@ -416,8 +417,14 @@ def init_schema(db):
             currency TEXT NOT NULL DEFAULT 'PHP',
             amount NUMERIC DEFAULT 0,
             sort_order INTEGER DEFAULT 0,
+            payment_status TEXT NOT NULL DEFAULT 'unpaid',
             FOREIGN KEY (settlement_record_id) REFERENCES settlement_records(id) ON DELETE CASCADE
         )''')
+        # 兼容老库：为已有 settlement_amounts 表补充 payment_status 列（不存在则加）
+        try:
+            db.execute("ALTER TABLE settlement_amounts ADD COLUMN payment_status TEXT NOT NULL DEFAULT 'unpaid'")
+        except Exception:
+            pass  # 列已存在，sqlite 报 duplicate column；postgres 报 already exists
         # 迁移旧数据：把尚未拆分的 settlement_records.amount/currency 写入子表
         migrated = db.execute('''
             INSERT INTO settlement_amounts (settlement_record_id, currency, amount, sort_order)

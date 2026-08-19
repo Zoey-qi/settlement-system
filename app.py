@@ -2697,7 +2697,8 @@ def api_list_settlement_records():
         SELECT sr.id, sr.direction, sr.project_name, sr.counterparty, sr.contract_no,
                sr.amount, sr.currency, sr.settle_date, sr.settle_month, sr.status, sr.notes,
                sr.attachment_name, sr.attachment_size, sr.created_by, sr.created_at, sr.updated_at,
-               sa.id as amt_id, sa.currency as amt_currency, sa.amount as amt_amount, sa.sort_order
+               sa.id as amt_id, sa.currency as amt_currency, sa.amount as amt_amount,
+               sa.sort_order, sa.payment_status as amt_payment_status
         FROM settlement_records sr
         LEFT JOIN settlement_amounts sa ON sr.id = sa.settlement_record_id
         WHERE 1=1
@@ -2752,6 +2753,7 @@ def api_list_settlement_records():
                 'id': r['amt_id'],
                 'currency': r['amt_currency'],
                 'amount': float(r['amt_amount']) if r['amt_amount'] is not None else 0.0,
+                'payment_status': r['amt_payment_status'] or 'unpaid',
             })
 
     # 批量查询附件
@@ -2798,8 +2800,12 @@ def api_list_settlement_records():
     # 兼容无子表金额的旧数据：退回到主表 amount/currency
     records = []
     for d in records_map.values():
+        # 为已有金额行补一个 user_status 字段（来自 DB），便于前端编辑面板回填
+        for amt in d['amounts']:
+            if 'payment_status' not in amt:
+                amt['payment_status'] = 'unpaid'
         if not d['amounts']:
-            d['amounts'] = [{'currency': d['currency'], 'amount': d['amount']}]
+            d['amounts'] = [{'currency': d['currency'], 'amount': d['amount'], 'payment_status': 'unpaid'}]
         # 计算付款摘要：per-currency paid/cnt/剩余
         paid_by_cur = (paid_map if records_map else {}).get(d['id'], {})
         paid_summary = []
@@ -2946,11 +2952,17 @@ def api_settlement_summary():
     })
 
 
-_AMOUNT_RE = re.compile(r'^amounts\[(\d+)\]\[(currency|amount)\]$')
+_AMOUNT_RE = re.compile(r'^amounts\[(\d+)\]\[(currency|amount|payment_status)\]$')
+
+_ALLOWED_AMOUNT_STATUS = {'unpaid', 'partial', 'paid'}
 
 
 def parse_amounts_from_form(form):
-    """从 FormData 解析多币种金额，例如 amounts[0][currency]=PHP&amounts[0][amount]=100。"""
+    """从 FormData 解析多币种金额+每币种付款状态。
+
+    例：amounts[0][currency]=PHP&amounts[0][amount]=100&amounts[0][payment_status]=paid。
+    payment_status 可选；非法值自动回落 'unpaid'（保持向后兼容）。
+    """
     raw = {}
     for key, value in form.items():
         m = _AMOUNT_RE.match(key)
@@ -2971,20 +2983,27 @@ def parse_amounts_from_form(form):
             continue
         if amt < 0:
             continue
+        status = (item.get('payment_status') or 'unpaid').strip().lower()
+        if status not in _ALLOWED_AMOUNT_STATUS:
+            status = 'unpaid'
         result.append({
             'currency': (item.get('currency') or 'PHP').strip(),
             'amount': amt,
+            'payment_status': status,
         })
     return result
 
 
 def save_settlement_amounts(db, record_id, amounts):
-    """保存结算单的多币种金额：先清后插。"""
+    """保存结算单的多币种金额：先清后插。每行可携带 payment_status（用户编辑的状态）。"""
     db.execute('DELETE FROM settlement_amounts WHERE settlement_record_id = ?', (record_id,))
     for i, a in enumerate(amounts):
+        ps = a.get('payment_status') or 'unpaid'
+        if ps not in _ALLOWED_AMOUNT_STATUS:
+            ps = 'unpaid'
         db.execute(
-            'INSERT INTO settlement_amounts (settlement_record_id, currency, amount, sort_order) VALUES (?, ?, ?, ?)',
-            (record_id, a['currency'], a['amount'], i)
+            'INSERT INTO settlement_amounts (settlement_record_id, currency, amount, sort_order, payment_status) VALUES (?, ?, ?, ?, ?)',
+            (record_id, a['currency'], a['amount'], i, ps)
         )
 
 
@@ -3036,7 +3055,9 @@ def api_create_settlement_record():
             return jsonify({'error': '金额必须是数字'}), 400
         if amount < 0:
             return jsonify({'error': '金额不能为负数'}), 400
-        amounts = [{'currency': currency, 'amount': amount}]
+        # 旧字段不携带 payment_status 时回落到 record 级 status
+        fb_status = status if status in _ALLOWED_AMOUNT_STATUS else 'unpaid'
+        amounts = [{'currency': currency, 'amount': amount, 'payment_status': fb_status}]
 
     if not amounts:
         return jsonify({'error': '请至少填写一笔金额'}), 400
@@ -3113,7 +3134,8 @@ def api_update_settlement_record(rid):
                 return jsonify({'error': '金额必须是数字'}), 400
             if amount < 0:
                 return jsonify({'error': '金额不能为负数'}), 400
-            amounts = [{'currency': currency, 'amount': amount}]
+            fb_status = status if status in _ALLOWED_AMOUNT_STATUS else 'unpaid'
+            amounts = [{'currency': currency, 'amount': amount, 'payment_status': fb_status}]
 
         if not amounts:
             return jsonify({'error': '请至少填写一笔金额'}), 400

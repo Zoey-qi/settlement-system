@@ -239,26 +239,14 @@ function statusBadge(s) {
 }
 function statusText(s) { return { pending:'办理中', processing:'审核中', completed:'已完成', unpaid:'未付款', rejected:'已驳回' }[s] || s; }
 
-// 付款状态：按币种独立计算
-// 返回 [{currency, key:'none'|'partial'|'full', label, cls}]，每个金额行一条
-function paymentStatusPerCurrency(paidSummary, amounts) {
-  if (!amounts || !amounts.length) return [];
-  const lookup = {};
-  if (Array.isArray(paidSummary)) {
-    paidSummary.forEach(p => { lookup[p.currency] = p; });
-  }
-  return amounts.map(a => {
-    const p = lookup[a.currency] || { paid: 0, paid_payment_count: 0, fully_paid: false };
-    let key, label, cls;
-    if (p.fully_paid) {
-      key = 'full'; label = '已付款'; cls = 'bg-success';
-    } else if ((p.paid || 0) > 0) {
-      key = 'partial'; label = '部分付款'; cls = 'bg-warning text-dark';
-    } else {
-      key = 'none'; label = '未付款'; cls = 'bg-danger';
-    }
-    return { currency: a.currency, key, label, cls };
-  });
+// 付款状态：聚合每币种的 payment_status 为 record 级单一 badge
+// 优先级：paid > partial > unpaid
+function aggregatePaymentStatus(amounts) {
+  if (!amounts || !amounts.length) return null;
+  const list = amounts.map(a => a.payment_status || 'unpaid');
+  if (list.every(s => s === 'paid')) return { key:'paid', label:'已付款', cls:'bg-success' };
+  if (list.some(s => s === 'partial' || s === 'paid')) return { key:'partial', label:'部分付款', cls:'bg-warning text-dark' };
+  return { key:'unpaid', label:'未付款', cls:'bg-danger' };
 }
 function renderAmountsCell(amounts) {
   if (!amounts || !amounts.length) return '—';
@@ -306,24 +294,37 @@ function addAmountRow(amounts) {
     <select class="form-select" name="amounts[${idx}][currency]" style="max-width:110px">${CURRENCY_OPTIONS}</select>
     <span class="input-group-text">金额</span>
     <input type="number" step="0.01" class="form-control" name="amounts[${idx}][amount]" placeholder="0.00" required>
+    <span class="input-group-text">付款状态</span>
+    <select class="form-select amount-status-select" name="amounts[${idx}][payment_status]" style="max-width:130px" data-status="unpaid" onchange="this.dataset.status=this.value">
+      <option value="unpaid">未付款</option>
+      <option value="partial">部分付款</option>
+      <option value="paid">已付款</option>
+    </select>
     <button type="button" class="btn btn-outline-danger" onclick="this.closest('.input-group').remove()" title="删除">
       {{ ui.icon('trash', 'bi', 14) }}
     </button>
   `;
   container.appendChild(row);
   if (amounts && amounts[idx]) {
-    row.querySelector('select').value = amounts[idx].currency || 'PHP';
+    row.querySelector('select[name*="[currency]"]').value = amounts[idx].currency || 'PHP';
     row.querySelector('input').value = amounts[idx].amount || 0;
+    const ps = amounts[idx].payment_status || 'unpaid';
+    const psSel = row.querySelector('select[name*="[payment_status]"]');
+    if (psSel) {
+      psSel.value = ps;
+      psSel.dataset.status = ps;
+    }
   }
 }
 function collectAmounts() {
   const rows = document.querySelectorAll('#amount-rows .input-group');
   const out = [];
   rows.forEach(row => {
-    const currency = row.querySelector('select').value;
+    const currency = row.querySelector('select[name*="[currency]"]').value;
     const amount = parseFloat(row.querySelector('input').value);
+    const status = row.querySelector('select[name*="[payment_status]"]').value || 'unpaid';
     if (!isNaN(amount)) {
-      out.push({ currency, amount });
+      out.push({ currency, amount, payment_status: status });
     }
   });
   return out;
@@ -601,9 +602,7 @@ function renderTable(dir) {
       <td>
         <div class="status-stack">
           <span class="badge ${statusBadge(r.status)}">${statusText(r.status)}</span>
-          ${paymentStatusPerCurrency(r.paid_summary, r.amounts).map(p =>
-            `<span class="badge ${p.cls} status-per-cur" data-cur="${esc(p.currency)}" title="${esc(p.currency)} ${p.label}">${p.label}</span>`
-          ).join('')}
+          ${(() => { const ps = aggregatePaymentStatus(r.amounts); return ps ? `<span class="badge ${ps.cls}" title="按各币种付款状态聚合">${ps.label}</span>` : ''; })()}
         </div>
       </td>
       <td class="notes-cell" title="${esc(r.notes)}">${esc(r.notes || '—')}</td>
