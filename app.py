@@ -2840,7 +2840,15 @@ def api_list_settlement_records():
 @app.route('/api/settlement-records/summary')
 @require_role('leader', 'admin')
 def api_settlement_summary():
-    """汇总统计卡（对上/对下 按币种分组：累计金额、已完成、办理中、本月新增、已付款、未付款）
+    """汇总统计卡（对上/对下 按币种分组：累计金额、已完成、本月新增、已付款、未付款）
+
+    数据来源统一自金额明细 settlement_amounts.payment_status，与下面对账一一对应：
+    - 累计金额     = Σ amount（全量，按明细所有 amount 行）
+    - 已完成金额   = Σ amount WHERE payment_status IN ('paid','partial')
+    - 已付款       = Σ amount WHERE payment_status='paid'
+    - 未付款       = Σ amount WHERE payment_status='unpaid'
+    用户在明细里把某行改成"已付款 / 部分付款"，汇总立刻同步。
+
     访问角色：仅 leader + admin（按 @require_role 拦截），不再追加部门过滤。
     """
     db = get_db()
@@ -2868,14 +2876,19 @@ def api_settlement_summary():
             [direction]
         )
 
-    def query_status(direction, *statuses):
+    def query_by_payment_status(direction, *statuses):
+        """按 amount.payment_status 维度聚合金额（与明细一一对应）。
+        statuses 为 ('paid','partial') 时即"已完成"口径（全付 + 部分付）；为 ('paid') 时即"已付款"。"""
+        if not statuses:
+            return {}
         placeholders = ','.join('?' * len(statuses))
         return sum_by_currency(
-            "SELECT COALESCE(sa.currency, 'PHP') as currency, COALESCE(SUM(sa.amount), 0) as total, "
-            "COUNT(DISTINCT sr.id) as cnt "
+            "SELECT COALESCE(sa.currency, 'PHP') as currency, "
+            "COALESCE(SUM(sa.amount), 0) as total, "
+            "COUNT(*) as cnt "
             "FROM settlement_records sr "
-            "LEFT JOIN settlement_amounts sa ON sr.id = sa.settlement_record_id "
-            f"WHERE sr.direction = ? AND sr.status IN ({placeholders}) "
+            "JOIN settlement_amounts sa ON sr.id = sa.settlement_record_id "
+            f"WHERE sr.direction = ? AND sa.payment_status IN ({placeholders}) "
             "GROUP BY COALESCE(sa.currency, 'PHP')",
             [direction] + list(statuses)
         )
@@ -2891,55 +2904,32 @@ def api_settlement_summary():
             [direction, month_prefix, f'{month_prefix}%']
         )
 
-    def query_paid(direction):
-        """按币种返回已付金额合计（基于 settlement_payments.confirmed）。"""
-        try:
-            rows = db.execute('''
-                SELECT sp.currency AS currency,
-                       COALESCE(SUM(sp.amount), 0) AS total,
-                       COUNT(*) AS cnt
-                FROM settlement_payments sp
-                JOIN settlement_records sr ON sr.id = sp.settlement_record_id
-                WHERE sr.direction = ? AND sp.status = 'confirmed'
-                GROUP BY sp.currency
-            ''', (direction,)).fetchall()
-        except Exception:
-            # 表不存在（如冷启动尚未 init_schema 的极端情况）兜底空
-            rows = []
-        out = {}
-        for r in rows:
-            cur = r['currency'] or 'PHP'
-            out[cur] = {'amount': float(r['total']), 'count': r['cnt']}
-        return out
-
-    # 未付款(unpaid) 也视为办理中口径
-    pending_statuses = ('pending', 'processing', 'unpaid')
-
     def build_side(direction):
         total = query_total(direction)
-        completed = query_status(direction, 'completed')
-        pending = query_status(direction, *pending_statuses)
+        # 口径统一来自金额明细 payment_status，与下面对账的金额行编辑一一对应
+        completed = query_by_payment_status(direction, 'paid', 'partial')
+        paid = query_by_payment_status(direction, 'paid')
+        unpaid = query_by_payment_status(direction, 'unpaid')
         month = query_month(direction)
-        paid = query_paid(direction)
 
         # 按币种合并：每币种一份 { amount, count, paid, unpaid }
-        currencies = set(total.keys()) | set(paid.keys())
+        currencies = set(total.keys()) | set(paid.keys()) | set(unpaid.keys())
         per_currency = []
         for cur in sorted(currencies):
             t = total.get(cur, {'amount': 0.0, 'count': 0})
             p = paid.get(cur, {'amount': 0.0, 'count': 0})
+            u = unpaid.get(cur, {'amount': 0.0, 'count': 0})
             per_currency.append({
                 'currency': cur,
                 'total': t['amount'],
                 'count': t['count'],
                 'paid': p['amount'],
-                'unpaid': max(0.0, t['amount'] - p['amount']),
+                'unpaid': u['amount'],
                 'paid_payment_count': p['count'],
             })
         return {
             'total': total,
             'completed': completed,
-            'pending': pending,
             'month': month,
             'paid': paid,
             'per_currency': per_currency,
